@@ -7,6 +7,7 @@ from ai_service import AIDraftError, generate_reply_draft
 from database import (
     connect,
     count_pending_top_level_comments,
+    count_review_comments,
     get_comment_by_id,
     get_last_action,
     get_next_review_comment,
@@ -37,6 +38,7 @@ DATABASE_PATH = env_value("DATABASE_PATH", "comments.db")
 CLIENT_SECRETS_FILE = env_value("YOUTUBE_CLIENT_SECRETS_FILE", "client_secret.json")
 TOKEN_FILE = env_value("YOUTUBE_TOKEN_FILE", "token.json")
 SKIP_MINUTES = int(env_value("WINGMAN_SKIP_MINUTES", "60"))
+WINGMAN_PORT = int(env_value("WINGMAN_PORT", "5000"))
 
 VALID_FILTERS = {
     "pending",
@@ -467,7 +469,24 @@ PAGE_TEMPLATE = """
     {% if comment %}
       <div class="review-heading">
         <h2>Current Comment</h2>
-        <div class="subtle">{{ pending_count }} comments in the normal queue</div>
+        <div class="subtle">
+          {{ offset + 1 }} of {{ review_count }} in this queue · {{ pending_count }} pending
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="tabs">
+          {% if has_previous %}
+            <a class="button" id="previous_comment_link" href="{{ url_for('index', status=status_filter, q=search, offset=previous_offset) }}">Previous <kbd>←</kbd></a>
+          {% else %}
+            <span class="button" aria-disabled="true">Previous <kbd>←</kbd></span>
+          {% endif %}
+          {% if has_next %}
+            <a class="button" id="next_comment_link" href="{{ url_for('index', status=status_filter, q=search, offset=next_offset) }}">Next <kbd>→</kbd></a>
+          {% else %}
+            <span class="button" aria-disabled="true">Next <kbd>→</kbd></span>
+          {% endif %}
+        </div>
+        <div class="subtle">Browse without changing status</div>
       </div>
       <div class="layout">
         <section class="comment">
@@ -494,6 +513,17 @@ PAGE_TEMPLATE = """
               <a class="button" href="{{ studio_url }}" target="_blank" rel="noreferrer">Open Studio</a>
             {% endif %}
           </div>
+          {% if comment["wingman_reply_text"] %}
+            <div class="panel">
+              <div class="panel-title">
+                <label>Wingman Reply</label>
+                {% if comment["replied_at"] %}
+                  <span class="hint">{{ comment["replied_at"] }}</span>
+                {% endif %}
+              </div>
+              <div class="text">{{ comment["wingman_reply_text"] }}</div>
+            </div>
+          {% endif %}
         </section>
 
         <aside>
@@ -501,6 +531,7 @@ PAGE_TEMPLATE = """
             <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
             <input type="hidden" name="status" value="{{ status_filter }}">
             <input type="hidden" name="q" value="{{ search }}">
+            <input type="hidden" name="offset" value="{{ offset }}">
             <div class="panel-title">
               <label>AI Draft</label>
               {% if comment["ai_draft_model"] %}
@@ -514,7 +545,7 @@ PAGE_TEMPLATE = """
             {% endif %}
             <div class="actions">
               <button type="submit" id="draft_button">
-                {% if comment["ai_draft_text"] %}Regenerate Draft{% else %}Generate Draft{% endif %}
+                {% if comment["ai_draft_text"] %}Regenerate Draft{% else %}Generate Draft{% endif %} <kbd>D</kbd>
               </button>
             </div>
           </form>
@@ -523,6 +554,7 @@ PAGE_TEMPLATE = """
             <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
             <input type="hidden" name="status" value="{{ status_filter }}">
             <input type="hidden" name="q" value="{{ search }}">
+            <input type="hidden" name="offset" value="{{ offset }}">
             <div class="panel-title">
               <label for="reply_text">Reply</label>
               <span class="hint"><kbd>A</kbd> focus, <kbd>Esc</kbd> leave</span>
@@ -537,18 +569,20 @@ PAGE_TEMPLATE = """
             <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
             <input type="hidden" name="status" value="{{ status_filter }}">
             <input type="hidden" name="q" value="{{ search }}">
+            <input type="hidden" name="offset" value="{{ offset }}">
             <div class="stacked-actions">
               <button type="submit" name="action" value="skip" id="skip_button">Skip For Now <kbd>S</kbd></button>
               <button class="warning" type="submit" name="action" value="needs_research" id="research_button">Needs Research <kbd>R</kbd></button>
               <button class="danger" type="submit" name="action" value="ignore" id="ignore_button">Ignore <kbd>I</kbd></button>
             </div>
-            <div class="shortcuts">Normal mode: A reply, S skip, I ignore, R research, O open. Insert mode: Esc exits, Enter submits, Shift+Enter adds a line.</div>
+            <div class="shortcuts">Normal mode: A reply, D draft, S skip, I ignore, R research, O open, arrows browse. Insert mode: Esc exits, Enter submits, Shift+Enter adds a line.</div>
           </form>
 
           <form class="panel" method="post" action="{{ url_for('save_notes') }}">
             <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
             <input type="hidden" name="status" value="{{ status_filter }}">
             <input type="hidden" name="q" value="{{ search }}">
+            <input type="hidden" name="offset" value="{{ offset }}">
             <div class="panel-title">
               <label for="notes">Notes</label>
               <span class="hint">private</span>
@@ -604,6 +638,9 @@ PAGE_TEMPLATE = """
       }
 
       const targets = {
+        "arrowleft": "previous_comment_link",
+        "arrowright": "next_comment_link",
+        "d": "draft_button",
         "s": "skip_button",
         "i": "ignore_button",
         "r": "research_button",
@@ -630,12 +667,18 @@ def current_search() -> str:
     return request.values.get("q", "").strip()
 
 
-def redirect_to_queue(message: str):
+def current_offset() -> int:
+    offset = request.values.get("offset", "0").strip()
+    return max(int(offset), 0) if offset.isdigit() else 0
+
+
+def redirect_to_queue(message: str, offset: int | None = None):
     return redirect(
         url_for(
             "index",
             status=current_filter(),
             q=current_search(),
+            offset=current_offset() if offset is None else max(offset, 0),
             message=message,
         )
     )
@@ -665,10 +708,14 @@ def youtube_studio_comments_url(comment) -> str | None:
 def load_page_data(message: str | None = None, error: str | None = None):
     status_filter = current_filter()
     search = current_search()
+    offset = current_offset()
 
     connection = connect(DATABASE_PATH)
     initialize_database(connection)
-    comment = get_next_review_comment(connection, status_filter, search)
+    review_count = count_review_comments(connection, status_filter, search)
+    if review_count and offset >= review_count:
+        offset = review_count - 1
+    comment = get_next_review_comment(connection, status_filter, search, offset)
     pending_count = count_pending_top_level_comments(connection)
     stats = get_queue_stats(connection)
     connection.close()
@@ -688,6 +735,12 @@ def load_page_data(message: str | None = None, error: str | None = None):
         PAGE_TEMPLATE,
         comment=comment,
         pending_count=pending_count,
+        review_count=review_count,
+        offset=offset,
+        previous_offset=max(offset - 1, 0),
+        next_offset=offset + 1 if offset + 1 < review_count else offset,
+        has_previous=offset > 0,
+        has_next=offset + 1 < review_count,
         stats=stats,
         status_filter=status_filter,
         search=search,
@@ -754,7 +807,7 @@ def submit_reply():
         return load_page_data(error=str(exc)), 500
 
     connection.close()
-    return redirect_to_queue("Reply posted to YouTube.")
+    return redirect_to_queue("Reply posted to YouTube.", offset=0)
 
 
 @app.post("/draft")
@@ -826,7 +879,7 @@ def comment_action():
         skip_minutes=SKIP_MINUTES,
     )
     connection.close()
-    return redirect_to_queue(message)
+    return redirect_to_queue(message, offset=0)
 
 
 @app.post("/notes")
@@ -864,8 +917,8 @@ def undo_last_action():
         return load_page_data(error=str(exc)), 500
 
     connection.close()
-    return redirect_to_queue("Last action undone.")
+    return redirect_to_queue("Last action undone.", offset=0)
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=False)
+    app.run(host="127.0.0.1", port=WINGMAN_PORT, debug=False)

@@ -244,8 +244,10 @@ def get_next_review_comment(
     connection: sqlite3.Connection,
     status_filter: str = "pending",
     search: str = "",
+    offset: int = 0,
 ) -> sqlite3.Row | None:
     """Return the next top-level comment for the current review filter."""
+    offset = max(offset, 0)
     clauses = ["COALESCE(is_reply, 0) = 0"]
     params = []
 
@@ -308,9 +310,79 @@ def get_next_review_comment(
             datetime(published_at) DESC,
             id DESC
         LIMIT 1
+        OFFSET ?
+        """,
+        [*params, offset],
+    ).fetchone()
+
+
+def count_review_comments(
+    connection: sqlite3.Connection,
+    status_filter: str = "pending",
+    search: str = "",
+) -> int:
+    """Count top-level comments for the current review filter."""
+    clauses = ["COALESCE(is_reply, 0) = 0"]
+    params = []
+
+    if status_filter == "pending":
+        clauses.append(
+            """
+            (
+                status = 'synced'
+                OR (
+                    status = 'skipped'
+                    AND (
+                        skipped_until IS NULL
+                        OR datetime(skipped_until) <= datetime('now')
+                    )
+                )
+            )
+            """
+        )
+    elif status_filter in {
+        "skipped",
+        "ignored",
+        "needs_research",
+        "externally_replied",
+        "replied",
+    }:
+        clauses.append("status = ?")
+        params.append(status_filter)
+    else:
+        clauses.append(
+            """
+            status NOT IN (
+                'replied',
+                'externally_replied',
+                'ignored'
+            )
+            """
+        )
+
+    if search:
+        clauses.append(
+            """
+            (
+                text LIKE ?
+                OR author_name LIKE ?
+                OR video_title LIKE ?
+                OR notes LIKE ?
+            )
+            """
+        )
+        like_search = f"%{search}%"
+        params.extend([like_search, like_search, like_search, like_search])
+
+    row = connection.execute(
+        f"""
+        SELECT COUNT(*) AS total
+        FROM comments
+        WHERE {" AND ".join(clauses)}
         """,
         params,
     ).fetchone()
+    return int(row["total"])
 
 
 def get_comment_by_id(
