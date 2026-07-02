@@ -104,17 +104,20 @@ The review UI also supports:
 - **Needs Research**: moves the comment into a separate research queue.
 - **Ignore**: marks the comment as `ignored` without posting a reply.
 - **Undo Last Action**: reverts the most recent local action. If the action posted a YouTube reply, Wingman tries to delete that reply from YouTube too.
+- **Previous / Next**: browse through the current queue without changing comment state.
 - Queue filters for pending, skipped, needs research, external replies, ignored, replied, and all active comments.
 - Search across comment text, author, video title, and notes.
 - Notes for follow-up context.
+- Replied comments show the reply text Wingman posted.
 - Links to open the original YouTube video, comment, or Studio comments page.
 - Comment like/heart actions are not automated because the official YouTube Data API comments methods do not provide supported endpoints for those actions.
-- Keyboard shortcuts: A focuses the reply box, Esc leaves it, Enter or Cmd/Ctrl+Enter replies, S skips, I ignores, R marks needs research, and O opens the YouTube comment. Shift+Enter adds a new line while writing a reply.
+- Keyboard shortcuts: A focuses the reply box, Esc leaves it, Enter or Cmd/Ctrl+Enter replies, D generates an AI draft, S skips, I ignores, R marks needs research, O opens the YouTube comment, and arrow keys browse the queue. Shift+Enter adds a new line while writing a reply.
 
 By default, skipped comments return to the pending queue after 60 minutes. Override this in `.env`:
 
 ```text
 WINGMAN_SKIP_MINUTES=60
+WINGMAN_PORT=5000
 ```
 
 ## OpenAI Draft Replies
