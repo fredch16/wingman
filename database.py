@@ -25,6 +25,10 @@ CREATE TABLE IF NOT EXISTS comments (
     skipped_until TEXT,
     last_seen_at TEXT,
     notes TEXT,
+    ai_draft_text TEXT,
+    ai_draft_model TEXT,
+    ai_draft_provider TEXT,
+    ai_drafted_at TEXT,
     status TEXT DEFAULT 'synced'
 );
 """
@@ -39,6 +43,10 @@ MIGRATIONS = [
     ("skipped_until", "ALTER TABLE comments ADD COLUMN skipped_until TEXT"),
     ("last_seen_at", "ALTER TABLE comments ADD COLUMN last_seen_at TEXT"),
     ("notes", "ALTER TABLE comments ADD COLUMN notes TEXT"),
+    ("ai_draft_text", "ALTER TABLE comments ADD COLUMN ai_draft_text TEXT"),
+    ("ai_draft_model", "ALTER TABLE comments ADD COLUMN ai_draft_model TEXT"),
+    ("ai_draft_provider", "ALTER TABLE comments ADD COLUMN ai_draft_provider TEXT"),
+    ("ai_drafted_at", "ALTER TABLE comments ADD COLUMN ai_drafted_at TEXT"),
 ]
 
 
@@ -428,6 +436,28 @@ def update_comment_notes(
         WHERE id = ?
         """,
         (notes, utc_now_iso(), comment_id),
+    )
+    connection.commit()
+
+
+def save_ai_draft(
+    connection: sqlite3.Connection,
+    comment_id: int,
+    draft_text: str,
+    model: str,
+    provider: str,
+) -> None:
+    """Store the latest AI draft for a comment without changing review status."""
+    connection.execute(
+        """
+        UPDATE comments
+        SET ai_draft_text = ?,
+            ai_draft_model = ?,
+            ai_draft_provider = ?,
+            ai_drafted_at = ?
+        WHERE id = ?
+        """,
+        (draft_text, model, provider, utc_now_iso(), comment_id),
     )
     connection.commit()
 

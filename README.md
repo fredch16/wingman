@@ -117,6 +117,25 @@ By default, skipped comments return to the pending queue after 60 minutes. Overr
 WINGMAN_SKIP_MINUTES=60
 ```
 
+## OpenAI Draft Replies
+
+Wingman can generate an AI draft and place it into the reply box for you to edit. It never posts AI output automatically. You still have to click **Confirm & Reply** to publish.
+
+To enable OpenAI drafts:
+
+1. Create or sign in to an OpenAI Platform account.
+2. Add billing/payment details in the OpenAI Platform dashboard.
+3. Create an API key.
+4. Add the key to `.env`:
+
+```text
+AI_PROVIDER=openai
+OPENAI_MODEL=gpt-5.5
+OPENAI_API_KEY=your_api_key_here
+```
+
+Then restart the Flask app and click **Generate Draft** in the review UI.
+
 ## What Gets Stored
 
 The SQLite table is created automatically:
@@ -143,6 +162,10 @@ published_at TEXT,
     skipped_until TEXT,
     last_seen_at TEXT,
     notes TEXT,
+    ai_draft_text TEXT,
+    ai_draft_model TEXT,
+    ai_draft_provider TEXT,
+    ai_drafted_at TEXT,
     status TEXT DEFAULT 'synced'
 );
 ```
@@ -153,5 +176,5 @@ Duplicates are avoided with `youtube_comment_id`. When a comment already exists,
 
 - This milestone stores top-level comments and replies.
 - The manual review UI can post replies you type yourself.
-- No AI functionality is included yet.
+- AI drafts are editable suggestions only and are never posted automatically.
 - The code is structured so later milestones can add AI draft replies, review status, and one-click approval without changing the basic sync foundation.
