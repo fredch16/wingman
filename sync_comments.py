@@ -4,7 +4,13 @@ import sys
 
 from dotenv import load_dotenv
 
-from database import connect, count_comments, initialize_database, upsert_comment
+from database import (
+    connect,
+    count_comments,
+    initialize_database,
+    reconcile_external_reply_status,
+    upsert_comment,
+)
 from youtube_api import (
     YouTubeApiError,
     authenticate,
@@ -78,6 +84,7 @@ def main() -> int:
             upsert_comment(connection, comment)
             fetched_count += 1
             thread_count += 1
+            has_channel_reply = False
 
             if total_reply_count(thread):
                 for reply in fetch_comment_replies(youtube, comment["youtube_comment_id"]):
@@ -89,6 +96,8 @@ def main() -> int:
                         continue
 
                     upsert_comment(connection, reply_comment)
+                    if reply_comment.get("author_channel_id") == channel_id:
+                        has_channel_reply = True
                     fetched_count += 1
                     reply_count += 1
 
@@ -102,6 +111,12 @@ def main() -> int:
                             f"({thread_count} top-level, {reply_count} replies)..."
                         )
                         last_progress_count = fetched_count
+
+            reconcile_external_reply_status(
+                connection,
+                comment["youtube_comment_id"],
+                has_channel_reply,
+            )
 
             if fetched_count % 100 == 0 and fetched_count != last_progress_count:
                 connection.commit()
