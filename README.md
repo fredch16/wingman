@@ -109,6 +109,7 @@ The review UI also supports:
 - Notes for follow-up context.
 - Links to open the original YouTube video, comment, or Studio comments page.
 - Comment like/heart actions are not automated because the official YouTube Data API comments methods do not provide supported endpoints for those actions.
+- Keyboard shortcuts: Enter or Cmd/Ctrl+Enter replies, S skips, I ignores, R marks needs research, and O opens the YouTube comment. Shift+Enter adds a new line while writing a reply.
 
 By default, skipped comments return to the pending queue after 60 minutes. Override this in `.env`:
 

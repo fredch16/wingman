@@ -82,7 +82,7 @@ PAGE_TEMPLATE = """
     }
 
     .shell {
-      width: min(1120px, calc(100vw - 32px));
+      width: min(1180px, calc(100vw - 32px));
       margin: 28px auto;
     }
 
@@ -115,6 +115,20 @@ PAGE_TEMPLATE = """
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 8px;
+    }
+
+    .review-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .review-heading h2 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
     }
 
     .stats {
@@ -238,13 +252,14 @@ PAGE_TEMPLATE = """
 
     .layout {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 340px;
-      gap: 14px;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 16px;
       align-items: start;
     }
 
     .comment {
-      padding: 20px;
+      padding: 24px;
+      min-height: 360px;
     }
 
     .meta {
@@ -253,12 +268,14 @@ PAGE_TEMPLATE = """
       gap: 8px 12px;
       color: var(--muted);
       font-size: 14px;
-      margin-bottom: 14px;
+      margin-bottom: 18px;
     }
 
     .video {
       color: var(--text);
       font-weight: 700;
+      width: 100%;
+      font-size: 18px;
     }
 
     .status {
@@ -271,15 +288,16 @@ PAGE_TEMPLATE = """
     }
 
     .author {
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 700;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
     }
 
     .text {
       white-space: pre-wrap;
       overflow-wrap: anywhere;
-      font-size: 18px;
+      font-size: 22px;
+      line-height: 1.5;
     }
 
     .link-row {
@@ -294,6 +312,29 @@ PAGE_TEMPLATE = """
       margin-bottom: 14px;
     }
 
+    .panel-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+      margin-bottom: 8px;
+    }
+
+    .panel-title label {
+      margin: 0;
+    }
+
+    kbd {
+      border: 1px solid var(--line);
+      border-bottom-width: 2px;
+      border-radius: 6px;
+      padding: 1px 5px;
+      color: var(--muted);
+      background: #f6f8fa;
+      font-size: 12px;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
     label {
       display: block;
       font-weight: 700;
@@ -302,7 +343,7 @@ PAGE_TEMPLATE = """
 
     textarea {
       width: 100%;
-      min-height: 150px;
+      min-height: 170px;
       resize: vertical;
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -324,10 +365,24 @@ PAGE_TEMPLATE = """
       margin-top: 12px;
     }
 
+    .stacked-actions {
+      display: grid;
+      gap: 10px;
+    }
+
+    .stacked-actions button {
+      width: 100%;
+    }
+
     .shortcuts {
       color: var(--muted);
       font-size: 13px;
       margin-top: 10px;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
     }
 
     @media (max-width: 860px) {
@@ -369,7 +424,7 @@ PAGE_TEMPLATE = """
     <div class="topbar">
       <div>
         <h1>Wingman Review</h1>
-        <div class="subtle">{{ pending_count }} comments in the normal queue</div>
+        <div class="subtle">Review one comment, then move cleanly to the next.</div>
       </div>
       <form method="post" action="{{ url_for('undo_last_action') }}">
         <button type="submit">Undo Last Action</button>
@@ -408,6 +463,10 @@ PAGE_TEMPLATE = """
     {% endif %}
 
     {% if comment %}
+      <div class="review-heading">
+        <h2>Current Comment</h2>
+        <div class="subtle">{{ pending_count }} comments in the normal queue</div>
+      </div>
       <div class="layout">
         <section class="comment">
           <div class="meta">
@@ -427,7 +486,7 @@ PAGE_TEMPLATE = """
               <a class="button" href="{{ video_url }}" target="_blank" rel="noreferrer">Open Video</a>
             {% endif %}
             {% if comment_url %}
-              <a class="button" href="{{ comment_url }}" target="_blank" rel="noreferrer">Open Comment</a>
+              <a class="button" id="open_comment_link" href="{{ comment_url }}" target="_blank" rel="noreferrer">Open Comment <kbd>O</kbd></a>
             {% endif %}
             {% if studio_url %}
               <a class="button" href="{{ studio_url }}" target="_blank" rel="noreferrer">Open Studio</a>
@@ -440,8 +499,11 @@ PAGE_TEMPLATE = """
             <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
             <input type="hidden" name="status" value="{{ status_filter }}">
             <input type="hidden" name="q" value="{{ search }}">
-            <label for="reply_text">Reply</label>
-            <textarea id="reply_text" name="reply_text" required autofocus></textarea>
+            <div class="panel-title">
+              <label for="reply_text">Reply</label>
+              <span class="hint"><kbd>Enter</kbd> or <kbd>Cmd</kbd>+<kbd>Enter</kbd></span>
+            </div>
+            <textarea id="reply_text" name="reply_text" required></textarea>
             <div class="actions">
               <button class="primary" type="submit" id="reply_button">Confirm & Reply</button>
             </div>
@@ -451,19 +513,22 @@ PAGE_TEMPLATE = """
             <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
             <input type="hidden" name="status" value="{{ status_filter }}">
             <input type="hidden" name="q" value="{{ search }}">
-            <div class="actions">
-              <button type="submit" name="action" value="skip" id="skip_button">Skip For Now</button>
-              <button class="warning" type="submit" name="action" value="needs_research" id="research_button">Needs Research</button>
-              <button class="danger" type="submit" name="action" value="ignore" id="ignore_button">Ignore</button>
+            <div class="stacked-actions">
+              <button type="submit" name="action" value="skip" id="skip_button">Skip For Now <kbd>S</kbd></button>
+              <button class="warning" type="submit" name="action" value="needs_research" id="research_button">Needs Research <kbd>R</kbd></button>
+              <button class="danger" type="submit" name="action" value="ignore" id="ignore_button">Ignore <kbd>I</kbd></button>
             </div>
-            <div class="shortcuts">Shortcuts: Ctrl+Enter reply, S skip, I ignore, R research.</div>
+            <div class="shortcuts">Shortcuts work while the reply box is focused. Type Shift+Enter for a new line.</div>
           </form>
 
           <form class="panel" method="post" action="{{ url_for('save_notes') }}">
             <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
             <input type="hidden" name="status" value="{{ status_filter }}">
             <input type="hidden" name="q" value="{{ search }}">
-            <label for="notes">Notes</label>
+            <div class="panel-title">
+              <label for="notes">Notes</label>
+              <span class="hint">private</span>
+            </div>
             <textarea class="notes" id="notes" name="notes">{{ comment["notes"] or "" }}</textarea>
             <div class="actions">
               <button type="submit">Save Notes</button>
@@ -480,25 +545,37 @@ PAGE_TEMPLATE = """
     document.addEventListener("keydown", function (event) {
       const active = document.activeElement;
       const isTyping = active && (active.tagName === "TEXTAREA" || active.tagName === "INPUT");
+      const isReplyBox = active && active.id === "reply_text";
+      const isNotesBox = active && active.id === "notes";
+      const hasModifier = event.ctrlKey || event.metaKey;
 
-      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      if (
+        event.key === "Enter"
+        && !event.shiftKey
+        && (hasModifier || isReplyBox || !isTyping)
+      ) {
+        event.preventDefault();
         const button = document.getElementById("reply_button");
         if (button) button.click();
         return;
       }
 
-      if (isTyping) return;
+      if (isTyping && !isReplyBox) return;
 
       const key = event.key.toLowerCase();
+      if (isReplyBox && event.shiftKey) return;
+      if (isReplyBox && active.value.trim().length > 0) return;
+
       const targets = {
         "s": "skip_button",
         "i": "ignore_button",
-        "r": "research_button"
+        "r": "research_button",
+        "o": "open_comment_link"
       };
-      if (targets[key]) {
+      if (targets[key] && !hasModifier && !isNotesBox) {
         event.preventDefault();
-        const button = document.getElementById(targets[key]);
-        if (button) button.click();
+        const target = document.getElementById(targets[key]);
+        if (target) target.click();
       }
     });
   </script>
