@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from openai import OpenAI, OpenAIError
 
 
-PROMPT_VERSION = "youtube_reply_v1"
+PROMPT_VERSION = "youtube_reply_v2"
 
 
 class AIDraftError(RuntimeError):
@@ -98,9 +98,10 @@ def build_reply_prompt(comment: dict) -> str:
     video_title = comment.get("video_title") or "Unknown video"
     author_name = comment.get("author_name") or "Unknown commenter"
     comment_text = comment.get("text") or ""
-    notes = comment.get("notes") or ""
+    notes = (comment.get("notes") or "").strip()
 
-    return f"""
+    prompt_parts = [
+        f"""
 Video title:
 {video_title}
 
@@ -109,9 +110,21 @@ Comment author:
 
 Comment:
 {comment_text}
+""".strip()
+    ]
 
-Private notes from the creator:
-{notes if notes else "None"}
+    if notes:
+        prompt_parts.append(
+            f"""
+Extra creator notes:
+{notes}
+""".strip()
+        )
 
+    prompt_parts.append(
+        """
 Draft one short reply I can edit before posting. Keep it friendly and direct.
 """.strip()
+    )
+
+    return "\n\n".join(prompt_parts)
