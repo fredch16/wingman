@@ -153,12 +153,12 @@ Every AI generation is logged in SQLite in `ai_drafts` with:
 - `status`
 - `created_at`
 
-The current prompt version is `youtube_reply_v1`. It sends only the context needed for a useful reply:
+The current prompt version is `youtube_reply_v2`. It sends only the context needed for a useful reply:
 
 - video title
 - commenter display name
 - comment text
-- your private notes for that comment
+- your private notes for that comment, only when notes are present
 
 The model is instructed to draft a concise YouTube creator reply, avoid inventing facts, ask a brief clarifying question if context is missing, and return only editable reply text.
 
