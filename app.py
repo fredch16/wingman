@@ -46,7 +46,6 @@ VALID_FILTERS = {
     "skipped",
     "ignored",
     "needs_reply",
-    "needs_research",
     "externally_replied",
     "replied",
     "all",
@@ -139,7 +138,7 @@ PAGE_TEMPLATE = """
 
     .stats {
       display: grid;
-      grid-template-columns: repeat(8, minmax(0, 1fr));
+      grid-template-columns: repeat(7, minmax(0, 1fr));
       gap: 1px;
       overflow: hidden;
       margin-bottom: 14px;
@@ -441,7 +440,6 @@ PAGE_TEMPLATE = """
       <div class="stat"><strong>{{ stats.pending }}</strong><span>Pending</span></div>
       <div class="stat"><strong>{{ stats.needs_reply }}</strong><span>Needs reply</span></div>
       <div class="stat"><strong>{{ stats.skipped }}</strong><span>Skipped</span></div>
-      <div class="stat"><strong>{{ stats.needs_research }}</strong><span>Needs research</span></div>
       <div class="stat"><strong>{{ stats.ignored }}</strong><span>Ignored</span></div>
       <div class="stat"><strong>{{ stats.externally_replied }}</strong><span>External replies</span></div>
       <div class="stat"><strong>{{ stats.replied }}</strong><span>Replied</span></div>
@@ -583,13 +581,12 @@ PAGE_TEMPLATE = """
             <div class="stacked-actions">
               <button class="primary" type="submit" name="action" value="needs_reply" id="needs_reply_button">Needs Reply <kbd>N</kbd></button>
               <button type="submit" name="action" value="skip" id="skip_button">Skip For Now <kbd>S</kbd></button>
-              <button class="warning" type="submit" name="action" value="needs_research" id="research_button">Needs Research <kbd>R</kbd></button>
               <button class="danger" type="submit" name="action" value="ignore" id="ignore_button">Ignore <kbd>I</kbd></button>
-              {% if comment["status"] in ["skipped", "ignored", "needs_research", "needs_reply"] %}
+              {% if comment["status"] in ["skipped", "ignored", "needs_reply"] %}
                 <button type="submit" name="action" value="pending" id="pending_button">Move to Pending <kbd>P</kbd></button>
               {% endif %}
             </div>
-            <div class="shortcuts">Normal mode: A reply, D draft, N needs reply, P pending, S skip, I ignore, R research, O open, arrows browse. Insert mode: Esc exits, Enter submits, Shift+Enter adds a line.</div>
+            <div class="shortcuts">Normal mode: A reply, D draft, N needs reply, P pending, S skip, I ignore, O open, arrows browse. Insert mode: Esc exits, Enter submits, Shift+Enter adds a line.</div>
           </form>
 
           <form class="panel" method="post" action="{{ url_for('save_notes') }}">
@@ -659,7 +656,6 @@ PAGE_TEMPLATE = """
         "p": "pending_button",
         "s": "skip_button",
         "i": "ignore_button",
-        "r": "research_button",
         "o": "open_comment_link"
       };
       if (targets[key] && !hasModifier && !isNotesBox) {
@@ -764,7 +760,6 @@ def load_page_data(message: str | None = None, error: str | None = None):
             ("pending", "Pending"),
             ("needs_reply", "Needs Reply"),
             ("skipped", "Skipped"),
-            ("needs_research", "Needs Research"),
             ("externally_replied", "External Replies"),
             ("ignored", "Ignored"),
             ("replied", "Replied"),
@@ -878,11 +873,6 @@ def comment_action():
         "pending": ("synced", "pending", "Moved back to pending."),
         "skip": ("skipped", "skip", "Skipped for now."),
         "ignore": ("ignored", "ignore", "Ignored. It will not appear in the normal queue."),
-        "needs_research": (
-            "needs_research",
-            "needs_research",
-            "Marked as needs research.",
-        ),
     }
     if action not in actions:
         return load_page_data(error="Unknown action."), 400
@@ -898,7 +888,7 @@ def comment_action():
         skip_minutes=SKIP_MINUTES,
     )
     connection.close()
-    return redirect_to_queue(message, offset=0)
+    return redirect_to_queue(message)
 
 
 @app.post("/drafts/batch")
