@@ -501,11 +501,11 @@ PAGE_TEMPLATE = """
             <input type="hidden" name="q" value="{{ search }}">
             <div class="panel-title">
               <label for="reply_text">Reply</label>
-              <span class="hint"><kbd>Enter</kbd> or <kbd>Cmd</kbd>+<kbd>Enter</kbd></span>
+              <span class="hint"><kbd>A</kbd> focus, <kbd>Esc</kbd> leave</span>
             </div>
             <textarea id="reply_text" name="reply_text" required></textarea>
             <div class="actions">
-              <button class="primary" type="submit" id="reply_button">Confirm & Reply</button>
+              <button class="primary" type="submit" id="reply_button">Confirm & Reply <kbd>Enter</kbd></button>
             </div>
           </form>
 
@@ -518,7 +518,7 @@ PAGE_TEMPLATE = """
               <button class="warning" type="submit" name="action" value="needs_research" id="research_button">Needs Research <kbd>R</kbd></button>
               <button class="danger" type="submit" name="action" value="ignore" id="ignore_button">Ignore <kbd>I</kbd></button>
             </div>
-            <div class="shortcuts">Shortcuts work while the reply box is focused. Type Shift+Enter for a new line.</div>
+            <div class="shortcuts">Normal mode: A reply, S skip, I ignore, R research, O open. Insert mode: Esc exits, Enter submits, Shift+Enter adds a line.</div>
           </form>
 
           <form class="panel" method="post" action="{{ url_for('save_notes') }}">
@@ -548,6 +548,13 @@ PAGE_TEMPLATE = """
       const isReplyBox = active && active.id === "reply_text";
       const isNotesBox = active && active.id === "notes";
       const hasModifier = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
+
+      if (event.key === "Escape" && isTyping) {
+        event.preventDefault();
+        active.blur();
+        return;
+      }
 
       if (
         event.key === "Enter"
@@ -562,9 +569,15 @@ PAGE_TEMPLATE = """
 
       if (isTyping && !isReplyBox) return;
 
-      const key = event.key.toLowerCase();
       if (isReplyBox && event.shiftKey) return;
       if (isReplyBox && active.value.trim().length > 0) return;
+
+      if (key === "a" && !hasModifier && !isTyping) {
+        event.preventDefault();
+        const replyBox = document.getElementById("reply_text");
+        if (replyBox) replyBox.focus();
+        return;
+      }
 
       const targets = {
         "s": "skip_button",
