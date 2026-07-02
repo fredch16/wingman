@@ -9,6 +9,7 @@ from database import (
     count_pending_top_level_comments,
     count_review_comments,
     get_comment_by_id,
+    get_comments_needing_drafts,
     get_last_action,
     get_next_review_comment,
     get_queue_stats,
@@ -44,6 +45,7 @@ VALID_FILTERS = {
     "pending",
     "skipped",
     "ignored",
+    "needs_reply",
     "needs_research",
     "externally_replied",
     "replied",
@@ -137,7 +139,7 @@ PAGE_TEMPLATE = """
 
     .stats {
       display: grid;
-      grid-template-columns: repeat(7, minmax(0, 1fr));
+      grid-template-columns: repeat(8, minmax(0, 1fr));
       gap: 1px;
       overflow: hidden;
       margin-bottom: 14px;
@@ -437,6 +439,7 @@ PAGE_TEMPLATE = """
 
     <section class="stats">
       <div class="stat"><strong>{{ stats.pending }}</strong><span>Pending</span></div>
+      <div class="stat"><strong>{{ stats.needs_reply }}</strong><span>Needs reply</span></div>
       <div class="stat"><strong>{{ stats.skipped }}</strong><span>Skipped</span></div>
       <div class="stat"><strong>{{ stats.needs_research }}</strong><span>Needs research</span></div>
       <div class="stat"><strong>{{ stats.ignored }}</strong><span>Ignored</span></div>
@@ -455,6 +458,13 @@ PAGE_TEMPLATE = """
         <input type="hidden" name="status" value="{{ status_filter }}">
         <input type="search" name="q" value="{{ search }}" placeholder="Search comments">
         <button type="submit">Search</button>
+      </form>
+    </section>
+
+    <section class="toolbar">
+      <div class="subtle">Draft inbox: mark comments as Needs Reply, then generate drafts for that queue.</div>
+      <form method="post" action="{{ url_for('generate_batch_drafts') }}">
+        <button type="submit">Generate Batch Drafts</button>
       </form>
     </section>
 
@@ -571,11 +581,15 @@ PAGE_TEMPLATE = """
             <input type="hidden" name="q" value="{{ search }}">
             <input type="hidden" name="offset" value="{{ offset }}">
             <div class="stacked-actions">
+              <button class="primary" type="submit" name="action" value="needs_reply" id="needs_reply_button">Needs Reply <kbd>N</kbd></button>
               <button type="submit" name="action" value="skip" id="skip_button">Skip For Now <kbd>S</kbd></button>
               <button class="warning" type="submit" name="action" value="needs_research" id="research_button">Needs Research <kbd>R</kbd></button>
               <button class="danger" type="submit" name="action" value="ignore" id="ignore_button">Ignore <kbd>I</kbd></button>
+              {% if comment["status"] in ["skipped", "ignored", "needs_research", "needs_reply"] %}
+                <button type="submit" name="action" value="pending" id="pending_button">Move to Pending <kbd>P</kbd></button>
+              {% endif %}
             </div>
-            <div class="shortcuts">Normal mode: A reply, D draft, S skip, I ignore, R research, O open, arrows browse. Insert mode: Esc exits, Enter submits, Shift+Enter adds a line.</div>
+            <div class="shortcuts">Normal mode: A reply, D draft, N needs reply, P pending, S skip, I ignore, R research, O open, arrows browse. Insert mode: Esc exits, Enter submits, Shift+Enter adds a line.</div>
           </form>
 
           <form class="panel" method="post" action="{{ url_for('save_notes') }}">
@@ -641,6 +655,8 @@ PAGE_TEMPLATE = """
         "arrowleft": "previous_comment_link",
         "arrowright": "next_comment_link",
         "d": "draft_button",
+        "n": "needs_reply_button",
+        "p": "pending_button",
         "s": "skip_button",
         "i": "ignore_button",
         "r": "research_button",
@@ -746,6 +762,7 @@ def load_page_data(message: str | None = None, error: str | None = None):
         search=search,
         filters=[
             ("pending", "Pending"),
+            ("needs_reply", "Needs Reply"),
             ("skipped", "Skipped"),
             ("needs_research", "Needs Research"),
             ("externally_replied", "External Replies"),
@@ -857,6 +874,8 @@ def comment_action():
         return load_page_data(error="Missing or invalid comment ID."), 400
 
     actions = {
+        "needs_reply": ("needs_reply", "needs_reply", "Marked as needs reply."),
+        "pending": ("synced", "pending", "Moved back to pending."),
         "skip": ("skipped", "skip", "Skipped for now."),
         "ignore": ("ignored", "ignore", "Ignored. It will not appear in the normal queue."),
         "needs_research": (
@@ -880,6 +899,58 @@ def comment_action():
     )
     connection.close()
     return redirect_to_queue(message, offset=0)
+
+
+@app.post("/drafts/batch")
+def generate_batch_drafts():
+    connection = connect(DATABASE_PATH)
+    initialize_database(connection)
+    comments = get_comments_needing_drafts(connection)
+
+    generated_count = 0
+    failed_count = 0
+    first_error = None
+
+    for comment in comments:
+        try:
+            draft = generate_reply_draft(dict(comment))
+            save_ai_draft(
+                connection,
+                int(comment["id"]),
+                draft.text,
+                draft.model,
+                draft.provider,
+                draft.prompt_version,
+                draft.prompt_text,
+            )
+            generated_count += 1
+        except AIDraftError as exc:
+            failed_count += 1
+            if first_error is None:
+                first_error = str(exc)
+            break
+
+    connection.close()
+
+    if failed_count:
+        return redirect(
+            url_for(
+                "index",
+                status="needs_reply",
+                message=(
+                    f"Generated {generated_count} drafts before an error: "
+                    f"{first_error}"
+                ),
+            )
+        )
+
+    return redirect(
+        url_for(
+            "index",
+            status="needs_reply",
+            message=f"Generated {generated_count} batch drafts.",
+        )
+    )
 
 
 @app.post("/notes")
