@@ -154,7 +154,6 @@ def upsert_comment(connection: sqlite3.Connection, comment: dict) -> None:
                     'externally_replied',
                     'ignored',
                     'needs_reply',
-                    'needs_research',
                     'skipped'
                 ) THEN comments.status
                 ELSE 'synced'
@@ -219,7 +218,6 @@ def get_queue_stats(connection: sqlite3.Connection) -> dict:
         "skipped": 0,
         "ignored": 0,
         "needs_reply": 0,
-        "needs_research": 0,
         "externally_replied": 0,
         "replied": 0,
     }
@@ -272,7 +270,6 @@ def get_next_review_comment(
         "skipped",
         "ignored",
         "needs_reply",
-        "needs_research",
         "externally_replied",
         "replied",
     }:
@@ -347,7 +344,6 @@ def count_review_comments(
         "skipped",
         "ignored",
         "needs_reply",
-        "needs_research",
         "externally_replied",
         "replied",
     }:
