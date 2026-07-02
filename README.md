@@ -105,7 +105,8 @@ The review UI also supports:
 - Queue filters for pending, skipped, needs research, ignored, replied, and all active comments.
 - Search across comment text, author, video title, and notes.
 - Notes for follow-up context.
-- Links to open the original YouTube video or comment.
+- Links to open the original YouTube video, comment, or Studio comments page.
+- Comment like/heart actions are not automated because the official YouTube Data API comments methods do not provide supported endpoints for those actions.
 
 By default, skipped comments return to the pending queue after 60 minutes. Override this in `.env`:
 
