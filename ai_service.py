@@ -4,6 +4,9 @@ from dataclasses import dataclass
 from openai import OpenAI, OpenAIError
 
 
+PROMPT_VERSION = "youtube_reply_v1"
+
+
 class AIDraftError(RuntimeError):
     """Raised when Wingman cannot generate an AI draft."""
 
@@ -13,6 +16,8 @@ class DraftResult:
     text: str
     model: str
     provider: str
+    prompt_version: str
+    prompt_text: str
 
 
 def env_value(name: str, default: str) -> str:
@@ -80,7 +85,13 @@ def generate_openai_reply_draft(comment: dict) -> DraftResult:
     if not draft_text:
         raise AIDraftError("OpenAI returned an empty draft.")
 
-    return DraftResult(text=draft_text, model=model, provider="openai")
+    return DraftResult(
+        text=draft_text,
+        model=model,
+        provider="openai",
+        prompt_version=PROMPT_VERSION,
+        prompt_text=prompt,
+    )
 
 
 def build_reply_prompt(comment: dict) -> str:

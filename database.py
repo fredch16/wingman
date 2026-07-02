@@ -68,6 +68,21 @@ CREATE TABLE IF NOT EXISTS action_history (
 """
 
 
+AI_DRAFTS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS ai_drafts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    comment_id INTEGER NOT NULL,
+    model TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    prompt_version TEXT NOT NULL,
+    prompt_text TEXT NOT NULL,
+    suggested_reply TEXT NOT NULL,
+    status TEXT DEFAULT 'generated',
+    created_at TEXT NOT NULL
+);
+"""
+
+
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -88,6 +103,7 @@ def initialize_database(connection: sqlite3.Connection) -> None:
     """Create database tables if they do not already exist."""
     connection.execute(SCHEMA)
     connection.execute(ACTION_HISTORY_SCHEMA)
+    connection.execute(AI_DRAFTS_SCHEMA)
     existing_columns = {
         row["name"] for row in connection.execute("PRAGMA table_info(comments)")
     }
@@ -446,8 +462,37 @@ def save_ai_draft(
     draft_text: str,
     model: str,
     provider: str,
+    prompt_version: str,
+    prompt_text: str,
+    status: str = "generated",
 ) -> None:
-    """Store the latest AI draft for a comment without changing review status."""
+    """Log an AI draft and store it as the latest draft on the comment."""
+    created_at = utc_now_iso()
+    connection.execute(
+        """
+        INSERT INTO ai_drafts (
+            comment_id,
+            model,
+            provider,
+            prompt_version,
+            prompt_text,
+            suggested_reply,
+            status,
+            created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            comment_id,
+            model,
+            provider,
+            prompt_version,
+            prompt_text,
+            draft_text,
+            status,
+            created_at,
+        ),
+    )
     connection.execute(
         """
         UPDATE comments
@@ -457,7 +502,7 @@ def save_ai_draft(
             ai_drafted_at = ?
         WHERE id = ?
         """,
-        (draft_text, model, provider, utc_now_iso(), comment_id),
+        (draft_text, model, provider, created_at, comment_id),
     )
     connection.commit()
 

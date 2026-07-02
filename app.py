@@ -784,6 +784,8 @@ def generate_draft():
             draft.text,
             draft.model,
             draft.provider,
+            draft.prompt_version,
+            draft.prompt_text,
         )
     except AIDraftError as exc:
         connection.close()

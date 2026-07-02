@@ -136,6 +136,26 @@ OPENAI_API_KEY=your_api_key_here
 
 Then restart the Flask app and click **Generate Draft** in the review UI.
 
+Every AI generation is logged in SQLite in `ai_drafts` with:
+
+- `comment_id`
+- `model`
+- `provider`
+- `prompt_version`
+- `prompt_text`
+- `suggested_reply`
+- `status`
+- `created_at`
+
+The current prompt version is `youtube_reply_v1`. It sends only the context needed for a useful reply:
+
+- video title
+- commenter display name
+- comment text
+- your private notes for that comment
+
+The model is instructed to draft a concise YouTube creator reply, avoid inventing facts, ask a brief clarifying question if context is missing, and return only editable reply text.
+
 ## What Gets Stored
 
 The SQLite table is created automatically:
@@ -167,6 +187,22 @@ published_at TEXT,
     ai_draft_provider TEXT,
     ai_drafted_at TEXT,
     status TEXT DEFAULT 'synced'
+);
+```
+
+AI draft attempts are logged separately:
+
+```sql
+CREATE TABLE IF NOT EXISTS ai_drafts (
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+comment_id INTEGER NOT NULL,
+model TEXT NOT NULL,
+provider TEXT NOT NULL,
+prompt_version TEXT NOT NULL,
+prompt_text TEXT NOT NULL,
+suggested_reply TEXT NOT NULL,
+status TEXT DEFAULT 'generated',
+created_at TEXT NOT NULL
 );
 ```
 
