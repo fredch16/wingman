@@ -153,6 +153,7 @@ def upsert_comment(connection: sqlite3.Connection, comment: dict) -> None:
                     'replied',
                     'externally_replied',
                     'ignored',
+                    'needs_reply',
                     'needs_research',
                     'skipped'
                 ) THEN comments.status
@@ -217,6 +218,7 @@ def get_queue_stats(connection: sqlite3.Connection) -> dict:
         "pending": 0,
         "skipped": 0,
         "ignored": 0,
+        "needs_reply": 0,
         "needs_research": 0,
         "externally_replied": 0,
         "replied": 0,
@@ -269,6 +271,7 @@ def get_next_review_comment(
     elif status_filter in {
         "skipped",
         "ignored",
+        "needs_reply",
         "needs_research",
         "externally_replied",
         "replied",
@@ -343,6 +346,7 @@ def count_review_comments(
     elif status_filter in {
         "skipped",
         "ignored",
+        "needs_reply",
         "needs_research",
         "externally_replied",
         "replied",
@@ -392,6 +396,30 @@ def get_comment_by_id(
         "SELECT * FROM comments WHERE id = ?",
         (comment_id,),
     ).fetchone()
+
+
+def get_comments_needing_drafts(
+    connection: sqlite3.Connection,
+    limit: int | None = None,
+) -> list[sqlite3.Row]:
+    """Return comments marked for reply that do not have an AI draft yet."""
+    sql = """
+        SELECT *
+        FROM comments
+        WHERE COALESCE(is_reply, 0) = 0
+          AND status = 'needs_reply'
+          AND (
+              ai_draft_text IS NULL
+              OR TRIM(ai_draft_text) = ''
+          )
+        ORDER BY datetime(published_at) DESC, id DESC
+    """
+    params = []
+    if limit is not None:
+        sql += " LIMIT ?"
+        params.append(limit)
+
+    return list(connection.execute(sql, params).fetchall())
 
 
 def mark_comment_replied(
