@@ -1,0 +1,13 @@
+venv/
+.venv/
+
+.env
+.env.*
+!.env.example
+
+client_secret.json
+token.json
+comments.db
+
+__pycache__/
+*.py[cod]
