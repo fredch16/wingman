@@ -2,9 +2,9 @@
 
 First milestone for a local YouTube Comment Assistant.
 
-This project authenticates with the YouTube Data API v3, fetches all comment threads related to your authenticated channel, and stores top-level comments in a local SQLite database.
+This project authenticates with the YouTube Data API v3, fetches comment threads and replies related to your authenticated channel, and stores comments in a local SQLite database.
 
-It does not post replies, generate AI drafts, filter comments, or provide a Flask UI yet.
+It does not generate AI drafts or automate replies. The Flask UI only posts replies that you manually type and submit.
 
 ## Project Structure
 
@@ -63,9 +63,55 @@ source .venv/bin/activate
 python sync_comments.py
 ```
 
+To sync only one video, pass its YouTube video ID:
+
+```bash
+python sync_comments.py --video-id VIDEO_ID_HERE
+```
+
+You can also put a default video filter in `.env`:
+
+```text
+YOUTUBE_VIDEO_ID=VIDEO_ID_HERE
+```
+
 The first run opens an OAuth flow. In WSL, the script prints a local authorization URL. Open that URL in your Windows browser if it does not open automatically, approve access, and return to the terminal.
 
 The script saves OAuth credentials to `token.json` so later runs can refresh automatically.
+
+## Run the Manual Review UI
+
+After syncing comments into SQLite, start the local Flask app:
+
+```bash
+source .venv/bin/activate
+python app.py
+```
+
+Open:
+
+```text
+http://127.0.0.1:5000
+```
+
+The UI shows one top-level comment that has not been replied to through Wingman. Type a reply and click **Submit Reply** to post it to YouTube, mark that comment as `replied`, and load the next pending comment.
+
+The review UI also supports:
+
+- **Skip For Now**: marks the comment as `skipped` and returns it to the normal queue after the skip window.
+- **Needs Research**: moves the comment into a separate research queue.
+- **Ignore**: marks the comment as `ignored` without posting a reply.
+- **Undo Last Action**: reverts the most recent local action. If the action posted a YouTube reply, Wingman tries to delete that reply from YouTube too.
+- Queue filters for pending, skipped, needs research, ignored, replied, and all active comments.
+- Search across comment text, author, video title, and notes.
+- Notes for follow-up context.
+- Links to open the original YouTube video or comment.
+
+By default, skipped comments return to the pending queue after 60 minutes. Override this in `.env`:
+
+```text
+WINGMAN_SKIP_MINUTES=60
+```
 
 ## What Gets Stored
 
@@ -76,6 +122,8 @@ CREATE TABLE IF NOT EXISTS comments (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 youtube_comment_id TEXT UNIQUE NOT NULL,
 youtube_thread_id TEXT,
+parent_comment_id TEXT,
+is_reply INTEGER DEFAULT 0,
 video_id TEXT,
 video_title TEXT,
 author_name TEXT,
@@ -83,18 +131,23 @@ author_channel_id TEXT,
 text TEXT,
 like_count INTEGER,
 published_at TEXT,
-updated_at TEXT,
-fetched_at TEXT,
-status TEXT DEFAULT 'synced'
+    updated_at TEXT,
+    fetched_at TEXT,
+    wingman_reply_text TEXT,
+    youtube_reply_id TEXT,
+    replied_at TEXT,
+    skipped_until TEXT,
+    last_seen_at TEXT,
+    notes TEXT,
+    status TEXT DEFAULT 'synced'
 );
 ```
 
-Duplicates are avoided with `youtube_comment_id`. When a comment already exists, the sync updates fields such as text, like count, YouTube updated timestamp, fetched timestamp, and related metadata.
+Duplicates are avoided with `youtube_comment_id`. When a comment already exists, the sync updates fields such as text, like count, YouTube updated timestamp, fetched timestamp, reply status, and related metadata.
 
 ## Notes
 
-- This milestone stores top-level comments only.
-- Replies are not stored yet.
+- This milestone stores top-level comments and replies.
+- The manual review UI can post replies you type yourself.
 - No AI functionality is included yet.
-- No replies are posted to YouTube.
 - The code is structured so later milestones can add AI draft replies, review status, and one-click approval without changing the basic sync foundation.

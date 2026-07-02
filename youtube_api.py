@@ -50,7 +50,12 @@ def authenticate(client_secrets_file: str, token_file: str):
             "Could not refresh OAuth credentials. Delete token.json and run again."
         ) from exc
 
-    return build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
+    return build(
+        API_SERVICE_NAME,
+        API_VERSION,
+        credentials=credentials,
+        cache_discovery=False,
+    )
 
 
 def get_authenticated_channel_id(youtube) -> str:
@@ -73,19 +78,29 @@ def get_authenticated_channel_id(youtube) -> str:
     return items[0]["id"]
 
 
-def fetch_comment_threads(youtube, channel_id: str) -> Iterator[dict]:
-    """Yield all comment thread resources related to a channel."""
+def fetch_comment_threads(
+    youtube, channel_id: str, video_id: Optional[str] = None
+) -> Iterator[dict]:
+    """Yield comment thread resources for a channel, or for one video."""
     page_token = None
 
     while True:
         try:
+            list_params = {
+                "part": "snippet,replies",
+                "maxResults": 100,
+                "order": "time",
+                "textFormat": "plainText",
+                "pageToken": page_token,
+            }
+
+            if video_id:
+                list_params["videoId"] = video_id
+            else:
+                list_params["allThreadsRelatedToChannelId"] = channel_id
+
             request = youtube.commentThreads().list(
-                part="snippet,replies",
-                allThreadsRelatedToChannelId=channel_id,
-                maxResults=100,
-                order="time",
-                textFormat="plainText",
-                pageToken=page_token,
+                **list_params,
             )
             response = request.execute()
         except HttpError as exc:
@@ -97,6 +112,70 @@ def fetch_comment_threads(youtube, channel_id: str) -> Iterator[dict]:
         page_token = response.get("nextPageToken")
         if not page_token:
             break
+
+
+def fetch_comment_replies(youtube, parent_comment_id: str) -> Iterator[dict]:
+    """Yield all replies for one top-level comment."""
+    page_token = None
+
+    while True:
+        try:
+            response = (
+                youtube.comments()
+                .list(
+                    part="snippet",
+                    parentId=parent_comment_id,
+                    maxResults=100,
+                    textFormat="plainText",
+                    pageToken=page_token,
+                )
+                .execute()
+            )
+        except HttpError as exc:
+            raise YouTubeApiError(
+                f"Could not fetch replies for {parent_comment_id}: {exc}"
+            ) from exc
+
+        for item in response.get("items", []):
+            yield item
+
+        page_token = response.get("nextPageToken")
+        if not page_token:
+            break
+
+
+def post_reply_to_comment(youtube, parent_comment_id: str, reply_text: str) -> str:
+    """Post a reply to a top-level YouTube comment and return the reply ID."""
+    try:
+        response = (
+            youtube.comments()
+            .insert(
+                part="snippet",
+                body={
+                    "snippet": {
+                        "parentId": parent_comment_id,
+                        "textOriginal": reply_text,
+                    }
+                },
+            )
+            .execute()
+        )
+    except HttpError as exc:
+        raise YouTubeApiError(f"Could not post reply: {exc}") from exc
+
+    reply_id = response.get("id")
+    if not reply_id:
+        raise YouTubeApiError("YouTube accepted the reply but did not return a reply ID.")
+
+    return reply_id
+
+
+def delete_comment(youtube, comment_id: str) -> None:
+    """Delete a YouTube comment by ID."""
+    try:
+        youtube.comments().delete(id=comment_id).execute()
+    except HttpError as exc:
+        raise YouTubeApiError(f"Could not delete YouTube comment: {exc}") from exc
 
 
 def fetch_video_title(youtube, video_id: str) -> Optional[str]:
@@ -124,16 +203,19 @@ def _author_channel_id(comment_snippet: dict) -> Optional[str]:
     return None
 
 
-def extract_top_level_comment(thread: dict) -> dict:
-    """Convert a YouTube comment thread resource into one database row."""
-    thread_snippet = thread.get("snippet", {})
-    top_level_comment = thread_snippet.get("topLevelComment", {})
-    comment_snippet = top_level_comment.get("snippet", {})
-
+def _comment_row(
+    comment_id: Optional[str],
+    comment_snippet: dict,
+    thread_id: Optional[str],
+    video_id: Optional[str],
+    is_reply: bool,
+) -> dict:
     return {
-        "youtube_comment_id": top_level_comment.get("id"),
-        "youtube_thread_id": thread.get("id"),
-        "video_id": thread_snippet.get("videoId"),
+        "youtube_comment_id": comment_id,
+        "youtube_thread_id": thread_id,
+        "parent_comment_id": comment_snippet.get("parentId"),
+        "is_reply": is_reply,
+        "video_id": video_id,
         "video_title": None,
         "author_name": comment_snippet.get("authorDisplayName"),
         "author_channel_id": _author_channel_id(comment_snippet),
@@ -142,3 +224,37 @@ def extract_top_level_comment(thread: dict) -> dict:
         "published_at": comment_snippet.get("publishedAt"),
         "updated_at": comment_snippet.get("updatedAt"),
     }
+
+
+def extract_top_level_comment(thread: dict) -> dict:
+    """Convert a YouTube comment thread resource into one database row."""
+    thread_snippet = thread.get("snippet", {})
+    top_level_comment = thread_snippet.get("topLevelComment", {})
+    comment_snippet = top_level_comment.get("snippet", {})
+
+    return _comment_row(
+        comment_id=top_level_comment.get("id"),
+        comment_snippet=comment_snippet,
+        thread_id=thread.get("id"),
+        video_id=thread_snippet.get("videoId"),
+        is_reply=False,
+    )
+
+
+def extract_reply_comment(reply: dict, thread: dict) -> dict:
+    """Convert a YouTube reply resource into one database row."""
+    thread_snippet = thread.get("snippet", {})
+    reply_snippet = reply.get("snippet", {})
+
+    return _comment_row(
+        comment_id=reply.get("id"),
+        comment_snippet=reply_snippet,
+        thread_id=thread.get("id"),
+        video_id=reply_snippet.get("videoId") or thread_snippet.get("videoId"),
+        is_reply=True,
+    )
+
+
+def total_reply_count(thread: dict) -> int:
+    """Return the reply count reported on a comment thread."""
+    return int(thread.get("snippet", {}).get("totalReplyCount", 0))
