@@ -36,7 +36,15 @@ CLIENT_SECRETS_FILE = env_value("YOUTUBE_CLIENT_SECRETS_FILE", "client_secret.js
 TOKEN_FILE = env_value("YOUTUBE_TOKEN_FILE", "token.json")
 SKIP_MINUTES = int(env_value("WINGMAN_SKIP_MINUTES", "60"))
 
-VALID_FILTERS = {"pending", "skipped", "ignored", "needs_research", "replied", "all"}
+VALID_FILTERS = {
+    "pending",
+    "skipped",
+    "ignored",
+    "needs_research",
+    "externally_replied",
+    "replied",
+    "all",
+}
 
 app = Flask(__name__)
 
@@ -111,7 +119,7 @@ PAGE_TEMPLATE = """
 
     .stats {
       display: grid;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
+      grid-template-columns: repeat(7, minmax(0, 1fr));
       gap: 1px;
       overflow: hidden;
       margin-bottom: 14px;
@@ -373,6 +381,7 @@ PAGE_TEMPLATE = """
       <div class="stat"><strong>{{ stats.skipped }}</strong><span>Skipped</span></div>
       <div class="stat"><strong>{{ stats.needs_research }}</strong><span>Needs research</span></div>
       <div class="stat"><strong>{{ stats.ignored }}</strong><span>Ignored</span></div>
+      <div class="stat"><strong>{{ stats.externally_replied }}</strong><span>External replies</span></div>
       <div class="stat"><strong>{{ stats.replied }}</strong><span>Replied</span></div>
       <div class="stat"><strong>{{ stats.replied_today }}</strong><span>Replied today</span></div>
     </section>
@@ -572,6 +581,7 @@ def load_page_data(message: str | None = None, error: str | None = None):
             ("pending", "Pending"),
             ("skipped", "Skipped"),
             ("needs_research", "Needs Research"),
+            ("externally_replied", "External Replies"),
             ("ignored", "Ignored"),
             ("replied", "Replied"),
             ("all", "All Active"),

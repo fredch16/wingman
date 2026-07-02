@@ -127,6 +127,7 @@ def upsert_comment(connection: sqlite3.Connection, comment: dict) -> None:
             status = CASE
                 WHEN comments.status IN (
                     'replied',
+                    'externally_replied',
                     'ignored',
                     'needs_research',
                     'skipped'
@@ -193,6 +194,7 @@ def get_queue_stats(connection: sqlite3.Connection) -> dict:
         "skipped": 0,
         "ignored": 0,
         "needs_research": 0,
+        "externally_replied": 0,
         "replied": 0,
     }
     for row in rows:
@@ -238,11 +240,25 @@ def get_next_review_comment(
             )
             """
         )
-    elif status_filter in {"skipped", "ignored", "needs_research", "replied"}:
+    elif status_filter in {
+        "skipped",
+        "ignored",
+        "needs_research",
+        "externally_replied",
+        "replied",
+    }:
         clauses.append("status = ?")
         params.append(status_filter)
     else:
-        clauses.append("status != 'replied' AND status != 'ignored'")
+        clauses.append(
+            """
+            status NOT IN (
+                'replied',
+                'externally_replied',
+                'ignored'
+            )
+            """
+        )
 
     if search:
         clauses.append(
@@ -302,6 +318,36 @@ def mark_comment_replied(
         (reply_text, youtube_reply_id, utc_now_iso(), comment_id),
     )
     connection.commit()
+
+
+def reconcile_external_reply_status(
+    connection: sqlite3.Connection,
+    youtube_comment_id: str,
+    has_channel_reply: bool,
+) -> None:
+    """Keep local workflow aligned with replies that already exist on YouTube."""
+    if has_channel_reply:
+        connection.execute(
+            """
+            UPDATE comments
+            SET status = 'externally_replied'
+            WHERE youtube_comment_id = ?
+              AND COALESCE(is_reply, 0) = 0
+              AND status != 'replied'
+            """,
+            (youtube_comment_id,),
+        )
+    else:
+        connection.execute(
+            """
+            UPDATE comments
+            SET status = 'synced'
+            WHERE youtube_comment_id = ?
+              AND COALESCE(is_reply, 0) = 0
+              AND status = 'externally_replied'
+            """,
+            (youtube_comment_id,),
+        )
 
 
 def record_action(

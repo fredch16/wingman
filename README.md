@@ -94,7 +94,9 @@ Open:
 http://127.0.0.1:5000
 ```
 
-The UI shows one top-level comment that has not been replied to through Wingman. Type a reply and click **Submit Reply** to post it to YouTube, mark that comment as `replied`, and load the next pending comment.
+The UI shows one pending top-level comment. Type a reply and click **Submit Reply** to post it to YouTube, mark that comment as `replied`, and load the next pending comment.
+
+YouTube is treated as the source of truth for whether your channel has already replied. During sync, if a top-level comment already has a reply from your authenticated channel, Wingman marks it as `externally_replied` so it leaves the normal pending queue. SQLite still owns local workflow states such as `ignored`, `skipped`, and `needs_research`.
 
 The review UI also supports:
 
@@ -102,7 +104,7 @@ The review UI also supports:
 - **Needs Research**: moves the comment into a separate research queue.
 - **Ignore**: marks the comment as `ignored` without posting a reply.
 - **Undo Last Action**: reverts the most recent local action. If the action posted a YouTube reply, Wingman tries to delete that reply from YouTube too.
-- Queue filters for pending, skipped, needs research, ignored, replied, and all active comments.
+- Queue filters for pending, skipped, needs research, external replies, ignored, replied, and all active comments.
 - Search across comment text, author, video title, and notes.
 - Notes for follow-up context.
 - Links to open the original YouTube video, comment, or Studio comments page.
