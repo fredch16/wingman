@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from flask import Flask, redirect, render_template_string, request, url_for
 
+from ai_service import AIDraftError, generate_reply_draft
 from database import (
     connect,
     count_pending_top_level_comments,
@@ -13,6 +14,7 @@ from database import (
     initialize_database,
     mark_comment_replied,
     restore_action,
+    save_ai_draft,
     update_comment_notes,
     update_comment_status,
 )
@@ -495,6 +497,28 @@ PAGE_TEMPLATE = """
         </section>
 
         <aside>
+          <form class="panel" method="post" action="{{ url_for('generate_draft') }}">
+            <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
+            <input type="hidden" name="status" value="{{ status_filter }}">
+            <input type="hidden" name="q" value="{{ search }}">
+            <div class="panel-title">
+              <label>AI Draft</label>
+              {% if comment["ai_draft_model"] %}
+                <span class="hint">{{ comment["ai_draft_provider"] }} / {{ comment["ai_draft_model"] }}</span>
+              {% else %}
+                <span class="hint">manual approval required</span>
+              {% endif %}
+            </div>
+            {% if comment["ai_drafted_at"] %}
+              <div class="shortcuts">Last generated: {{ comment["ai_drafted_at"] }}</div>
+            {% endif %}
+            <div class="actions">
+              <button type="submit" id="draft_button">
+                {% if comment["ai_draft_text"] %}Regenerate Draft{% else %}Generate Draft{% endif %}
+              </button>
+            </div>
+          </form>
+
           <form class="panel" method="post" action="{{ url_for('submit_reply') }}">
             <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
             <input type="hidden" name="status" value="{{ status_filter }}">
@@ -503,7 +527,7 @@ PAGE_TEMPLATE = """
               <label for="reply_text">Reply</label>
               <span class="hint"><kbd>A</kbd> focus, <kbd>Esc</kbd> leave</span>
             </div>
-            <textarea id="reply_text" name="reply_text" required></textarea>
+            <textarea id="reply_text" name="reply_text" required>{{ comment["ai_draft_text"] or "" }}</textarea>
             <div class="actions">
               <button class="primary" type="submit" id="reply_button">Confirm & Reply <kbd>Enter</kbd></button>
             </div>
@@ -731,6 +755,42 @@ def submit_reply():
 
     connection.close()
     return redirect_to_queue("Reply posted to YouTube.")
+
+
+@app.post("/draft")
+def generate_draft():
+    comment_id = request.form.get("comment_id", "").strip()
+
+    if not comment_id.isdigit():
+        return load_page_data(error="Missing or invalid comment ID."), 400
+
+    connection = connect(DATABASE_PATH)
+    initialize_database(connection)
+    comment = get_comment_by_id(connection, int(comment_id))
+
+    if not comment:
+        connection.close()
+        return load_page_data(error="That comment is no longer in the database."), 404
+
+    if comment["is_reply"]:
+        connection.close()
+        return load_page_data(error="Wingman only drafts replies to top-level comments."), 400
+
+    try:
+        draft = generate_reply_draft(dict(comment))
+        save_ai_draft(
+            connection,
+            int(comment_id),
+            draft.text,
+            draft.model,
+            draft.provider,
+        )
+    except AIDraftError as exc:
+        connection.close()
+        return load_page_data(error=str(exc)), 500
+
+    connection.close()
+    return redirect_to_queue("AI draft generated. Edit it before posting.")
 
 
 @app.post("/action")
