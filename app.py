@@ -420,6 +420,9 @@ PAGE_TEMPLATE = """
             {% if comment_url %}
               <a class="button" href="{{ comment_url }}" target="_blank" rel="noreferrer">Open Comment</a>
             {% endif %}
+            {% if studio_url %}
+              <a class="button" href="{{ studio_url }}" target="_blank" rel="noreferrer">Open Studio</a>
+            {% endif %}
           </div>
         </section>
 
@@ -530,6 +533,12 @@ def youtube_comment_url(comment) -> str | None:
     )
 
 
+def youtube_studio_comments_url(comment) -> str | None:
+    if not comment["video_id"]:
+        return None
+    return f"https://studio.youtube.com/video/{comment['video_id']}/comments"
+
+
 def load_page_data(message: str | None = None, error: str | None = None):
     status_filter = current_filter()
     search = current_search()
@@ -544,11 +553,13 @@ def load_page_data(message: str | None = None, error: str | None = None):
     display_status = None
     video_url = None
     comment_url = None
+    studio_url = None
     if comment:
         display_status = "pending" if comment["status"] == "synced" else comment["status"]
         display_status = display_status.replace("_", " ")
         video_url = youtube_video_url(comment)
         comment_url = youtube_comment_url(comment)
+        studio_url = youtube_studio_comments_url(comment)
 
     return render_template_string(
         PAGE_TEMPLATE,
@@ -568,6 +579,7 @@ def load_page_data(message: str | None = None, error: str | None = None):
         display_status=display_status,
         video_url=video_url,
         comment_url=comment_url,
+        studio_url=studio_url,
         message=message,
         error=error,
     )
