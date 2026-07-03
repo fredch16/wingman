@@ -137,9 +137,12 @@ To enable OpenAI drafts:
 AI_PROVIDER=openai
 OPENAI_MODEL=gpt-5.5
 OPENAI_API_KEY=your_api_key_here
+CREATOR_CONTEXT_FILE=fred.md
 ```
 
 Then restart the Flask app and click **Generate Draft** in the review UI.
+
+`fred.md` contains the general creator voice and reply rules that are included with every AI prompt. Edit that file whenever you want to tune how drafts sound overall. Use the per-comment notes field for details that apply only to one comment.
 
 Every AI generation is logged in SQLite in `ai_drafts` with:
 
@@ -152,14 +155,15 @@ Every AI generation is logged in SQLite in `ai_drafts` with:
 - `status`
 - `created_at`
 
-The current prompt version is `youtube_reply_v2`. It sends only the context needed for a useful reply:
+The current prompt version is `youtube_reply_v3`. It sends only the context needed for a useful reply:
 
+- creator context from `fred.md`
 - video title
 - commenter display name
 - comment text
 - your private notes for that comment, only when notes are present
 
-The model is instructed to draft a concise YouTube creator reply, avoid inventing facts, ask a brief clarifying question if context is missing, and return only editable reply text.
+The model is instructed to draft a concise YouTube creator reply, follow your creator context, avoid inventing facts, and return only editable reply text.
 
 ## What Gets Stored
 

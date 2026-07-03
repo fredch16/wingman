@@ -1,10 +1,11 @@
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from openai import OpenAI, OpenAIError
 
 
-PROMPT_VERSION = "youtube_reply_v2"
+PROMPT_VERSION = "youtube_reply_v3"
 
 
 class AIDraftError(RuntimeError):
@@ -30,6 +31,22 @@ def configured_provider() -> str:
 
 def configured_model() -> str:
     return env_value("OPENAI_MODEL", "gpt-5.5")
+
+
+def configured_creator_context_file() -> str:
+    return env_value("CREATOR_CONTEXT_FILE", "fred.md")
+
+
+def load_creator_context() -> str:
+    context_file = configured_creator_context_file()
+    if not context_file:
+        return ""
+
+    path = Path(context_file)
+    if not path.exists():
+        return ""
+
+    return path.read_text(encoding="utf-8").strip()
 
 
 def generate_reply_draft(comment: dict) -> DraftResult:
@@ -64,10 +81,10 @@ def generate_openai_reply_draft(comment: dict) -> DraftResult:
                             "type": "input_text",
                             "text": (
                                 "You draft concise YouTube creator replies. "
-                                "Write in a natural, helpful tone. Do not invent "
-                                "facts or make promises. If context is missing, "
-                                "ask a brief clarifying question. Return only the "
-                                "reply text, with no labels or quotation marks."
+                                "Follow the creator context and style rules in "
+                                "the user prompt. Do not invent facts or make "
+                                "promises. Return only the reply text, with no "
+                                "labels or quotation marks."
                             ),
                         }
                     ],
@@ -99,8 +116,19 @@ def build_reply_prompt(comment: dict) -> str:
     author_name = comment.get("author_name") or "Unknown commenter"
     comment_text = comment.get("text") or ""
     notes = (comment.get("notes") or "").strip()
+    creator_context = load_creator_context()
 
-    prompt_parts = [
+    prompt_parts = []
+
+    if creator_context:
+        prompt_parts.append(
+            f"""
+Creator context:
+{creator_context}
+""".strip()
+        )
+
+    prompt_parts.append(
         f"""
 Video title:
 {video_title}
@@ -111,7 +139,7 @@ Comment author:
 Comment:
 {comment_text}
 """.strip()
-    ]
+    )
 
     if notes:
         prompt_parts.append(
