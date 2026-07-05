@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS comments (
     is_reply INTEGER DEFAULT 0,
     video_id TEXT,
     video_title TEXT,
+    video_description TEXT,
     author_name TEXT,
     author_channel_id TEXT,
     text TEXT,
@@ -43,6 +44,7 @@ MIGRATIONS = [
     ("skipped_until", "ALTER TABLE comments ADD COLUMN skipped_until TEXT"),
     ("last_seen_at", "ALTER TABLE comments ADD COLUMN last_seen_at TEXT"),
     ("notes", "ALTER TABLE comments ADD COLUMN notes TEXT"),
+    ("video_description", "ALTER TABLE comments ADD COLUMN video_description TEXT"),
     ("ai_draft_text", "ALTER TABLE comments ADD COLUMN ai_draft_text TEXT"),
     ("ai_draft_model", "ALTER TABLE comments ADD COLUMN ai_draft_model TEXT"),
     ("ai_draft_provider", "ALTER TABLE comments ADD COLUMN ai_draft_provider TEXT"),
@@ -549,6 +551,37 @@ def update_comment_notes(
         """,
         (notes, utc_now_iso(), comment_id),
     )
+    connection.commit()
+
+
+def update_video_description(
+    connection: sqlite3.Connection, comment_id: int, video_description: str
+) -> None:
+    """Save manual video context for every comment from the same video."""
+    comment = get_comment_by_id(connection, comment_id)
+    if not comment:
+        return
+
+    if comment["video_id"]:
+        connection.execute(
+            """
+            UPDATE comments
+            SET video_description = ?,
+                last_seen_at = ?
+            WHERE video_id = ?
+            """,
+            (video_description, utc_now_iso(), comment["video_id"]),
+        )
+    else:
+        connection.execute(
+            """
+            UPDATE comments
+            SET video_description = ?,
+                last_seen_at = ?
+            WHERE id = ?
+            """,
+            (video_description, utc_now_iso(), comment_id),
+        )
     connection.commit()
 
 

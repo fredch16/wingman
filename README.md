@@ -142,7 +142,7 @@ CREATOR_CONTEXT_FILE=fred.md
 
 Then restart the Flask app and click **Generate Draft** in the review UI.
 
-`fred.md` contains the general creator voice and reply rules that are included with every AI prompt. Edit that file whenever you want to tune how drafts sound overall. Use the per-comment notes field for details that apply only to one comment.
+`fred.md` contains the general creator voice and reply rules that are included with every AI prompt. Edit that file whenever you want to tune how drafts sound overall. Use the per-comment notes field for details that apply only to one comment. Use the Video Description field in the review UI for short manual context about the video; it is saved for every comment from that video and included in AI draft prompts.
 
 Every AI generation is logged in SQLite in `ai_drafts` with:
 
@@ -155,10 +155,11 @@ Every AI generation is logged in SQLite in `ai_drafts` with:
 - `status`
 - `created_at`
 
-The current prompt version is `youtube_reply_v3`. It sends only the context needed for a useful reply:
+The current prompt version is `youtube_reply_v4`. It sends only the context needed for a useful reply:
 
 - creator context from `fred.md`
 - video title
+- manual video description, only when you have saved one
 - commenter display name
 - comment text
 - your private notes for that comment, only when notes are present
@@ -178,6 +179,7 @@ parent_comment_id TEXT,
 is_reply INTEGER DEFAULT 0,
 video_id TEXT,
 video_title TEXT,
+video_description TEXT,
 author_name TEXT,
 author_channel_id TEXT,
 text TEXT,

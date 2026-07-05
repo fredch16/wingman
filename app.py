@@ -19,6 +19,7 @@ from database import (
     save_ai_draft,
     update_comment_notes,
     update_comment_status,
+    update_video_description,
 )
 from youtube_api import (
     YouTubeApiError,
@@ -362,6 +363,10 @@ PAGE_TEMPLATE = """
       min-height: 96px;
     }
 
+    textarea.video-description {
+      min-height: 120px;
+    }
+
     .actions {
       display: flex;
       flex-wrap: wrap;
@@ -601,6 +606,21 @@ PAGE_TEMPLATE = """
             <textarea class="notes" id="notes" name="notes">{{ comment["notes"] or "" }}</textarea>
             <div class="actions">
               <button type="submit">Save Notes</button>
+            </div>
+          </form>
+
+          <form class="panel" method="post" action="{{ url_for('save_video_description') }}">
+            <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
+            <input type="hidden" name="status" value="{{ status_filter }}">
+            <input type="hidden" name="q" value="{{ search }}">
+            <input type="hidden" name="offset" value="{{ offset }}">
+            <div class="panel-title">
+              <label for="video_description">Video Description</label>
+              <span class="hint">sent with AI drafts</span>
+            </div>
+            <textarea class="video-description" id="video_description" name="video_description">{{ comment["video_description"] or "" }}</textarea>
+            <div class="actions">
+              <button type="submit">Save Description</button>
             </div>
           </form>
         </aside>
@@ -956,6 +976,21 @@ def save_notes():
     update_comment_notes(connection, int(comment_id), notes)
     connection.close()
     return redirect_to_queue("Notes saved.")
+
+
+@app.post("/video-description")
+def save_video_description():
+    comment_id = request.form.get("comment_id", "").strip()
+    video_description = request.form.get("video_description", "").strip()
+
+    if not comment_id.isdigit():
+        return load_page_data(error="Missing or invalid comment ID."), 400
+
+    connection = connect(DATABASE_PATH)
+    initialize_database(connection)
+    update_video_description(connection, int(comment_id), video_description)
+    connection.close()
+    return redirect_to_queue("Video description saved.")
 
 
 @app.post("/undo")
