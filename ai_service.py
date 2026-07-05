@@ -5,7 +5,8 @@ from pathlib import Path
 from openai import OpenAI, OpenAIError
 
 
-PROMPT_VERSION = "youtube_reply_v3"
+PROMPT_VERSION = "youtube_reply_v4"
+MAX_VIDEO_DESCRIPTION_CHARS = 1200
 
 
 class AIDraftError(RuntimeError):
@@ -113,6 +114,7 @@ def generate_openai_reply_draft(comment: dict) -> DraftResult:
 
 def build_reply_prompt(comment: dict) -> str:
     video_title = comment.get("video_title") or "Unknown video"
+    video_description = (comment.get("video_description") or "").strip()
     author_name = comment.get("author_name") or "Unknown commenter"
     comment_text = comment.get("text") or ""
     notes = (comment.get("notes") or "").strip()
@@ -140,6 +142,18 @@ Comment:
 {comment_text}
 """.strip()
     )
+
+    if video_description:
+        if len(video_description) > MAX_VIDEO_DESCRIPTION_CHARS:
+            video_description = (
+                video_description[:MAX_VIDEO_DESCRIPTION_CHARS].rstrip() + "..."
+            )
+        prompt_parts.append(
+            f"""
+Manual video description:
+{video_description}
+""".strip()
+        )
 
     if notes:
         prompt_parts.append(
