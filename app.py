@@ -352,6 +352,7 @@ REPLY_TEMPLATE = """
     }
     textarea::placeholder { color: #68707a; }
     #reply_text { min-height: 112px; }
+    #notes { min-height: 72px; }
     #rephrase_hint { min-height: 54px; margin-top: 8px; }
     .buttons { justify-content: space-between; margin-top: 10px; }
     button.primary { background: var(--text); border-color: var(--text); color: var(--bg); }
@@ -445,14 +446,16 @@ REPLY_TEMPLATE = """
             <input type="hidden" name="status" value="{{ status_filter }}">
             <input type="hidden" name="q" value="{{ search }}">
             <input type="hidden" name="offset" value="{{ offset }}">
+            <textarea id="notes" name="notes" placeholder="Notes for the prompt">{{ comment["notes"] or "" }}</textarea>
             <div class="buttons">
               <div class="left">
                 <button class="good micro" type="submit" name="action" value="needs_reply" id="needs_reply_button" title="Needs reply">N</button>
                 <button class="micro" type="submit" name="action" value="skip" id="skip_button" title="Skip">S</button>
                 <button class="danger micro" type="submit" name="action" value="ignore" id="ignore_button" title="Ignore">I</button>
+                <button type="submit" id="notes_button" formaction="{{ url_for('save_notes') }}" formmethod="post" title="Save notes">Save</button>
               </div>
               <div class="right">
-                <span class="muted">N reply · S next · I ignore</span>
+                <span class="muted">T notes · N reply · S next · I ignore</span>
               </div>
             </div>
           </form>
@@ -523,6 +526,17 @@ REPLY_TEMPLATE = """
       }
       if (
         event.key === "Enter"
+        && (event.ctrlKey || event.metaKey)
+        && active
+        && active.id === "notes"
+      ) {
+        event.preventDefault();
+        const button = document.getElementById("notes_button");
+        if (button) button.click();
+        return;
+      }
+      if (
+        event.key === "Enter"
         && !event.shiftKey
         && active
         && active.id === "reply_text"
@@ -537,6 +551,12 @@ REPLY_TEMPLATE = """
         event.preventDefault();
         const reply = document.getElementById("reply_text");
         if (reply) reply.focus();
+        return;
+      }
+      if (key === "t" && !isTyping) {
+        event.preventDefault();
+        const notes = document.getElementById("notes");
+        if (notes) notes.focus();
         return;
       }
       const targets = {
@@ -913,6 +933,7 @@ def comment_action():
     platform = current_platform()
     comment_id = request.form.get("comment_id", "").strip()
     action = request.form.get("action", "").strip()
+    notes = request.form.get("notes")
 
     if not comment_id.isdigit():
         return load_page_data(error="Missing or invalid comment ID."), 400
@@ -926,12 +947,19 @@ def comment_action():
     if action not in actions:
         return load_page_data(error="Unknown action."), 400
 
-    if action == "skip" and current_filter() == "pending":
-        return redirect_to_queue("Skipped.", offset=current_offset() + 1)
-
     status, action_name, message = actions[action]
     connection = connect(DATABASE_PATH)
     initialize_database(connection)
+    if notes is not None:
+        if platform == "instagram":
+            update_instagram_comment_notes(connection, int(comment_id), notes.strip())
+        else:
+            update_comment_notes(connection, int(comment_id), notes.strip())
+
+    if action == "skip" and current_filter() == "pending":
+        connection.close()
+        return redirect_to_queue("Skipped.", offset=current_offset() + 1)
+
     if platform == "instagram":
         update_instagram_comment_status(
             connection,
