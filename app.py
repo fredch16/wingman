@@ -87,13 +87,14 @@ DASHBOARD_TEMPLATE = """
   <title>Wingman</title>
   <style>
     :root {
-      color-scheme: light;
-      --bg: #f7f7f5;
-      --surface: #fff;
-      --text: #1d1d1f;
-      --muted: #6b6b70;
-      --line: #deded8;
-      --accent: #0a66c2;
+      color-scheme: dark;
+      --bg: #090a0c;
+      --surface: #121418;
+      --surface-2: #1a1d22;
+      --text: #f4f5f6;
+      --muted: #8f969f;
+      --line: #262a31;
+      --accent: #7dd3fc;
     }
     * { box-sizing: border-box; }
     body {
@@ -103,36 +104,43 @@ DASHBOARD_TEMPLATE = """
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       line-height: 1.4;
     }
-    .shell { width: min(1040px, calc(100vw - 32px)); margin: 34px auto; }
-    .nav { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 30px; }
+    .shell { width: min(960px, calc(100vw - 28px)); margin: 22px auto; }
+    .nav { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 18px; }
     .brand { font-size: 18px; font-weight: 700; letter-spacing: 0; }
     .nav a { color: var(--muted); text-decoration: none; font-weight: 650; }
     .nav a.active, .nav a:hover { color: var(--text); }
-    .hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: end; margin-bottom: 22px; }
-    h1 { margin: 0; font-size: clamp(34px, 7vw, 76px); line-height: .92; letter-spacing: 0; }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    h1 { margin: 0; font-size: clamp(30px, 6vw, 58px); line-height: .95; letter-spacing: 0; }
     .muted { color: var(--muted); }
-    .launch {
+    .launch, .ghost {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      min-height: 44px;
-      padding: 0 16px;
-      border: 1px solid var(--text);
+      min-height: 38px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
       border-radius: 999px;
-      background: var(--text);
-      color: white;
+      background: var(--surface);
+      color: var(--text);
       text-decoration: none;
       font-weight: 700;
     }
-    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 22px; }
+    .launch { background: var(--text); color: var(--bg); border-color: var(--text); }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
     .metric {
       background: var(--surface);
       border: 1px solid var(--line);
       border-radius: 8px;
-      padding: 18px;
-      min-height: 118px;
+      padding: 14px;
+      min-height: 88px;
     }
-    .metric strong { display: block; font-size: 36px; line-height: 1; margin-bottom: 10px; }
+    .metric strong { display: block; font-size: 30px; line-height: 1; margin-bottom: 8px; }
     .metric span { color: var(--muted); font-size: 14px; }
     .split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     .list {
@@ -159,22 +167,25 @@ DASHBOARD_TEMPLATE = """
       <div>
         <a class="active" href="{{ url_for('index') }}">Dashboard</a>
         <span class="muted"> / </span>
-        <a href="{{ url_for('reply_queue', platform='instagram') }}">Reply</a>
+        <a href="{{ url_for('reply_queue', platform=default_platform, status='pending') }}">Inbox</a>
+        <span class="muted"> / </span>
+        <a href="{{ url_for('reply_queue', platform=default_platform, status='needs_reply') }}">Reply</a>
       </div>
     </nav>
 
     <section class="hero">
       <div>
-        <div class="muted">Pending comments</div>
+        <div class="muted">Inbox</div>
         <h1>{{ total_pending }}</h1>
       </div>
-      <a class="launch" href="{{ url_for('reply_queue', platform=default_platform) }}">Reply now</a>
+      <a class="launch" href="{{ url_for('reply_queue', platform=default_platform, status='pending') }}">Triage</a>
+      <a class="ghost" href="{{ url_for('reply_queue', platform=default_platform, status='needs_reply') }}">Reply</a>
     </section>
 
     <section class="grid">
-      <div class="metric"><strong>{{ youtube.pending }}</strong><span>YouTube pending</span></div>
-      <div class="metric"><strong>{{ instagram.pending }}</strong><span>Instagram pending</span></div>
-      <div class="metric"><strong>{{ youtube.needs_reply + instagram.needs_reply }}</strong><span>Need drafts</span></div>
+      <div class="metric"><strong>{{ youtube.pending }}</strong><span>YT inbox</span></div>
+      <div class="metric"><strong>{{ instagram.pending }}</strong><span>IG inbox</span></div>
+      <div class="metric"><strong>{{ youtube.needs_reply + instagram.needs_reply }}</strong><span>Reply pile</span></div>
       <div class="metric"><strong>{{ youtube.replied_today + instagram.replied_today }}</strong><span>Replied today</span></div>
     </section>
 
@@ -217,15 +228,17 @@ REPLY_TEMPLATE = """
   <title>Wingman Reply</title>
   <style>
     :root {
-      color-scheme: light;
-      --bg: #f7f7f5;
-      --surface: #fff;
-      --text: #1d1d1f;
-      --muted: #6b6b70;
-      --line: #deded8;
-      --soft: #f0f0ec;
-      --accent: #0a66c2;
-      --danger: #b42318;
+      color-scheme: dark;
+      --bg: #090a0c;
+      --surface: #121418;
+      --surface-2: #1a1d22;
+      --text: #f4f5f6;
+      --muted: #8f969f;
+      --line: #262a31;
+      --soft: #20242b;
+      --accent: #7dd3fc;
+      --danger: #fb7185;
+      --ok: #86efac;
     }
     * { box-sizing: border-box; }
     body {
@@ -236,26 +249,33 @@ REPLY_TEMPLATE = """
       line-height: 1.45;
     }
     a { color: inherit; }
-    .shell { width: min(760px, calc(100vw - 28px)); margin: 18px auto 42px; }
-    .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+    .shell { width: min(760px, calc(100vw - 24px)); margin: 12px auto 36px; }
+    .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     .nav a { color: var(--muted); text-decoration: none; font-weight: 700; }
     .nav a.active, .nav a:hover { color: var(--text); }
-    .queue {
+    .muted { color: var(--muted); }
+    .topline {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
       color: var(--muted);
       font-size: 14px;
     }
-    .chips { display: flex; gap: 6px; flex-wrap: wrap; }
-    .chip, .icon-button {
+    .tabs, .platforms, .source, .buttons, .left, .right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .tabs { margin-bottom: 10px; }
+    .chip, .icon-button, button, .button {
       border: 1px solid var(--line);
       background: var(--surface);
       border-radius: 999px;
-      min-height: 34px;
-      padding: 0 11px;
+      min-height: 32px;
+      padding: 0 10px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -263,13 +283,22 @@ REPLY_TEMPLATE = """
       color: var(--muted);
       font-weight: 700;
       font-size: 14px;
+      font-family: inherit;
+      cursor: pointer;
     }
-    .chip.active { color: var(--text); border-color: var(--text); }
+    .chip.active, .icon-button:hover, button:hover, .button:hover {
+      color: var(--text);
+      border-color: #3a404a;
+      background: var(--surface-2);
+    }
+    .chip span { margin-left: 6px; color: var(--muted); }
+    .chip.primary { color: var(--bg); background: var(--text); border-color: var(--text); }
     .thread {
       background: var(--surface);
       border: 1px solid var(--line);
       border-radius: 8px;
-      padding: 18px;
+      padding: 16px;
+      min-height: 58vh;
     }
     .comment-row {
       display: grid;
@@ -287,7 +316,7 @@ REPLY_TEMPLATE = """
       font-weight: 800;
     }
     .bubble {
-      background: #f5f5f2;
+      background: var(--soft);
       border-radius: 8px;
       padding: 12px;
     }
@@ -305,12 +334,7 @@ REPLY_TEMPLATE = """
       margin-top: 6px;
       font-size: 16px;
     }
-    .source {
-      margin: 10px 0 0 50px;
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
+    .source { margin: 10px 0 0 50px; }
     .reply-form {
       margin: 16px 0 0 50px;
       border-top: 1px solid var(--line);
@@ -326,30 +350,15 @@ REPLY_TEMPLATE = """
       background: var(--surface);
       color: var(--text);
     }
+    textarea::placeholder { color: #68707a; }
     #reply_text { min-height: 112px; }
     #rephrase_hint { min-height: 54px; margin-top: 8px; }
-    .buttons {
-      display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 16px;
-      margin-top: 10px;
-    }
-    .left, .right { display: flex; gap: 8px; flex-wrap: wrap; }
-    button, .button {
-      border: 1px solid var(--line);
-      background: var(--surface);
-      border-radius: 999px;
-      min-height: 38px;
-      padding: 0 13px;
-      font: inherit;
-      font-weight: 750;
-      cursor: pointer;
-      text-decoration: none;
-      color: var(--text);
-    }
-    button.primary { background: var(--text); border-color: var(--text); color: white; }
+    .buttons { justify-content: space-between; margin-top: 10px; }
+    button.primary { background: var(--text); border-color: var(--text); color: var(--bg); }
+    button.good { color: var(--ok); }
     button.danger { color: var(--danger); }
+    button.micro, .micro { min-width: 32px; width: 32px; padding: 0; }
+    .batch { margin: 0 0 10px; }
     .notice, .error, .empty {
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -368,6 +377,7 @@ REPLY_TEMPLATE = """
       color: var(--muted);
       font-size: 14px;
     }
+    .empty a { color: var(--text); font-weight: 800; }
     @media (max-width: 620px) {
       .reply-form, .source { margin-left: 0; }
       .comment-row { grid-template-columns: 1fr; }
@@ -379,24 +389,33 @@ REPLY_TEMPLATE = """
   <main class="shell">
     <nav class="nav">
       <a href="{{ url_for('index') }}">Wingman</a>
-      <div>
+      <div class="platforms">
         <a class="{% if platform == 'youtube' %}active{% endif %}" href="{{ url_for('reply_queue', platform='youtube', status=status_filter) }}">YT</a>
         <span class="muted"> / </span>
         <a class="{% if platform == 'instagram' %}active{% endif %}" href="{{ url_for('reply_queue', platform='instagram', status=status_filter) }}">IG</a>
       </div>
     </nav>
 
-    <div class="queue">
-      <div class="chips">
-        {% for key, label in filters %}
-          <a class="chip {% if status_filter == key %}active{% endif %}" href="{{ url_for('reply_queue', platform=platform, status=key, q=search) }}">{{ label }}</a>
-        {% endfor %}
-      </div>
+    <div class="topline">
+      <div>{{ platform_label }}</div>
       <div>{{ offset + 1 if review_count else 0 }}/{{ review_count }}</div>
+    </div>
+    <div class="tabs">
+      <a class="chip {% if status_filter == 'pending' %}primary{% endif %}" href="{{ url_for('reply_queue', platform=platform, status='pending') }}">Inbox <span>{{ stats.pending }}</span></a>
+      <a class="chip {% if status_filter == 'needs_reply' %}primary{% endif %}" href="{{ url_for('reply_queue', platform=platform, status='needs_reply') }}">Reply <span>{{ stats.needs_reply }}</span></a>
+      <a class="chip {% if status_filter == 'ignored' %}active{% endif %}" href="{{ url_for('reply_queue', platform=platform, status='ignored') }}">Ignored</a>
+      <a class="chip {% if status_filter == 'replied' %}active{% endif %}" href="{{ url_for('reply_queue', platform=platform, status='replied') }}">Done</a>
     </div>
 
     {% if message %}<div class="notice">{{ message }}</div>{% endif %}
     {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+    {% if status_filter == 'needs_reply' %}
+      <form class="batch" method="post" action="{{ url_for('generate_batch_drafts') }}">
+        <input type="hidden" name="platform" value="{{ platform }}">
+        <button class="button" type="submit" title="Generate drafts for everything in Reply without a draft">Batch drafts</button>
+      </form>
+    {% endif %}
 
     {% if comment %}
       <section class="thread">
@@ -419,50 +438,76 @@ REPLY_TEMPLATE = """
           {% if has_next %}<a class="icon-button" id="next_comment_link" href="{{ url_for('reply_queue', platform=platform, status=status_filter, q=search, offset=next_offset) }}" title="Next">→</a>{% endif %}
         </div>
 
-        <form class="reply-form" method="post" action="{{ url_for('submit_reply') }}">
-          <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
-          <input type="hidden" name="platform" value="{{ platform }}">
-          <input type="hidden" name="status" value="{{ status_filter }}">
-          <input type="hidden" name="q" value="{{ search }}">
-          <input type="hidden" name="offset" value="{{ offset }}">
-          <textarea id="reply_text" name="reply_text" placeholder="Reply">{{ comment["ai_draft_text"] or "" }}</textarea>
-          <textarea id="rephrase_hint" name="rephrase_hint" placeholder="Nudge the draft"></textarea>
-          <div class="buttons">
-            <div class="left">
-              <button type="submit" id="draft_button" name="draft_mode" value="fresh" formaction="{{ url_for('generate_draft') }}" formmethod="post" title="Draft">Draft</button>
-              <button type="submit" id="rephrase_button" name="draft_mode" value="rephrase" formaction="{{ url_for('generate_draft') }}" formmethod="post" title="Rephrase">Rephrase</button>
+        {% if status_filter == 'pending' %}
+          <form class="reply-form" method="post" action="{{ url_for('comment_action') }}">
+            <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
+            <input type="hidden" name="platform" value="{{ platform }}">
+            <input type="hidden" name="status" value="{{ status_filter }}">
+            <input type="hidden" name="q" value="{{ search }}">
+            <input type="hidden" name="offset" value="{{ offset }}">
+            <div class="buttons">
+              <div class="left">
+                <button class="good micro" type="submit" name="action" value="needs_reply" id="needs_reply_button" title="Needs reply">N</button>
+                <button class="micro" type="submit" name="action" value="skip" id="skip_button" title="Skip">S</button>
+                <button class="danger micro" type="submit" name="action" value="ignore" id="ignore_button" title="Ignore">I</button>
+              </div>
+              <div class="right">
+                <span class="muted">N reply · S next · I ignore</span>
+              </div>
             </div>
-            <div class="right">
-              <button class="primary" type="submit" id="reply_button">Reply</button>
+          </form>
+        {% else %}
+          <form class="reply-form" method="post" action="{{ url_for('submit_reply') }}">
+            <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
+            <input type="hidden" name="platform" value="{{ platform }}">
+            <input type="hidden" name="status" value="{{ status_filter }}">
+            <input type="hidden" name="q" value="{{ search }}">
+            <input type="hidden" name="offset" value="{{ offset }}">
+            <textarea id="reply_text" name="reply_text" placeholder="Reply">{{ comment["ai_draft_text"] or "" }}</textarea>
+            <textarea id="rephrase_hint" name="rephrase_hint" placeholder="Nudge the draft"></textarea>
+            <div class="buttons">
+              <div class="left">
+                <button type="submit" id="draft_button" name="draft_mode" value="fresh" formaction="{{ url_for('generate_draft') }}" formmethod="post" title="Draft">Draft</button>
+                <button type="submit" id="rephrase_button" name="draft_mode" value="rephrase" formaction="{{ url_for('generate_draft') }}" formmethod="post" title="Rephrase">Rephrase</button>
+              </div>
+              <div class="right">
+                <button class="primary" type="submit" id="reply_button">Reply</button>
+              </div>
             </div>
-          </div>
-        </form>
+          </form>
+        {% endif %}
 
         <div class="status-line">
           <span>{{ comment["video_title"] or platform_label }}</span>
-          <span>{{ pending_count }} pending</span>
+          <span>{{ stats.pending }} inbox · {{ stats.needs_reply }} reply</span>
         </div>
 
-        <div class="buttons">
-          <div class="left">
-            <form class="mini-form" method="post" action="{{ url_for('comment_action') }}">
-              <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
-              <input type="hidden" name="platform" value="{{ platform }}">
-              <input type="hidden" name="status" value="{{ status_filter }}">
-              <input type="hidden" name="q" value="{{ search }}">
-              <input type="hidden" name="offset" value="{{ offset }}">
-              <button type="submit" name="action" value="skip" id="skip_button" title="Skip">Skip</button>
-              <button class="danger" type="submit" name="action" value="ignore" id="ignore_button" title="Ignore">Ignore</button>
-              <button type="submit" name="action" value="needs_reply" id="needs_reply_button" title="Needs reply">Later</button>
-              {% if comment["status"] in ["skipped", "ignored", "needs_reply"] %}
-                <button type="submit" name="action" value="pending" id="pending_button" title="Pending">Pending</button>
-              {% endif %}
-            </form>
+        {% if status_filter != 'pending' %}
+          <div class="buttons">
+            <div class="left">
+              <form class="mini-form" method="post" action="{{ url_for('comment_action') }}">
+                <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
+                <input type="hidden" name="platform" value="{{ platform }}">
+                <input type="hidden" name="status" value="{{ status_filter }}">
+                <input type="hidden" name="q" value="{{ search }}">
+                <input type="hidden" name="offset" value="{{ offset }}">
+                <button type="submit" name="action" value="pending" id="pending_button" title="Back to inbox">Inbox</button>
+                <button class="danger" type="submit" name="action" value="ignore" id="ignore_button" title="Ignore">Ignore</button>
+              </form>
+            </div>
           </div>
-        </div>
+        {% endif %}
       </section>
     {% else %}
-      <div class="empty">Nothing here.</div>
+      <div class="empty">
+        {% if status_filter == 'pending' %}
+          Inbox clear. <a href="{{ url_for('reply_queue', platform=platform, status='needs_reply') }}">Go to Reply</a>.
+        {% elif status_filter == 'needs_reply' %}
+          Reply pile clear.
+        {% else %}
+          Nothing here.
+        {% endif %}
+      </div>
     {% endif %}
   </main>
 
@@ -487,6 +532,8 @@ REPLY_TEMPLATE = """
         "arrowleft": "previous_comment_link",
         "arrowright": "next_comment_link",
         "d": "draft_button",
+        "n": "needs_reply_button",
+        "p": "pending_button",
         "r": "rephrase_button",
         "s": "skip_button",
         "i": "ignore_button",
@@ -868,6 +915,9 @@ def comment_action():
     if action not in actions:
         return load_page_data(error="Unknown action."), 400
 
+    if action == "skip" and current_filter() == "pending":
+        return redirect_to_queue("Skipped.", offset=current_offset() + 1)
+
     status, action_name, message = actions[action]
     connection = connect(DATABASE_PATH)
     initialize_database(connection)
@@ -939,7 +989,7 @@ def generate_batch_drafts():
     if failed_count:
         return redirect(
             url_for(
-                "index",
+                "reply_queue",
                 platform=platform,
                 status="needs_reply",
                 message=(
@@ -951,7 +1001,7 @@ def generate_batch_drafts():
 
     return redirect(
         url_for(
-            "index",
+            "reply_queue",
             platform=platform,
             status="needs_reply",
             message=f"Generated {generated_count} batch drafts.",
