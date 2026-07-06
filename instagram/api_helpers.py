@@ -34,8 +34,7 @@ def parse_key_values(values: list[str]) -> dict[str, str]:
     return params
 
 
-def get_json(endpoint: str, access_token: str, params: dict[str, str], version: str | None = None) -> dict:
-    url = f"{instagram_base_url(version)}/{endpoint.strip('/')}?{urlencode(params)}"
+def _request_json(url: str, access_token: str) -> dict:
     request = Request(
         url,
         headers={
@@ -52,6 +51,40 @@ def get_json(endpoint: str, access_token: str, params: dict[str, str], version: 
         raise SystemExit(f"Instagram API error {exc.code}: {body}") from exc
     except URLError as exc:
         raise SystemExit(f"Could not reach Instagram API: {exc}") from exc
+
+
+def _endpoint_url(endpoint: str, params: dict[str, str], version: str | None = None) -> str:
+    if endpoint.startswith("https://"):
+        return endpoint
+    return f"{instagram_base_url(version)}/{endpoint.strip('/')}?{urlencode(params)}"
+
+
+def get_json(endpoint: str, access_token: str, params: dict[str, str], version: str | None = None) -> dict:
+    return _request_json(_endpoint_url(endpoint, params, version), access_token)
+
+
+def get_paged_json(
+    endpoint: str,
+    access_token: str,
+    params: dict[str, str],
+    version: str | None = None,
+) -> dict:
+    url = _endpoint_url(endpoint, params, version)
+    all_data = []
+    page_count = 0
+    last_response = {}
+
+    while url:
+        response = _request_json(url, access_token)
+        page_count += 1
+        last_response = response
+        all_data.extend(response.get("data", []))
+        url = response.get("paging", {}).get("next")
+
+    result = {"data": all_data, "page_count": page_count}
+    if "paging" in last_response:
+        result["last_page_paging"] = last_response["paging"]
+    return result
 
 
 def discover_user_id(access_token: str, version: str | None = None) -> str:
