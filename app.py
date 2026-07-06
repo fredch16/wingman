@@ -6,20 +6,30 @@ from flask import Flask, redirect, render_template_string, request, url_for
 from ai_service import AIDraftError, generate_reply_draft
 from database import (
     connect,
+    count_instagram_review_comments,
     count_pending_top_level_comments,
+    count_pending_instagram_comments,
     count_review_comments,
     get_comment_by_id,
     get_comments_needing_drafts,
+    get_instagram_comment_by_id,
+    get_instagram_comments_needing_drafts,
+    get_instagram_queue_stats,
     get_last_action,
+    get_next_instagram_review_comment,
     get_next_review_comment,
     get_queue_stats,
     initialize_database,
     mark_comment_replied,
     restore_action,
     save_ai_draft,
+    save_instagram_ai_draft,
     update_comment_notes,
     update_comment_status,
     update_video_description,
+    update_instagram_comment_notes,
+    update_instagram_comment_status,
+    update_instagram_video_description,
 )
 from youtube_api import (
     YouTubeApiError,
@@ -34,6 +44,10 @@ load_dotenv()
 
 def env_value(name: str, default: str) -> str:
     return os.getenv(name, default).strip()
+
+
+def csv_env_values(name: str) -> list[str]:
+    return [value.strip() for value in os.getenv(name, "").split(",") if value.strip()]
 
 
 DATABASE_PATH = env_value("DATABASE_PATH", "comments.db")
@@ -51,6 +65,7 @@ VALID_FILTERS = {
     "replied",
     "all",
 }
+VALID_PLATFORMS = {"youtube", "instagram"}
 
 app = Flask(__name__)
 
@@ -175,6 +190,7 @@ PAGE_TEMPLATE = """
     }
 
     .tabs,
+    .platform-tabs,
     .search {
       display: flex;
       flex-wrap: wrap;
@@ -204,6 +220,10 @@ PAGE_TEMPLATE = """
       border-color: var(--accent);
       color: var(--accent);
       background: #eef4ff;
+    }
+
+    .platform-tabs {
+      margin-bottom: 14px;
     }
 
     input[type="search"] {
@@ -437,9 +457,15 @@ PAGE_TEMPLATE = """
         <div class="subtle">Review one comment, then move cleanly to the next.</div>
       </div>
       <form method="post" action="{{ url_for('undo_last_action') }}">
+        <input type="hidden" name="platform" value="{{ platform }}">
         <button type="submit">Undo Last Action</button>
       </form>
     </div>
+
+    <nav class="platform-tabs">
+      <a class="tab {% if platform == 'youtube' %}active{% endif %}" href="{{ url_for('index', platform='youtube', status=status_filter, q=search) }}">YouTube</a>
+      <a class="tab {% if platform == 'instagram' %}active{% endif %}" href="{{ url_for('index', platform='instagram', status=status_filter, q=search) }}">Instagram</a>
+    </nav>
 
     <section class="stats">
       <div class="stat"><strong>{{ stats.pending }}</strong><span>Pending</span></div>
@@ -454,11 +480,12 @@ PAGE_TEMPLATE = """
     <section class="toolbar">
       <nav class="tabs">
         {% for key, label in filters %}
-          <a class="tab {% if status_filter == key %}active{% endif %}" href="{{ url_for('index', status=key, q=search) }}">{{ label }}</a>
+          <a class="tab {% if status_filter == key %}active{% endif %}" href="{{ url_for('index', platform=platform, status=key, q=search) }}">{{ label }}</a>
         {% endfor %}
       </nav>
       <form class="search" method="get" action="{{ url_for('index') }}">
         <input type="hidden" name="status" value="{{ status_filter }}">
+        <input type="hidden" name="platform" value="{{ platform }}">
         <input type="search" name="q" value="{{ search }}" placeholder="Search comments">
         <button type="submit">Search</button>
       </form>
@@ -467,6 +494,7 @@ PAGE_TEMPLATE = """
     <section class="toolbar">
       <div class="subtle">Draft inbox: mark comments as Needs Reply, then generate drafts for that queue.</div>
       <form method="post" action="{{ url_for('generate_batch_drafts') }}">
+        <input type="hidden" name="platform" value="{{ platform }}">
         <button type="submit">Generate Batch Drafts</button>
       </form>
     </section>
@@ -481,7 +509,7 @@ PAGE_TEMPLATE = """
 
     {% if comment %}
       <div class="review-heading">
-        <h2>Current Comment</h2>
+        <h2>{{ platform_label }} Comment</h2>
         <div class="subtle">
           {{ offset + 1 }} of {{ review_count }} in this queue · {{ pending_count }} pending
         </div>
@@ -489,12 +517,12 @@ PAGE_TEMPLATE = """
       <div class="toolbar">
         <div class="tabs">
           {% if has_previous %}
-            <a class="button" id="previous_comment_link" href="{{ url_for('index', status=status_filter, q=search, offset=previous_offset) }}">Previous <kbd>←</kbd></a>
+            <a class="button" id="previous_comment_link" href="{{ url_for('index', platform=platform, status=status_filter, q=search, offset=previous_offset) }}">Previous <kbd>←</kbd></a>
           {% else %}
             <span class="button" aria-disabled="true">Previous <kbd>←</kbd></span>
           {% endif %}
           {% if has_next %}
-            <a class="button" id="next_comment_link" href="{{ url_for('index', status=status_filter, q=search, offset=next_offset) }}">Next <kbd>→</kbd></a>
+            <a class="button" id="next_comment_link" href="{{ url_for('index', platform=platform, status=status_filter, q=search, offset=next_offset) }}">Next <kbd>→</kbd></a>
           {% else %}
             <span class="button" aria-disabled="true">Next <kbd>→</kbd></span>
           {% endif %}
@@ -542,6 +570,7 @@ PAGE_TEMPLATE = """
         <aside>
           <form class="panel" method="post" action="{{ url_for('generate_draft') }}">
             <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
+            <input type="hidden" name="platform" value="{{ platform }}">
             <input type="hidden" name="status" value="{{ status_filter }}">
             <input type="hidden" name="q" value="{{ search }}">
             <input type="hidden" name="offset" value="{{ offset }}">
@@ -565,6 +594,7 @@ PAGE_TEMPLATE = """
 
           <form class="panel" method="post" action="{{ url_for('submit_reply') }}">
             <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
+            <input type="hidden" name="platform" value="{{ platform }}">
             <input type="hidden" name="status" value="{{ status_filter }}">
             <input type="hidden" name="q" value="{{ search }}">
             <input type="hidden" name="offset" value="{{ offset }}">
@@ -574,12 +604,15 @@ PAGE_TEMPLATE = """
             </div>
             <textarea id="reply_text" name="reply_text" required>{{ comment["ai_draft_text"] or "" }}</textarea>
             <div class="actions">
-              <button class="primary" type="submit" id="reply_button">Confirm & Reply <kbd>Enter</kbd></button>
+              <button class="primary" type="submit" id="reply_button" {% if platform == 'instagram' %}disabled{% endif %}>
+                {% if platform == 'instagram' %}Instagram Reply Coming Later{% else %}Confirm & Reply <kbd>Enter</kbd>{% endif %}
+              </button>
             </div>
           </form>
 
           <form class="panel" method="post" action="{{ url_for('comment_action') }}">
             <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
+            <input type="hidden" name="platform" value="{{ platform }}">
             <input type="hidden" name="status" value="{{ status_filter }}">
             <input type="hidden" name="q" value="{{ search }}">
             <input type="hidden" name="offset" value="{{ offset }}">
@@ -596,6 +629,7 @@ PAGE_TEMPLATE = """
 
           <form class="panel" method="post" action="{{ url_for('save_notes') }}">
             <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
+            <input type="hidden" name="platform" value="{{ platform }}">
             <input type="hidden" name="status" value="{{ status_filter }}">
             <input type="hidden" name="q" value="{{ search }}">
             <input type="hidden" name="offset" value="{{ offset }}">
@@ -611,6 +645,7 @@ PAGE_TEMPLATE = """
 
           <form class="panel" method="post" action="{{ url_for('save_video_description') }}">
             <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
+            <input type="hidden" name="platform" value="{{ platform }}">
             <input type="hidden" name="status" value="{{ status_filter }}">
             <input type="hidden" name="q" value="{{ search }}">
             <input type="hidden" name="offset" value="{{ offset }}">
@@ -695,6 +730,11 @@ def current_filter() -> str:
     return status if status in VALID_FILTERS else "pending"
 
 
+def current_platform() -> str:
+    platform = request.values.get("platform", "youtube").strip()
+    return platform if platform in VALID_PLATFORMS else "youtube"
+
+
 def current_search() -> str:
     return request.values.get("q", "").strip()
 
@@ -708,6 +748,7 @@ def redirect_to_queue(message: str, offset: int | None = None):
     return redirect(
         url_for(
             "index",
+            platform=current_platform(),
             status=current_filter(),
             q=current_search(),
             offset=current_offset() if offset is None else max(offset, 0),
@@ -737,19 +778,43 @@ def youtube_studio_comments_url(comment) -> str | None:
     return f"https://studio.youtube.com/video/{comment['video_id']}/comments"
 
 
+def instagram_media_url(comment) -> str | None:
+    return comment["media_permalink"] or None
+
+
+def instagram_comment_url(comment) -> str | None:
+    return comment["media_permalink"] or None
+
+
 def load_page_data(message: str | None = None, error: str | None = None):
+    platform = current_platform()
     status_filter = current_filter()
     search = current_search()
     offset = current_offset()
 
     connection = connect(DATABASE_PATH)
     initialize_database(connection)
-    review_count = count_review_comments(connection, status_filter, search)
+    instagram_media_ids = csv_env_values("INSTAGRAM_REVIEW_MEDIA_IDS")
+    if platform == "instagram":
+        review_count = count_instagram_review_comments(
+            connection, status_filter, search, instagram_media_ids
+        )
+    else:
+        review_count = count_review_comments(connection, status_filter, search)
     if review_count and offset >= review_count:
         offset = review_count - 1
-    comment = get_next_review_comment(connection, status_filter, search, offset)
-    pending_count = count_pending_top_level_comments(connection)
-    stats = get_queue_stats(connection)
+    if platform == "instagram":
+        comment = get_next_instagram_review_comment(
+            connection, status_filter, search, offset, instagram_media_ids
+        )
+        pending_count = count_pending_instagram_comments(
+            connection, instagram_media_ids
+        )
+        stats = get_instagram_queue_stats(connection, instagram_media_ids)
+    else:
+        comment = get_next_review_comment(connection, status_filter, search, offset)
+        pending_count = count_pending_top_level_comments(connection)
+        stats = get_queue_stats(connection)
     connection.close()
 
     display_status = None
@@ -759,12 +824,19 @@ def load_page_data(message: str | None = None, error: str | None = None):
     if comment:
         display_status = "pending" if comment["status"] == "synced" else comment["status"]
         display_status = display_status.replace("_", " ")
-        video_url = youtube_video_url(comment)
-        comment_url = youtube_comment_url(comment)
-        studio_url = youtube_studio_comments_url(comment)
+        if platform == "instagram":
+            video_url = instagram_media_url(comment)
+            comment_url = instagram_comment_url(comment)
+            studio_url = None
+        else:
+            video_url = youtube_video_url(comment)
+            comment_url = youtube_comment_url(comment)
+            studio_url = youtube_studio_comments_url(comment)
 
     return render_template_string(
         PAGE_TEMPLATE,
+        platform=platform,
+        platform_label="Instagram" if platform == "instagram" else "YouTube",
         comment=comment,
         pending_count=pending_count,
         review_count=review_count,
@@ -801,8 +873,12 @@ def index():
 
 @app.post("/reply")
 def submit_reply():
+    platform = current_platform()
     comment_id = request.form.get("comment_id", "").strip()
     reply_text = request.form.get("reply_text", "").strip()
+
+    if platform == "instagram":
+        return load_page_data(error="Instagram reply posting is not enabled yet."), 400
 
     if not comment_id.isdigit():
         return load_page_data(error="Missing or invalid comment ID."), 400
@@ -844,6 +920,7 @@ def submit_reply():
 
 @app.post("/draft")
 def generate_draft():
+    platform = current_platform()
     comment_id = request.form.get("comment_id", "").strip()
 
     if not comment_id.isdigit():
@@ -851,7 +928,10 @@ def generate_draft():
 
     connection = connect(DATABASE_PATH)
     initialize_database(connection)
-    comment = get_comment_by_id(connection, int(comment_id))
+    if platform == "instagram":
+        comment = get_instagram_comment_by_id(connection, int(comment_id))
+    else:
+        comment = get_comment_by_id(connection, int(comment_id))
 
     if not comment:
         connection.close()
@@ -863,15 +943,26 @@ def generate_draft():
 
     try:
         draft = generate_reply_draft(dict(comment))
-        save_ai_draft(
-            connection,
-            int(comment_id),
-            draft.text,
-            draft.model,
-            draft.provider,
-            draft.prompt_version,
-            draft.prompt_text,
-        )
+        if platform == "instagram":
+            save_instagram_ai_draft(
+                connection,
+                int(comment_id),
+                draft.text,
+                draft.model,
+                draft.provider,
+                draft.prompt_version,
+                draft.prompt_text,
+            )
+        else:
+            save_ai_draft(
+                connection,
+                int(comment_id),
+                draft.text,
+                draft.model,
+                draft.provider,
+                draft.prompt_version,
+                draft.prompt_text,
+            )
     except AIDraftError as exc:
         connection.close()
         return load_page_data(error=str(exc)), 500
@@ -882,6 +973,7 @@ def generate_draft():
 
 @app.post("/action")
 def comment_action():
+    platform = current_platform()
     comment_id = request.form.get("comment_id", "").strip()
     action = request.form.get("action", "").strip()
 
@@ -900,22 +992,34 @@ def comment_action():
     status, action_name, message = actions[action]
     connection = connect(DATABASE_PATH)
     initialize_database(connection)
-    update_comment_status(
-        connection,
-        int(comment_id),
-        status,
-        action_name,
-        skip_minutes=SKIP_MINUTES,
-    )
+    if platform == "instagram":
+        update_instagram_comment_status(
+            connection,
+            int(comment_id),
+            status,
+            skip_minutes=SKIP_MINUTES,
+        )
+    else:
+        update_comment_status(
+            connection,
+            int(comment_id),
+            status,
+            action_name,
+            skip_minutes=SKIP_MINUTES,
+        )
     connection.close()
     return redirect_to_queue(message)
 
 
 @app.post("/drafts/batch")
 def generate_batch_drafts():
+    platform = current_platform()
     connection = connect(DATABASE_PATH)
     initialize_database(connection)
-    comments = get_comments_needing_drafts(connection)
+    if platform == "instagram":
+        comments = get_instagram_comments_needing_drafts(connection)
+    else:
+        comments = get_comments_needing_drafts(connection)
 
     generated_count = 0
     failed_count = 0
@@ -924,15 +1028,26 @@ def generate_batch_drafts():
     for comment in comments:
         try:
             draft = generate_reply_draft(dict(comment))
-            save_ai_draft(
-                connection,
-                int(comment["id"]),
-                draft.text,
-                draft.model,
-                draft.provider,
-                draft.prompt_version,
-                draft.prompt_text,
-            )
+            if platform == "instagram":
+                save_instagram_ai_draft(
+                    connection,
+                    int(comment["id"]),
+                    draft.text,
+                    draft.model,
+                    draft.provider,
+                    draft.prompt_version,
+                    draft.prompt_text,
+                )
+            else:
+                save_ai_draft(
+                    connection,
+                    int(comment["id"]),
+                    draft.text,
+                    draft.model,
+                    draft.provider,
+                    draft.prompt_version,
+                    draft.prompt_text,
+                )
             generated_count += 1
         except AIDraftError as exc:
             failed_count += 1
@@ -946,6 +1061,7 @@ def generate_batch_drafts():
         return redirect(
             url_for(
                 "index",
+                platform=platform,
                 status="needs_reply",
                 message=(
                     f"Generated {generated_count} drafts before an error: "
@@ -957,6 +1073,7 @@ def generate_batch_drafts():
     return redirect(
         url_for(
             "index",
+            platform=platform,
             status="needs_reply",
             message=f"Generated {generated_count} batch drafts.",
         )
@@ -965,6 +1082,7 @@ def generate_batch_drafts():
 
 @app.post("/notes")
 def save_notes():
+    platform = current_platform()
     comment_id = request.form.get("comment_id", "").strip()
     notes = request.form.get("notes", "").strip()
 
@@ -973,13 +1091,17 @@ def save_notes():
 
     connection = connect(DATABASE_PATH)
     initialize_database(connection)
-    update_comment_notes(connection, int(comment_id), notes)
+    if platform == "instagram":
+        update_instagram_comment_notes(connection, int(comment_id), notes)
+    else:
+        update_comment_notes(connection, int(comment_id), notes)
     connection.close()
     return redirect_to_queue("Notes saved.")
 
 
 @app.post("/video-description")
 def save_video_description():
+    platform = current_platform()
     comment_id = request.form.get("comment_id", "").strip()
     video_description = request.form.get("video_description", "").strip()
 
@@ -988,13 +1110,19 @@ def save_video_description():
 
     connection = connect(DATABASE_PATH)
     initialize_database(connection)
-    update_video_description(connection, int(comment_id), video_description)
+    if platform == "instagram":
+        update_instagram_video_description(connection, int(comment_id), video_description)
+    else:
+        update_video_description(connection, int(comment_id), video_description)
     connection.close()
     return redirect_to_queue("Video description saved.")
 
 
 @app.post("/undo")
 def undo_last_action():
+    if current_platform() == "instagram":
+        return redirect_to_queue("Undo is not wired for Instagram actions yet.")
+
     connection = connect(DATABASE_PATH)
     initialize_database(connection)
     action = get_last_action(connection)
