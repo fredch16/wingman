@@ -455,7 +455,7 @@ REPLY_TEMPLATE = """
                 <button type="submit" id="notes_button" formaction="{{ url_for('save_notes') }}" formmethod="post" title="Save notes">Save</button>
               </div>
               <div class="right">
-                <span class="muted">T notes · N reply · S next · I ignore</span>
+                <span class="muted">A notes · N reply · S next · I ignore</span>
               </div>
             </div>
           </form>
@@ -549,14 +549,13 @@ REPLY_TEMPLATE = """
       if (isTyping && active.id !== "reply_text") return;
       if (key === "a" && !isTyping) {
         event.preventDefault();
+        const notes = document.getElementById("notes");
+        if (notes) {
+          notes.focus();
+          return;
+        }
         const reply = document.getElementById("reply_text");
         if (reply) reply.focus();
-        return;
-      }
-      if (key === "t" && !isTyping) {
-        event.preventDefault();
-        const notes = document.getElementById("notes");
-        if (notes) notes.focus();
         return;
       }
       const targets = {
