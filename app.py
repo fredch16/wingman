@@ -538,13 +538,14 @@ REPLY_TEMPLATE = """
       if (
         event.key === "Enter"
         && !event.shiftKey
-        && active
-        && active.id === "reply_text"
+        && (!isTyping || (active && active.id === "reply_text"))
       ) {
-        event.preventDefault();
         const button = document.getElementById("reply_button");
-        if (button) button.click();
-        return;
+        if (button) {
+          event.preventDefault();
+          button.click();
+          return;
+        }
       }
       if (isTyping && active.id !== "reply_text") return;
       if (key === "a" && !isTyping) {
