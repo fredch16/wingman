@@ -145,11 +145,13 @@ To sync only one Reel/media ID:
 python sync_instagram_comments.py --media-id INSTAGRAM_MEDIA_ID_HERE
 ```
 
-To keep Instagram review focused on specific Reels, add comma-separated media IDs:
+By default, leaving the media ID filters blank syncs and reviews all Reels returned
+by the Instagram API. To focus Instagram review on specific Reels, add
+comma-separated media IDs:
 
 ```text
-INSTAGRAM_MEDIA_IDS=18418211902178416
-INSTAGRAM_REVIEW_MEDIA_IDS=18418211902178416
+INSTAGRAM_MEDIA_IDS=18418211902178416,17900000000000000
+INSTAGRAM_REVIEW_MEDIA_IDS=18418211902178416,17900000000000000
 ```
 
 ## Run the Manual Review UI Manually
