@@ -154,6 +154,24 @@ def fetch_media_comments(client: InstagramClient, media_id: str) -> Iterator[dic
     )
 
 
+def fetch_comment(client: InstagramClient, comment_id: str) -> dict:
+    """Fetch one Instagram comment node with richer fields than edges return."""
+    fields = ",".join(
+        [
+            "id",
+            "text",
+            "from",
+            "username",
+            "user",
+            "parent_id",
+            "media",
+            "timestamp",
+            "like_count",
+        ]
+    )
+    return client.get(comment_id, {"fields": fields})
+
+
 def fetch_comment_replies(client: InstagramClient, comment_id: str) -> Iterator[dict]:
     """Yield replies for one Instagram comment."""
     fields = ",".join(
@@ -165,11 +183,18 @@ def fetch_comment_replies(client: InstagramClient, comment_id: str) -> Iterator[
             "like_count",
         ]
     )
-    yield from _paged_items(
+    for reply in _paged_items(
         client,
         f"{comment_id}/replies",
         {"fields": fields, "limit": 100},
-    )
+    ):
+        if reply.get("username") or reply.get("from") or not reply.get("id"):
+            yield reply
+            continue
+
+        hydrated_reply = fetch_comment(client, reply["id"])
+        hydrated_reply.setdefault("parent_id", comment_id)
+        yield hydrated_reply
 
 
 def post_reply_to_comment(
