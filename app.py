@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 from flask import Flask, redirect, render_template_string, request, url_for
 
-from ai_service import AIDraftError, generate_reply_draft
+from ai_service import AIDraftError, generate_reply_draft, refine_reply_draft
 from database import (
     connect,
     count_instagram_review_comments,
@@ -78,596 +78,391 @@ VALID_PLATFORMS = {"youtube", "instagram"}
 app = Flask(__name__)
 
 
-PAGE_TEMPLATE = """
+DASHBOARD_TEMPLATE = """
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Wingman Review</title>
+  <title>Wingman</title>
   <style>
     :root {
       color-scheme: light;
-      --bg: #f6f7f8;
-      --panel: #ffffff;
-      --text: #1f2428;
-      --muted: #656d76;
-      --line: #d8dee4;
-      --accent: #1967d2;
-      --accent-dark: #0f4fa8;
-      --danger: #b42318;
-      --warning: #8a5a00;
-      --success: #1f7a4d;
+      --bg: #f7f7f5;
+      --surface: #fff;
+      --text: #1d1d1f;
+      --muted: #6b6b70;
+      --line: #deded8;
+      --accent: #0a66c2;
     }
-
     * { box-sizing: border-box; }
-
     body {
       margin: 0;
       background: var(--bg);
       color: var(--text);
-      font-family: Arial, Helvetica, sans-serif;
-      line-height: 1.45;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.4;
     }
-
-    .shell {
-      width: min(1180px, calc(100vw - 32px));
-      margin: 28px auto;
-    }
-
-    .topbar {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 18px;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: 28px;
-      line-height: 1.1;
-    }
-
-    .subtle {
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .stats,
-    .toolbar,
-    .notice,
-    .error,
-    .empty,
-    .comment,
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-    }
-
-    .review-heading {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 14px;
-    }
-
-    .review-heading h2 {
-      margin: 0;
-      font-size: 18px;
-      line-height: 1.2;
-    }
-
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(7, minmax(0, 1fr));
-      gap: 1px;
-      overflow: hidden;
-      margin-bottom: 14px;
-      background: var(--line);
-    }
-
-    .stat {
-      background: var(--panel);
-      padding: 12px;
-      min-width: 0;
-    }
-
-    .stat strong {
-      display: block;
-      font-size: 22px;
-      line-height: 1;
-    }
-
-    .stat span {
-      display: block;
-      margin-top: 6px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 12px;
-      margin-bottom: 14px;
-    }
-
-    .tabs,
-    .platform-tabs,
-    .search {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .tab,
-    button,
-    .button {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      min-height: 40px;
-      padding: 9px 12px;
-      font: inherit;
-      font-weight: 700;
-      cursor: pointer;
-      text-decoration: none;
+    .shell { width: min(1040px, calc(100vw - 32px)); margin: 34px auto; }
+    .nav { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 30px; }
+    .brand { font-size: 18px; font-weight: 700; letter-spacing: 0; }
+    .nav a { color: var(--muted); text-decoration: none; font-weight: 650; }
+    .nav a.active, .nav a:hover { color: var(--text); }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: end; margin-bottom: 22px; }
+    h1 { margin: 0; font-size: clamp(34px, 7vw, 76px); line-height: .92; letter-spacing: 0; }
+    .muted { color: var(--muted); }
+    .launch {
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      color: var(--text);
-      background: #fff;
-    }
-
-    .tab.active {
-      border-color: var(--accent);
-      color: var(--accent);
-      background: #eef4ff;
-    }
-
-    .platform-tabs {
-      margin-bottom: 14px;
-    }
-
-    input[type="search"] {
-      width: min(260px, 100%);
-      min-height: 40px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 8px 10px;
-      font: inherit;
-      background: #fff;
-      color: var(--text);
-    }
-
-    .primary {
-      border-color: var(--accent);
-      background: var(--accent);
-      color: #fff;
-    }
-
-    .primary:hover {
-      background: var(--accent-dark);
-    }
-
-    .danger {
-      color: var(--danger);
-      border-color: #f1aeb5;
-      background: #fff7f7;
-    }
-
-    .warning {
-      color: var(--warning);
-      border-color: #f3d19c;
-      background: #fffaf0;
-    }
-
-    .notice,
-    .error,
-    .empty {
-      padding: 14px 16px;
-      margin-bottom: 14px;
-    }
-
-    .notice {
-      border-color: #9ec5fe;
-      color: #0f4fa8;
-    }
-
-    .error {
-      border-color: #f1aeb5;
-      color: var(--danger);
-    }
-
-    .layout {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 360px;
-      gap: 16px;
-      align-items: start;
-    }
-
-    .comment {
-      padding: 24px;
-      min-height: 360px;
-    }
-
-    .meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px 12px;
-      color: var(--muted);
-      font-size: 14px;
-      margin-bottom: 18px;
-    }
-
-    .video {
-      color: var(--text);
-      font-weight: 700;
-      width: 100%;
-      font-size: 18px;
-    }
-
-    .status {
-      border: 1px solid var(--line);
+      gap: 8px;
+      min-height: 44px;
+      padding: 0 16px;
+      border: 1px solid var(--text);
       border-radius: 999px;
-      padding: 2px 8px;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: .02em;
-    }
-
-    .author {
-      font-size: 20px;
+      background: var(--text);
+      color: white;
+      text-decoration: none;
       font-weight: 700;
-      margin-bottom: 12px;
     }
-
-    .text {
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-      font-size: 22px;
-      line-height: 1.5;
-    }
-
-    .link-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 18px;
-    }
-
-    .panel {
-      padding: 16px;
-      margin-bottom: 14px;
-    }
-
-    .panel-title {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: baseline;
-      margin-bottom: 8px;
-    }
-
-    .panel-title label {
-      margin: 0;
-    }
-
-    kbd {
-      border: 1px solid var(--line);
-      border-bottom-width: 2px;
-      border-radius: 6px;
-      padding: 1px 5px;
-      color: var(--muted);
-      background: #f6f8fa;
-      font-size: 12px;
-      font-family: Arial, Helvetica, sans-serif;
-    }
-
-    label {
-      display: block;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-
-    textarea {
-      width: 100%;
-      min-height: 170px;
-      resize: vertical;
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 22px; }
+    .metric {
+      background: var(--surface);
       border: 1px solid var(--line);
       border-radius: 8px;
-      padding: 12px;
-      font: inherit;
-      background: #fff;
-      color: var(--text);
+      padding: 18px;
+      min-height: 118px;
     }
-
-    textarea.notes {
-      min-height: 96px;
+    .metric strong { display: block; font-size: 36px; line-height: 1; margin-bottom: 10px; }
+    .metric span { color: var(--muted); font-size: 14px; }
+    .split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .list {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
     }
-
-    textarea.video-description {
-      min-height: 120px;
-    }
-
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-      gap: 10px;
-      margin-top: 12px;
-    }
-
-    .stacked-actions {
-      display: grid;
-      gap: 10px;
-    }
-
-    .stacked-actions button {
-      width: 100%;
-    }
-
-    .shortcuts {
-      color: var(--muted);
-      font-size: 13px;
-      margin-top: 10px;
-    }
-
-    .hint {
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    @media (max-width: 860px) {
-      .stats {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .toolbar,
-      .topbar {
-        display: block;
-      }
-
-      .search {
-        margin-top: 10px;
-      }
-
-      .layout {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 560px) {
-      .shell {
-        width: min(100vw - 20px, 1120px);
-        margin: 18px auto;
-      }
-
-      .tab,
-      button,
-      .button,
-      input[type="search"] {
-        width: 100%;
-      }
+    .list h2 { font-size: 14px; text-transform: uppercase; color: var(--muted); margin: 4px 6px 8px; letter-spacing: .06em; }
+    .item { display: block; padding: 12px 6px; color: var(--text); border-top: 1px solid var(--line); }
+    .item:first-of-type { border-top: 0; }
+    .item strong { display: block; font-size: 14px; margin-bottom: 4px; }
+    .item span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--muted); font-size: 14px; }
+    @media (max-width: 760px) {
+      .hero, .split { grid-template-columns: 1fr; }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
   </style>
 </head>
 <body>
   <main class="shell">
-    <div class="topbar">
+    <nav class="nav">
+      <div class="brand">Wingman</div>
       <div>
-        <h1>Wingman Review</h1>
-        <div class="subtle">Review one comment, then move cleanly to the next.</div>
+        <a class="active" href="{{ url_for('index') }}">Dashboard</a>
+        <span class="muted"> / </span>
+        <a href="{{ url_for('reply_queue', platform='instagram') }}">Reply</a>
       </div>
-      <form method="post" action="{{ url_for('undo_last_action') }}">
-        <input type="hidden" name="platform" value="{{ platform }}">
-        <button type="submit">Undo Last Action</button>
-      </form>
-    </div>
-
-    <nav class="platform-tabs">
-      <a class="tab {% if platform == 'youtube' %}active{% endif %}" href="{{ url_for('index', platform='youtube', status=status_filter, q=search) }}">YouTube</a>
-      <a class="tab {% if platform == 'instagram' %}active{% endif %}" href="{{ url_for('index', platform='instagram', status=status_filter, q=search) }}">Instagram</a>
     </nav>
 
-    <section class="stats">
-      <div class="stat"><strong>{{ stats.pending }}</strong><span>Pending</span></div>
-      <div class="stat"><strong>{{ stats.needs_reply }}</strong><span>Needs reply</span></div>
-      <div class="stat"><strong>{{ stats.skipped }}</strong><span>Skipped</span></div>
-      <div class="stat"><strong>{{ stats.ignored }}</strong><span>Ignored</span></div>
-      <div class="stat"><strong>{{ stats.externally_replied }}</strong><span>External replies</span></div>
-      <div class="stat"><strong>{{ stats.replied }}</strong><span>Replied</span></div>
-      <div class="stat"><strong>{{ stats.replied_today }}</strong><span>Replied today</span></div>
+    <section class="hero">
+      <div>
+        <div class="muted">Pending comments</div>
+        <h1>{{ total_pending }}</h1>
+      </div>
+      <a class="launch" href="{{ url_for('reply_queue', platform=default_platform) }}">Reply now</a>
     </section>
 
-    <section class="toolbar">
-      <nav class="tabs">
-        {% for key, label in filters %}
-          <a class="tab {% if status_filter == key %}active{% endif %}" href="{{ url_for('index', platform=platform, status=key, q=search) }}">{{ label }}</a>
+    <section class="grid">
+      <div class="metric"><strong>{{ youtube.pending }}</strong><span>YouTube pending</span></div>
+      <div class="metric"><strong>{{ instagram.pending }}</strong><span>Instagram pending</span></div>
+      <div class="metric"><strong>{{ youtube.needs_reply + instagram.needs_reply }}</strong><span>Need drafts</span></div>
+      <div class="metric"><strong>{{ youtube.replied_today + instagram.replied_today }}</strong><span>Replied today</span></div>
+    </section>
+
+    <section class="split">
+      <div class="list">
+        <h2>YouTube</h2>
+        {% for comment in youtube_top %}
+          <div class="item">
+            <strong>{{ comment["author_name"] or "Unknown" }}</strong>
+            <span>{{ comment["text"] or "" }}</span>
+          </div>
+        {% else %}
+          <div class="item"><span>Nothing pending.</span></div>
         {% endfor %}
-      </nav>
-      <form class="search" method="get" action="{{ url_for('index') }}">
-        <input type="hidden" name="status" value="{{ status_filter }}">
-        <input type="hidden" name="platform" value="{{ platform }}">
-        <input type="search" name="q" value="{{ search }}" placeholder="Search comments">
-        <button type="submit">Search</button>
-      </form>
+      </div>
+      <div class="list">
+        <h2>Instagram</h2>
+        {% for comment in instagram_top %}
+          <div class="item">
+            <strong>{{ comment["author_name"] or "Unknown" }}</strong>
+            <span>{{ comment["text"] or "" }}</span>
+          </div>
+        {% else %}
+          <div class="item"><span>Nothing pending.</span></div>
+        {% endfor %}
+      </div>
     </section>
+  </main>
+</body>
+</html>
+"""
 
-    <section class="toolbar">
-      <div class="subtle">Draft inbox: mark comments as Needs Reply, then generate drafts for that queue.</div>
-      <form method="post" action="{{ url_for('generate_batch_drafts') }}">
-        <input type="hidden" name="platform" value="{{ platform }}">
-        <button type="submit">Generate Batch Drafts</button>
-      </form>
-    </section>
 
-    {% if message %}
-      <div class="notice">{{ message }}</div>
-    {% endif %}
+REPLY_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wingman Reply</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f7f5;
+      --surface: #fff;
+      --text: #1d1d1f;
+      --muted: #6b6b70;
+      --line: #deded8;
+      --soft: #f0f0ec;
+      --accent: #0a66c2;
+      --danger: #b42318;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+    a { color: inherit; }
+    .shell { width: min(760px, calc(100vw - 28px)); margin: 18px auto 42px; }
+    .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+    .nav a { color: var(--muted); text-decoration: none; font-weight: 700; }
+    .nav a.active, .nav a:hover { color: var(--text); }
+    .queue {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .chip, .icon-button {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 999px;
+      min-height: 34px;
+      padding: 0 11px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .chip.active { color: var(--text); border-color: var(--text); }
+    .thread {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+    }
+    .comment-row {
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr);
+      gap: 12px;
+    }
+    .avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: var(--soft);
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-weight: 800;
+    }
+    .bubble {
+      background: #f5f5f2;
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .meta span { color: var(--muted); font-weight: 500; }
+    .comment-text {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      margin-top: 6px;
+      font-size: 16px;
+    }
+    .source {
+      margin: 10px 0 0 50px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .reply-form {
+      margin: 16px 0 0 50px;
+      border-top: 1px solid var(--line);
+      padding-top: 16px;
+    }
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      resize: vertical;
+      font: inherit;
+      background: var(--surface);
+      color: var(--text);
+    }
+    #reply_text { min-height: 112px; }
+    #rephrase_hint { min-height: 54px; margin-top: 8px; }
+    .buttons {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-top: 10px;
+    }
+    .left, .right { display: flex; gap: 8px; flex-wrap: wrap; }
+    button, .button {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 999px;
+      min-height: 38px;
+      padding: 0 13px;
+      font: inherit;
+      font-weight: 750;
+      cursor: pointer;
+      text-decoration: none;
+      color: var(--text);
+    }
+    button.primary { background: var(--text); border-color: var(--text); color: white; }
+    button.danger { color: var(--danger); }
+    .notice, .error, .empty {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      color: var(--muted);
+    }
+    .error { color: var(--danger); }
+    .mini-form { display: inline; }
+    .status-line {
+      display: flex;
+      gap: 10px;
+      justify-content: space-between;
+      margin: 12px 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    @media (max-width: 620px) {
+      .reply-form, .source { margin-left: 0; }
+      .comment-row { grid-template-columns: 1fr; }
+      .avatar { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <nav class="nav">
+      <a href="{{ url_for('index') }}">Wingman</a>
+      <div>
+        <a class="{% if platform == 'youtube' %}active{% endif %}" href="{{ url_for('reply_queue', platform='youtube', status=status_filter) }}">YT</a>
+        <span class="muted"> / </span>
+        <a class="{% if platform == 'instagram' %}active{% endif %}" href="{{ url_for('reply_queue', platform='instagram', status=status_filter) }}">IG</a>
+      </div>
+    </nav>
 
-    {% if error %}
-      <div class="error">{{ error }}</div>
-    {% endif %}
+    <div class="queue">
+      <div class="chips">
+        {% for key, label in filters %}
+          <a class="chip {% if status_filter == key %}active{% endif %}" href="{{ url_for('reply_queue', platform=platform, status=key, q=search) }}">{{ label }}</a>
+        {% endfor %}
+      </div>
+      <div>{{ offset + 1 if review_count else 0 }}/{{ review_count }}</div>
+    </div>
+
+    {% if message %}<div class="notice">{{ message }}</div>{% endif %}
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
 
     {% if comment %}
-      <div class="review-heading">
-        <h2>{{ platform_label }} Comment</h2>
-        <div class="subtle">
-          {{ offset + 1 }} of {{ review_count }} in this queue · {{ pending_count }} pending
+      <section class="thread">
+        <div class="comment-row">
+          <div class="avatar">{{ (comment["author_name"] or "?")[:1].upper() }}</div>
+          <article class="bubble">
+            <div class="meta">
+              {{ comment["author_name"] or "Unknown" }}
+              <span>{{ display_status }}</span>
+              <span>{{ comment["like_count"] or 0 }} likes</span>
+            </div>
+            <div class="comment-text">{{ comment["text"] or "" }}</div>
+          </article>
         </div>
-      </div>
-      <div class="toolbar">
-        <div class="tabs">
-          {% if has_previous %}
-            <a class="button" id="previous_comment_link" href="{{ url_for('index', platform=platform, status=status_filter, q=search, offset=previous_offset) }}">Previous <kbd>←</kbd></a>
-          {% else %}
-            <span class="button" aria-disabled="true">Previous <kbd>←</kbd></span>
-          {% endif %}
-          {% if has_next %}
-            <a class="button" id="next_comment_link" href="{{ url_for('index', platform=platform, status=status_filter, q=search, offset=next_offset) }}">Next <kbd>→</kbd></a>
-          {% else %}
-            <span class="button" aria-disabled="true">Next <kbd>→</kbd></span>
-          {% endif %}
+
+        <div class="source">
+          {% if video_url %}<a class="icon-button" href="{{ video_url }}" target="_blank" rel="noreferrer" title="Open video">↗</a>{% endif %}
+          {% if comment_url %}<a class="icon-button" id="open_comment_link" href="{{ comment_url }}" target="_blank" rel="noreferrer" title="Open comment">⌕</a>{% endif %}
+          {% if has_previous %}<a class="icon-button" id="previous_comment_link" href="{{ url_for('reply_queue', platform=platform, status=status_filter, q=search, offset=previous_offset) }}" title="Previous">←</a>{% endif %}
+          {% if has_next %}<a class="icon-button" id="next_comment_link" href="{{ url_for('reply_queue', platform=platform, status=status_filter, q=search, offset=next_offset) }}" title="Next">→</a>{% endif %}
         </div>
-        <div class="subtle">Browse without changing status</div>
-      </div>
-      <div class="layout">
-        <section class="comment">
-          <div class="meta">
-            {% if comment["video_title"] %}
-              <span class="video">{{ comment["video_title"] }}</span>
-            {% endif %}
-            {% if comment["published_at"] %}
-              <span>{{ comment["published_at"] }}</span>
-            {% endif %}
-            <span>{{ comment["like_count"] or 0 }} likes</span>
-            <span class="status">{{ display_status }}</span>
+
+        <form class="reply-form" method="post" action="{{ url_for('submit_reply') }}">
+          <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
+          <input type="hidden" name="platform" value="{{ platform }}">
+          <input type="hidden" name="status" value="{{ status_filter }}">
+          <input type="hidden" name="q" value="{{ search }}">
+          <input type="hidden" name="offset" value="{{ offset }}">
+          <textarea id="reply_text" name="reply_text" placeholder="Reply">{{ comment["ai_draft_text"] or "" }}</textarea>
+          <textarea id="rephrase_hint" name="rephrase_hint" placeholder="Nudge the draft"></textarea>
+          <div class="buttons">
+            <div class="left">
+              <button type="submit" id="draft_button" name="draft_mode" value="fresh" formaction="{{ url_for('generate_draft') }}" formmethod="post" title="Draft">Draft</button>
+              <button type="submit" id="rephrase_button" name="draft_mode" value="rephrase" formaction="{{ url_for('generate_draft') }}" formmethod="post" title="Rephrase">Rephrase</button>
+            </div>
+            <div class="right">
+              <button class="primary" type="submit" id="reply_button">Reply</button>
+            </div>
           </div>
-          <div class="author">{{ comment["author_name"] or "Unknown author" }}</div>
-          <div class="text">{{ comment["text"] or "" }}</div>
-          <div class="link-row">
-            {% if video_url %}
-              <a class="button" href="{{ video_url }}" target="_blank" rel="noreferrer">Open Video</a>
-            {% endif %}
-            {% if comment_url %}
-              <a class="button" id="open_comment_link" href="{{ comment_url }}" target="_blank" rel="noreferrer">Open Comment <kbd>O</kbd></a>
-            {% endif %}
-            {% if studio_url %}
-              <a class="button" href="{{ studio_url }}" target="_blank" rel="noreferrer">Open Studio</a>
-            {% endif %}
-          </div>
-          {% if comment["wingman_reply_text"] %}
-            <div class="panel">
-              <div class="panel-title">
-                <label>Wingman Reply</label>
-                {% if comment["replied_at"] %}
-                  <span class="hint">{{ comment["replied_at"] }}</span>
-                {% endif %}
-              </div>
-              <div class="text">{{ comment["wingman_reply_text"] }}</div>
-            </div>
-          {% endif %}
-        </section>
+        </form>
 
-        <aside>
-          <form class="panel" method="post" action="{{ url_for('generate_draft') }}">
-            <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
-            <input type="hidden" name="platform" value="{{ platform }}">
-            <input type="hidden" name="status" value="{{ status_filter }}">
-            <input type="hidden" name="q" value="{{ search }}">
-            <input type="hidden" name="offset" value="{{ offset }}">
-            <div class="panel-title">
-              <label>AI Draft</label>
-              {% if comment["ai_draft_model"] %}
-                <span class="hint">{{ comment["ai_draft_provider"] }} / {{ comment["ai_draft_model"] }}</span>
-              {% else %}
-                <span class="hint">manual approval required</span>
-              {% endif %}
-            </div>
-            {% if comment["ai_drafted_at"] %}
-              <div class="shortcuts">Last generated: {{ comment["ai_drafted_at"] }}</div>
-            {% endif %}
-            <div class="actions">
-              <button type="submit" id="draft_button">
-                {% if comment["ai_draft_text"] %}Regenerate Draft{% else %}Generate Draft{% endif %} <kbd>D</kbd>
-              </button>
-            </div>
-          </form>
+        <div class="status-line">
+          <span>{{ comment["video_title"] or platform_label }}</span>
+          <span>{{ pending_count }} pending</span>
+        </div>
 
-          <form class="panel" method="post" action="{{ url_for('submit_reply') }}">
-            <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
-            <input type="hidden" name="platform" value="{{ platform }}">
-            <input type="hidden" name="status" value="{{ status_filter }}">
-            <input type="hidden" name="q" value="{{ search }}">
-            <input type="hidden" name="offset" value="{{ offset }}">
-            <div class="panel-title">
-              <label for="reply_text">Reply</label>
-              <span class="hint"><kbd>A</kbd> focus, <kbd>Esc</kbd> leave</span>
-            </div>
-            <textarea id="reply_text" name="reply_text" required>{{ comment["ai_draft_text"] or "" }}</textarea>
-            <div class="actions">
-              <button class="primary" type="submit" id="reply_button">Confirm & Reply <kbd>Enter</kbd></button>
-            </div>
-          </form>
-
-          <form class="panel" method="post" action="{{ url_for('comment_action') }}">
-            <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
-            <input type="hidden" name="platform" value="{{ platform }}">
-            <input type="hidden" name="status" value="{{ status_filter }}">
-            <input type="hidden" name="q" value="{{ search }}">
-            <input type="hidden" name="offset" value="{{ offset }}">
-            <div class="stacked-actions">
-              <button class="primary" type="submit" name="action" value="needs_reply" id="needs_reply_button">Needs Reply <kbd>N</kbd></button>
-              <button type="submit" name="action" value="skip" id="skip_button">Skip For Now <kbd>S</kbd></button>
-              <button class="danger" type="submit" name="action" value="ignore" id="ignore_button">Ignore <kbd>I</kbd></button>
+        <div class="buttons">
+          <div class="left">
+            <form class="mini-form" method="post" action="{{ url_for('comment_action') }}">
+              <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
+              <input type="hidden" name="platform" value="{{ platform }}">
+              <input type="hidden" name="status" value="{{ status_filter }}">
+              <input type="hidden" name="q" value="{{ search }}">
+              <input type="hidden" name="offset" value="{{ offset }}">
+              <button type="submit" name="action" value="skip" id="skip_button" title="Skip">Skip</button>
+              <button class="danger" type="submit" name="action" value="ignore" id="ignore_button" title="Ignore">Ignore</button>
+              <button type="submit" name="action" value="needs_reply" id="needs_reply_button" title="Needs reply">Later</button>
               {% if comment["status"] in ["skipped", "ignored", "needs_reply"] %}
-                <button type="submit" name="action" value="pending" id="pending_button">Move to Pending <kbd>P</kbd></button>
+                <button type="submit" name="action" value="pending" id="pending_button" title="Pending">Pending</button>
               {% endif %}
-            </div>
-            <div class="shortcuts">Normal mode: A reply, D draft, N needs reply, P pending, S skip, I ignore, O open, arrows browse. Insert mode: Esc exits, Enter submits, Shift+Enter adds a line.</div>
-          </form>
-
-          <form class="panel" method="post" action="{{ url_for('save_notes') }}">
-            <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
-            <input type="hidden" name="platform" value="{{ platform }}">
-            <input type="hidden" name="status" value="{{ status_filter }}">
-            <input type="hidden" name="q" value="{{ search }}">
-            <input type="hidden" name="offset" value="{{ offset }}">
-            <div class="panel-title">
-              <label for="notes">Notes</label>
-              <span class="hint">private</span>
-            </div>
-            <textarea class="notes" id="notes" name="notes">{{ comment["notes"] or "" }}</textarea>
-            <div class="actions">
-              <button type="submit">Save Notes</button>
-            </div>
-          </form>
-
-          <form class="panel" method="post" action="{{ url_for('save_video_description') }}">
-            <input type="hidden" name="comment_id" value="{{ comment['id'] }}">
-            <input type="hidden" name="platform" value="{{ platform }}">
-            <input type="hidden" name="status" value="{{ status_filter }}">
-            <input type="hidden" name="q" value="{{ search }}">
-            <input type="hidden" name="offset" value="{{ offset }}">
-            <div class="panel-title">
-              <label for="video_description">Video Description</label>
-              <span class="hint">sent with AI drafts</span>
-            </div>
-            <textarea class="video-description" id="video_description" name="video_description">{{ comment["video_description"] or "" }}</textarea>
-            <div class="actions">
-              <button type="submit">Save Description</button>
-            </div>
-          </form>
-        </aside>
-      </div>
+            </form>
+          </div>
+        </div>
+      </section>
     {% else %}
-      <div class="empty">No comments found for this queue.</div>
+      <div class="empty">Nothing here.</div>
     {% endif %}
   </main>
 
@@ -675,51 +470,29 @@ PAGE_TEMPLATE = """
     document.addEventListener("keydown", function (event) {
       const active = document.activeElement;
       const isTyping = active && (active.tagName === "TEXTAREA" || active.tagName === "INPUT");
-      const isReplyBox = active && active.id === "reply_text";
-      const isNotesBox = active && active.id === "notes";
-      const hasModifier = event.ctrlKey || event.metaKey;
       const key = event.key.toLowerCase();
-
       if (event.key === "Escape" && isTyping) {
         event.preventDefault();
         active.blur();
         return;
       }
-
-      if (
-        event.key === "Enter"
-        && !event.shiftKey
-        && (hasModifier || isReplyBox || !isTyping)
-      ) {
+      if (isTyping && active.id !== "reply_text") return;
+      if (key === "a" && !isTyping) {
         event.preventDefault();
-        const button = document.getElementById("reply_button");
-        if (button) button.click();
+        const reply = document.getElementById("reply_text");
+        if (reply) reply.focus();
         return;
       }
-
-      if (isTyping && !isReplyBox) return;
-
-      if (isReplyBox && event.shiftKey) return;
-      if (isReplyBox && active.value.trim().length > 0) return;
-
-      if (key === "a" && !hasModifier && !isTyping) {
-        event.preventDefault();
-        const replyBox = document.getElementById("reply_text");
-        if (replyBox) replyBox.focus();
-        return;
-      }
-
       const targets = {
         "arrowleft": "previous_comment_link",
         "arrowright": "next_comment_link",
         "d": "draft_button",
-        "n": "needs_reply_button",
-        "p": "pending_button",
+        "r": "rephrase_button",
         "s": "skip_button",
         "i": "ignore_button",
         "o": "open_comment_link"
       };
-      if (targets[key] && !hasModifier && !isNotesBox) {
+      if (targets[key] && !event.ctrlKey && !event.metaKey && !isTyping) {
         event.preventDefault();
         const target = document.getElementById(targets[key]);
         if (target) target.click();
@@ -729,8 +502,6 @@ PAGE_TEMPLATE = """
 </body>
 </html>
 """
-
-
 def current_filter() -> str:
     status = request.values.get("status", "pending").strip()
     return status if status in VALID_FILTERS else "pending"
@@ -753,7 +524,7 @@ def current_offset() -> int:
 def redirect_to_queue(message: str, offset: int | None = None):
     return redirect(
         url_for(
-            "index",
+            "reply_queue",
             platform=current_platform(),
             status=current_filter(),
             q=current_search(),
@@ -790,6 +561,71 @@ def instagram_media_url(comment) -> str | None:
 
 def instagram_comment_url(comment) -> str | None:
     return comment["media_permalink"] or None
+
+
+def top_youtube_comments(connection, limit: int = 4):
+    return list(
+        connection.execute(
+            """
+            SELECT *
+            FROM comments
+            WHERE COALESCE(is_reply, 0) = 0
+              AND COALESCE(TRIM(text), '') <> ''
+              AND status = 'synced'
+            ORDER BY like_count DESC, datetime(published_at) DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+    )
+
+
+def top_instagram_comments(connection, limit: int = 4):
+    media_ids = csv_env_values("INSTAGRAM_REVIEW_MEDIA_IDS")
+    clauses = [
+        "COALESCE(is_reply, 0) = 0",
+        "COALESCE(TRIM(text), '') <> ''",
+        "status = 'synced'",
+    ]
+    params = []
+    if media_ids:
+        placeholders = ", ".join("?" for _ in media_ids)
+        clauses.append(f"instagram_media_id IN ({placeholders})")
+        params.extend(media_ids)
+    params.append(limit)
+    return list(
+        connection.execute(
+            f"""
+            SELECT *
+            FROM instagram_comments
+            WHERE {" AND ".join(clauses)}
+            ORDER BY like_count DESC, datetime(published_at) DESC
+            LIMIT ?
+            """,
+            params,
+        ).fetchall()
+    )
+
+
+def dashboard_data():
+    connection = connect(DATABASE_PATH)
+    initialize_database(connection)
+    instagram_media_ids = csv_env_values("INSTAGRAM_REVIEW_MEDIA_IDS")
+    youtube = get_queue_stats(connection)
+    instagram = get_instagram_queue_stats(connection, instagram_media_ids)
+    youtube_top = top_youtube_comments(connection)
+    instagram_top = top_instagram_comments(connection)
+    connection.close()
+    default_platform = "instagram" if instagram["pending"] else "youtube"
+    return render_template_string(
+        DASHBOARD_TEMPLATE,
+        youtube=youtube,
+        instagram=instagram,
+        youtube_top=youtube_top,
+        instagram_top=instagram_top,
+        total_pending=youtube["pending"] + instagram["pending"],
+        default_platform=default_platform,
+    )
 
 
 def load_page_data(message: str | None = None, error: str | None = None):
@@ -840,7 +676,7 @@ def load_page_data(message: str | None = None, error: str | None = None):
             studio_url = youtube_studio_comments_url(comment)
 
     return render_template_string(
-        PAGE_TEMPLATE,
+        REPLY_TEMPLATE,
         platform=platform,
         platform_label="Instagram" if platform == "instagram" else "YouTube",
         comment=comment,
@@ -856,12 +692,12 @@ def load_page_data(message: str | None = None, error: str | None = None):
         search=search,
         filters=[
             ("pending", "Pending"),
-            ("needs_reply", "Needs Reply"),
+            ("needs_reply", "Later"),
             ("skipped", "Skipped"),
-            ("externally_replied", "External Replies"),
+            ("externally_replied", "Done"),
             ("ignored", "Ignored"),
             ("replied", "Replied"),
-            ("all", "All Active"),
+            ("all", "All"),
         ],
         display_status=display_status,
         video_url=video_url,
@@ -874,6 +710,11 @@ def load_page_data(message: str | None = None, error: str | None = None):
 
 @app.get("/")
 def index():
+    return dashboard_data()
+
+
+@app.get("/reply")
+def reply_queue():
     return load_page_data(message=request.args.get("message"))
 
 
@@ -953,6 +794,9 @@ def submit_reply():
 def generate_draft():
     platform = current_platform()
     comment_id = request.form.get("comment_id", "").strip()
+    current_reply = request.form.get("reply_text", "").strip()
+    rephrase_hint = request.form.get("rephrase_hint", "").strip()
+    should_rephrase = request.form.get("draft_mode") == "rephrase"
 
     if not comment_id.isdigit():
         return load_page_data(error="Missing or invalid comment ID."), 400
@@ -973,7 +817,10 @@ def generate_draft():
         return load_page_data(error="Wingman only drafts replies to top-level comments."), 400
 
     try:
-        draft = generate_reply_draft(dict(comment))
+        if should_rephrase:
+            draft = refine_reply_draft(dict(comment), current_reply, rephrase_hint)
+        else:
+            draft = generate_reply_draft(dict(comment))
         if platform == "instagram":
             save_instagram_ai_draft(
                 connection,
@@ -999,7 +846,8 @@ def generate_draft():
         return load_page_data(error=str(exc)), 500
 
     connection.close()
-    return redirect_to_queue("AI draft generated. Edit it before posting.")
+    message = "Draft rephrased." if should_rephrase else "Draft generated."
+    return redirect_to_queue(message)
 
 
 @app.post("/action")
