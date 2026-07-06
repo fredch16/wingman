@@ -293,6 +293,7 @@ def upsert_instagram_comment(connection: sqlite3.Connection, comment: dict) -> N
             status = CASE
                 WHEN instagram_comments.status IN (
                     'replied',
+                    'externally_replied',
                     'ignored',
                     'needs_reply',
                     'skipped'
@@ -843,6 +844,59 @@ def reconcile_external_reply_status(
               AND status = 'externally_replied'
             """,
             (youtube_comment_id,),
+        )
+
+
+def mark_instagram_comment_replied(
+    connection: sqlite3.Connection,
+    comment_id: int,
+    reply_text: str,
+    instagram_reply_id: str,
+) -> None:
+    """Mark an Instagram comment as replied to through Wingman."""
+    connection.execute(
+        """
+        UPDATE instagram_comments
+        SET status = 'replied',
+            wingman_reply_text = ?,
+            instagram_reply_id = ?,
+            replied_at = ?,
+            last_seen_at = ?
+        WHERE id = ?
+        """,
+        (reply_text, instagram_reply_id, utc_now_iso(), utc_now_iso(), comment_id),
+    )
+    connection.commit()
+
+
+def reconcile_instagram_external_reply_status(
+    connection: sqlite3.Connection,
+    instagram_comment_id: str,
+    has_account_reply: bool,
+) -> None:
+    """Keep local workflow aligned with replies already made on Instagram."""
+    if has_account_reply:
+        connection.execute(
+            """
+            UPDATE instagram_comments
+            SET status = 'externally_replied',
+                last_seen_at = ?
+            WHERE instagram_comment_id = ?
+              AND COALESCE(is_reply, 0) = 0
+              AND status != 'replied'
+            """,
+            (utc_now_iso(), instagram_comment_id),
+        )
+    else:
+        connection.execute(
+            """
+            UPDATE instagram_comments
+            SET status = 'synced'
+            WHERE instagram_comment_id = ?
+              AND COALESCE(is_reply, 0) = 0
+              AND status = 'externally_replied'
+            """,
+            (instagram_comment_id,),
         )
 
 

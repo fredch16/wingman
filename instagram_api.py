@@ -41,6 +41,29 @@ class InstagramClient:
         except URLError as exc:
             raise InstagramApiError(f"Could not reach Instagram API: {exc}") from exc
 
+    def post(self, path: str, params: Optional[dict] = None) -> dict:
+        data = urlencode(dict(params or {})).encode("utf-8")
+        url = f"{self.base_url}/{path.strip('/')}"
+        request = Request(
+            url,
+            data=data,
+            headers={
+                "Accept": "application/json",
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            method="POST",
+        )
+
+        try:
+            with urlopen(request, timeout=30) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            details = exc.read().decode("utf-8", errors="replace")
+            raise InstagramApiError(f"Instagram API error {exc.code}: {details}") from exc
+        except URLError as exc:
+            raise InstagramApiError(f"Could not reach Instagram API: {exc}") from exc
+
 
 def resolve_instagram_account_id(client: InstagramClient, configured_id: str) -> str:
     """Return the Instagram user_id for an Instagram Login token."""
@@ -69,6 +92,11 @@ def resolve_instagram_account_id(client: InstagramClient, configured_id: str) ->
     if configured_id:
         print(f"Using Instagram account: {configured_id}")
         return configured_id
+
+
+def fetch_authenticated_account(client: InstagramClient) -> dict:
+    """Return account identity fields for the current Instagram token."""
+    return client.get("me", {"fields": "id,user_id,username"})
 
 
 def _paged_items(client: InstagramClient, path: str, params: dict) -> Iterator[dict]:
@@ -142,6 +170,22 @@ def fetch_comment_replies(client: InstagramClient, comment_id: str) -> Iterator[
         f"{comment_id}/replies",
         {"fields": fields, "limit": 100},
     )
+
+
+def post_reply_to_comment(
+    client: InstagramClient, parent_comment_id: str, reply_text: str
+) -> str:
+    """Post a reply to an Instagram comment and return the reply ID."""
+    response = client.post(
+        f"{parent_comment_id}/replies",
+        {"message": reply_text},
+    )
+    reply_id = response.get("id")
+    if not reply_id:
+        raise InstagramApiError(
+            "Instagram accepted the reply but did not return a reply ID."
+        )
+    return reply_id
 
 
 def caption_title(caption: Optional[str]) -> Optional[str]:

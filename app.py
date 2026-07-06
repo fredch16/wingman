@@ -21,6 +21,7 @@ from database import (
     get_queue_stats,
     initialize_database,
     mark_comment_replied,
+    mark_instagram_comment_replied,
     restore_action,
     save_ai_draft,
     save_instagram_ai_draft,
@@ -30,6 +31,11 @@ from database import (
     update_instagram_comment_notes,
     update_instagram_comment_status,
     update_instagram_video_description,
+)
+from instagram_api import (
+    InstagramApiError,
+    InstagramClient,
+    post_reply_to_comment as post_instagram_reply_to_comment,
 )
 from youtube_api import (
     YouTubeApiError,
@@ -55,6 +61,8 @@ CLIENT_SECRETS_FILE = env_value("YOUTUBE_CLIENT_SECRETS_FILE", "client_secret.js
 TOKEN_FILE = env_value("YOUTUBE_TOKEN_FILE", "token.json")
 SKIP_MINUTES = int(env_value("WINGMAN_SKIP_MINUTES", "60"))
 WINGMAN_PORT = int(env_value("WINGMAN_PORT", "5000"))
+INSTAGRAM_ACCESS_TOKEN = env_value("INSTAGRAM_ACCESS_TOKEN", "")
+INSTAGRAM_API_VERSION = env_value("INSTAGRAM_GRAPH_API_VERSION", "v25.0")
 
 VALID_FILTERS = {
     "pending",
@@ -604,9 +612,7 @@ PAGE_TEMPLATE = """
             </div>
             <textarea id="reply_text" name="reply_text" required>{{ comment["ai_draft_text"] or "" }}</textarea>
             <div class="actions">
-              <button class="primary" type="submit" id="reply_button" {% if platform == 'instagram' %}disabled{% endif %}>
-                {% if platform == 'instagram' %}Instagram Reply Coming Later{% else %}Confirm & Reply <kbd>Enter</kbd>{% endif %}
-              </button>
+              <button class="primary" type="submit" id="reply_button">Confirm & Reply <kbd>Enter</kbd></button>
             </div>
           </form>
 
@@ -877,9 +883,6 @@ def submit_reply():
     comment_id = request.form.get("comment_id", "").strip()
     reply_text = request.form.get("reply_text", "").strip()
 
-    if platform == "instagram":
-        return load_page_data(error="Instagram reply posting is not enabled yet."), 400
-
     if not comment_id.isdigit():
         return load_page_data(error="Missing or invalid comment ID."), 400
 
@@ -888,7 +891,10 @@ def submit_reply():
 
     connection = connect(DATABASE_PATH)
     initialize_database(connection)
-    comment = get_comment_by_id(connection, int(comment_id))
+    if platform == "instagram":
+        comment = get_instagram_comment_by_id(connection, int(comment_id))
+    else:
+        comment = get_comment_by_id(connection, int(comment_id))
 
     if not comment:
         connection.close()
@@ -898,9 +904,34 @@ def submit_reply():
         connection.close()
         return redirect_to_queue("That comment was already replied to.")
 
+    if comment["status"] == "externally_replied":
+        connection.close()
+        return redirect_to_queue("That comment already has an external reply.")
+
     if comment["is_reply"]:
         connection.close()
         return load_page_data(error="Wingman only replies to top-level comments."), 400
+
+    if platform == "instagram":
+        try:
+            client = InstagramClient(INSTAGRAM_ACCESS_TOKEN, INSTAGRAM_API_VERSION)
+            instagram_reply_id = post_instagram_reply_to_comment(
+                client,
+                comment["instagram_comment_id"],
+                reply_text,
+            )
+            mark_instagram_comment_replied(
+                connection,
+                int(comment_id),
+                reply_text,
+                instagram_reply_id,
+            )
+        except InstagramApiError as exc:
+            connection.close()
+            return load_page_data(error=str(exc)), 500
+
+        connection.close()
+        return redirect_to_queue("Reply posted to Instagram.", offset=0)
 
     try:
         youtube = authenticate(CLIENT_SECRETS_FILE, TOKEN_FILE)

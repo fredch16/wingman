@@ -8,11 +8,13 @@ from database import (
     connect,
     count_instagram_comments,
     initialize_database,
+    reconcile_instagram_external_reply_status,
     upsert_instagram_comment,
 )
 from instagram_api import (
     InstagramApiError,
     InstagramClient,
+    fetch_authenticated_account,
     fetch_comment_replies,
     fetch_media_comments,
     fetch_reels,
@@ -93,6 +95,10 @@ def main() -> int:
         if not account_id:
             print("Discovering Instagram user_id from /me...")
         account_id = resolve_instagram_account_id(client, account_id)
+        account = fetch_authenticated_account(client)
+        account_username = (account.get("username") or "").casefold()
+        if account_username:
+            print(f"Detecting external replies from @{account.get('username')}")
 
         if args.list_media:
             media_count = 0
@@ -125,6 +131,7 @@ def main() -> int:
             media_comment_count = 0
             for comment in fetch_media_comments(client, media["id"]):
                 media_comment_count += 1
+                has_account_reply = False
                 if not (comment.get("text") or "").strip():
                     blank_count += 1
                 row = instagram_comment_row(comment, media)
@@ -138,6 +145,11 @@ def main() -> int:
                 for reply in fetch_comment_replies(client, comment["id"]):
                     if not (reply.get("text") or "").strip():
                         blank_count += 1
+                    if (
+                        account_username
+                        and (reply.get("username") or "").casefold() == account_username
+                    ):
+                        has_account_reply = True
                     reply["parent_comment_id"] = comment.get("id")
                     reply_row = instagram_comment_row(reply, media, is_reply=True)
                     if not reply_row.get("instagram_comment_id"):
@@ -146,6 +158,12 @@ def main() -> int:
                     upsert_instagram_comment(connection, reply_row)
                     fetched_count += 1
                     reply_count += 1
+
+                reconcile_instagram_external_reply_status(
+                    connection,
+                    comment["id"],
+                    has_account_reply,
+                )
 
                 if fetched_count % 100 == 0:
                     connection.commit()

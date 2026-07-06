@@ -4,7 +4,7 @@ Local comment review assistant for YouTube comments and Instagram Reel comments.
 
 This project authenticates with the YouTube Data API v3, fetches comment threads and replies related to your authenticated channel, and stores comments in a local SQLite database. It can also sync comments from Instagram Reels through the Instagram Graph API.
 
-It can generate editable AI drafts, but it does not post AI output automatically. The Flask UI only posts replies after your manual approval, and Instagram posting is not enabled yet.
+It can generate editable AI drafts, but it does not post AI output automatically. The Flask UI only posts replies after your manual approval.
 
 ## Project Structure
 
@@ -141,7 +141,7 @@ Open:
 http://127.0.0.1:5000
 ```
 
-The UI has separate **YouTube** and **Instagram** tabs. The YouTube tab can post manually approved replies. The Instagram tab currently supports sync, notes, manual video context, statuses, and AI drafts; Instagram reply posting is intentionally left for a later milestone.
+The UI has separate **YouTube** and **Instagram** tabs. Both tabs can post manually approved replies, and the Instagram tab also supports sync, notes, manual video context, statuses, and AI drafts.
 
 YouTube is treated as the source of truth for whether your channel has already replied. During sync, if a top-level comment already has a reply from your authenticated channel, Wingman marks it as `externally_replied` so it leaves the normal pending queue. SQLite still owns local workflow states such as `ignored`, `skipped`, and `needs_reply`.
 
