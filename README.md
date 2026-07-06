@@ -58,7 +58,33 @@ YOUTUBE_TOKEN_FILE=token.json
 DATABASE_PATH=comments.db
 ```
 
-## Run the Sync
+## Run Wingman
+
+Run both syncs, then start the review UI:
+
+```bash
+source .venv/bin/activate
+python run_wingman.py
+```
+
+Useful variants:
+
+```bash
+python run_wingman.py --skip-youtube
+python run_wingman.py --skip-instagram
+python run_wingman.py --no-sync
+python run_wingman.py --instagram-media-id INSTAGRAM_MEDIA_ID_HERE
+python run_wingman.py --youtube-video-id VIDEO_ID_HERE
+python run_wingman.py --port 5001
+```
+
+Open:
+
+```text
+http://127.0.0.1:5000
+```
+
+## Run Syncs Manually
 
 ```bash
 source .venv/bin/activate
@@ -126,7 +152,7 @@ INSTAGRAM_MEDIA_IDS=18418211902178416
 INSTAGRAM_REVIEW_MEDIA_IDS=18418211902178416
 ```
 
-## Run the Manual Review UI
+## Run the Manual Review UI Manually
 
 After syncing comments into SQLite, start the local Flask app:
 
