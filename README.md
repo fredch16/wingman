@@ -1,17 +1,19 @@
-# YouTube Comment Assistant
+# Wingman Comment Assistant
 
-First milestone for a local YouTube Comment Assistant.
+Local comment review assistant for YouTube comments and Instagram Reel comments.
 
-This project authenticates with the YouTube Data API v3, fetches comment threads and replies related to your authenticated channel, and stores comments in a local SQLite database.
+This project authenticates with the YouTube Data API v3, fetches comment threads and replies related to your authenticated channel, and stores comments in a local SQLite database. It can also sync comments from Instagram Reels through the Instagram Graph API.
 
-It does not generate AI drafts or automate replies. The Flask UI only posts replies that you manually type and submit.
+It can generate editable AI drafts, but it does not post AI output automatically. The Flask UI only posts replies after your manual approval, and Instagram posting is not enabled yet.
 
 ## Project Structure
 
 ```text
 youtube-comment-assistant/
 ├── sync_comments.py
+├── sync_instagram_comments.py
 ├── youtube_api.py
+├── instagram_api.py
 ├── database.py
 ├── requirements.txt
 ├── .env.example
@@ -79,6 +81,51 @@ The first run opens an OAuth flow. In WSL, the script prints a local authorizati
 
 The script saves OAuth credentials to `token.json` so later runs can refresh automatically.
 
+## Instagram Setup
+
+Put your Instagram User access token in `.env`. This sync uses the Instagram API with
+Instagram Login on `graph.instagram.com`, not Facebook Login on `graph.facebook.com`.
+
+```text
+INSTAGRAM_ACCESS_TOKEN=your_meta_graph_api_token_here
+```
+
+Optionally add your numeric Instagram `user_id`:
+
+```text
+INSTAGRAM_USER_ID=17841400000000000
+```
+
+Do not use the Instagram username here, and do not use a Facebook Page ID.
+
+If `INSTAGRAM_USER_ID` is blank, the sync script discovers it from `graph.instagram.com/me`.
+
+If Meta deprecates the default Graph API version, override it:
+
+```text
+INSTAGRAM_GRAPH_API_VERSION=v25.0
+```
+
+Sync Instagram Reel comments:
+
+```bash
+source .venv/bin/activate
+python sync_instagram_comments.py
+```
+
+To sync only one Reel/media ID:
+
+```bash
+python sync_instagram_comments.py --media-id INSTAGRAM_MEDIA_ID_HERE
+```
+
+To keep Instagram review focused on specific Reels, add comma-separated media IDs:
+
+```text
+INSTAGRAM_MEDIA_IDS=18418211902178416
+INSTAGRAM_REVIEW_MEDIA_IDS=18418211902178416
+```
+
 ## Run the Manual Review UI
 
 After syncing comments into SQLite, start the local Flask app:
@@ -94,7 +141,7 @@ Open:
 http://127.0.0.1:5000
 ```
 
-The UI shows one pending top-level comment. Type a reply and click **Submit Reply** to post it to YouTube, mark that comment as `replied`, and load the next pending comment.
+The UI has separate **YouTube** and **Instagram** tabs. The YouTube tab can post manually approved replies. The Instagram tab currently supports sync, notes, manual video context, statuses, and AI drafts; Instagram reply posting is intentionally left for a later milestone.
 
 YouTube is treated as the source of truth for whether your channel has already replied. During sync, if a top-level comment already has a reply from your authenticated channel, Wingman marks it as `externally_replied` so it leaves the normal pending queue. SQLite still owns local workflow states such as `ignored`, `skipped`, and `needs_reply`.
 
@@ -158,7 +205,7 @@ Every AI generation is logged in SQLite in `ai_drafts` with:
 The current prompt version is `youtube_reply_v4`. It sends only the context needed for a useful reply:
 
 - creator context from `fred.md`
-- video title
+- video title, YouTube title, or Instagram caption-derived title
 - manual video description, only when you have saved one
 - commenter display name
 - comment text
@@ -218,6 +265,8 @@ created_at TEXT NOT NULL
 ```
 
 Duplicates are avoided with `youtube_comment_id`. When a comment already exists, the sync updates fields such as text, like count, YouTube updated timestamp, fetched timestamp, reply status, and related metadata.
+
+Instagram comments are stored separately in `instagram_comments` so the YouTube workflow stays stable while Instagram support is still growing. Duplicate Instagram comments are avoided with `instagram_comment_id`.
 
 ## Notes
 
