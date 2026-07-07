@@ -170,6 +170,8 @@ DASHBOARD_TEMPLATE = """
         <a href="{{ url_for('reply_queue', platform=default_platform, status='pending') }}">Inbox</a>
         <span class="muted"> / </span>
         <a href="{{ url_for('reply_queue', platform=default_platform, status='needs_reply') }}">Reply</a>
+        <span class="muted"> / </span>
+        <a href="{{ url_for('admin_dashboard') }}">Admin</a>
       </div>
     </nav>
 
@@ -213,6 +215,202 @@ DASHBOARD_TEMPLATE = """
         {% endfor %}
       </div>
     </section>
+  </main>
+</body>
+</html>
+"""
+
+
+ADMIN_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wingman Admin</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090a0c;
+      --surface: #121418;
+      --surface-2: #1a1d22;
+      --text: #f4f5f6;
+      --muted: #8f969f;
+      --line: #262a31;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.4;
+    }
+    .shell { width: min(1080px, calc(100vw - 28px)); margin: 22px auto 42px; }
+    .nav { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 18px; }
+    .nav a { color: var(--muted); text-decoration: none; font-weight: 700; }
+    .nav a.active, .nav a:hover { color: var(--text); }
+    .muted { color: var(--muted); }
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+    h1 { margin: 0; font-size: clamp(30px, 6vw, 58px); line-height: .95; letter-spacing: 0; }
+    h2 { margin: 22px 0 8px; font-size: 14px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+    .metric, .video {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    .metric { padding: 14px; min-height: 82px; }
+    .metric strong { display: block; font-size: 28px; line-height: 1; margin-bottom: 8px; }
+    .metric span { color: var(--muted); font-size: 14px; }
+    .video { padding: 14px; margin-bottom: 8px; }
+    .video-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+      margin-bottom: 10px;
+    }
+    .title { font-weight: 800; overflow-wrap: anywhere; }
+    .counts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 8px;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    textarea {
+      width: 100%;
+      min-height: 84px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      resize: vertical;
+      font: inherit;
+      background: #0d0f13;
+      color: var(--text);
+    }
+    textarea::placeholder { color: #68707a; }
+    .actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 8px; }
+    button, .button {
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+      color: var(--text);
+      border-radius: 999px;
+      min-height: 34px;
+      padding: 0 12px;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+    }
+    .notice {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      color: var(--muted);
+    }
+    @media (max-width: 760px) {
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .video-head { grid-template-columns: 1fr; }
+      .counts { justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <nav class="nav">
+      <a href="{{ url_for('index') }}">Wingman</a>
+      <div>
+        <a href="{{ url_for('reply_queue', platform='instagram', status='pending') }}">Inbox</a>
+        <span class="muted"> / </span>
+        <a href="{{ url_for('reply_queue', platform='instagram', status='needs_reply') }}">Reply</a>
+        <span class="muted"> / </span>
+        <a class="active" href="{{ url_for('admin_dashboard') }}">Admin</a>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div>
+        <div class="muted">Prompt context</div>
+        <h1>Admin</h1>
+      </div>
+    </section>
+
+    {% if message %}<div class="notice">{{ message }}</div>{% endif %}
+
+    <section class="grid">
+      <div class="metric"><strong>{{ youtube_videos|length }}</strong><span>YouTube videos</span></div>
+      <div class="metric"><strong>{{ instagram_media|length }}</strong><span>Instagram media</span></div>
+      <div class="metric"><strong>{{ youtube_comment_total + instagram_comment_total }}</strong><span>Total comments</span></div>
+      <div class="metric"><strong>{{ described_total }}</strong><span>Descriptions set</span></div>
+    </section>
+
+    <h2>YouTube</h2>
+    {% for video in youtube_videos %}
+      <form class="video" method="post" action="{{ url_for('admin_save_video_description') }}">
+        <input type="hidden" name="platform" value="youtube">
+        <input type="hidden" name="object_id" value="{{ video.object_id }}">
+        <div class="video-head">
+          <div>
+            <div class="title">{{ video.title or "Untitled video" }}</div>
+            <div class="muted">{{ video.object_id }}</div>
+          </div>
+          <div class="counts">
+            <span class="pill">{{ video.total_comments }} comments</span>
+            <span class="pill">{{ video.pending_count }} inbox</span>
+            <span class="pill">{{ video.needs_reply_count }} reply</span>
+            <span class="pill">{{ video.replied_count }} done</span>
+          </div>
+        </div>
+        <textarea name="video_description" placeholder="Prompt description for every comment on this video">{{ video.video_description or "" }}</textarea>
+        <div class="actions">
+          {% if video.permalink %}<a class="button" href="{{ video.permalink }}" target="_blank" rel="noreferrer">Open</a>{% else %}<span></span>{% endif %}
+          <button type="submit">Save</button>
+        </div>
+      </form>
+    {% else %}
+      <div class="notice">No YouTube videos found.</div>
+    {% endfor %}
+
+    <h2>Instagram</h2>
+    {% for media in instagram_media %}
+      <form class="video" method="post" action="{{ url_for('admin_save_video_description') }}">
+        <input type="hidden" name="platform" value="instagram">
+        <input type="hidden" name="object_id" value="{{ media.object_id }}">
+        <div class="video-head">
+          <div>
+            <div class="title">{{ media.title or "Instagram media" }}</div>
+            <div class="muted">{{ media.object_id }}</div>
+          </div>
+          <div class="counts">
+            <span class="pill">{{ media.total_comments }} comments</span>
+            <span class="pill">{{ media.pending_count }} inbox</span>
+            <span class="pill">{{ media.needs_reply_count }} reply</span>
+            <span class="pill">{{ media.replied_count }} done</span>
+          </div>
+        </div>
+        <textarea name="video_description" placeholder="Prompt description for every comment on this Reel">{{ media.video_description or "" }}</textarea>
+        <div class="actions">
+          {% if media.permalink %}<a class="button" href="{{ media.permalink }}" target="_blank" rel="noreferrer">Open</a>{% else %}<span></span>{% endif %}
+          <button type="submit">Save</button>
+        </div>
+      </form>
+    {% else %}
+      <div class="notice">No Instagram media found.</div>
+    {% endfor %}
   </main>
 </body>
 </html>
@@ -685,6 +883,108 @@ def top_instagram_comments(connection, limit: int = 4):
     )
 
 
+def admin_youtube_videos(connection):
+    return list(
+        connection.execute(
+            """
+            SELECT
+                video_id AS object_id,
+                MAX(video_title) AS title,
+                MAX(video_description) AS video_description,
+                'https://www.youtube.com/watch?v=' || video_id AS permalink,
+                COUNT(*) AS total_comments,
+                SUM(CASE WHEN status = 'synced' THEN 1 ELSE 0 END) AS pending_count,
+                SUM(CASE WHEN status = 'needs_reply' THEN 1 ELSE 0 END) AS needs_reply_count,
+                SUM(CASE WHEN status = 'ignored' THEN 1 ELSE 0 END) AS ignored_count,
+                SUM(CASE WHEN status IN ('replied', 'externally_replied') THEN 1 ELSE 0 END) AS replied_count,
+                MAX(datetime(published_at)) AS latest_comment_at
+            FROM comments
+            WHERE COALESCE(is_reply, 0) = 0
+              AND COALESCE(video_id, '') <> ''
+            GROUP BY video_id
+            ORDER BY datetime(latest_comment_at) DESC, total_comments DESC
+            """
+        ).fetchall()
+    )
+
+
+def admin_instagram_media(connection):
+    return list(
+        connection.execute(
+            """
+            SELECT
+                instagram_media_id AS object_id,
+                COALESCE(
+                    NULLIF(MAX(video_title), ''),
+                    NULLIF(MAX(media_caption), ''),
+                    'Instagram media'
+                ) AS title,
+                MAX(video_description) AS video_description,
+                MAX(media_permalink) AS permalink,
+                COUNT(*) AS total_comments,
+                SUM(CASE WHEN status = 'synced' THEN 1 ELSE 0 END) AS pending_count,
+                SUM(CASE WHEN status = 'needs_reply' THEN 1 ELSE 0 END) AS needs_reply_count,
+                SUM(CASE WHEN status = 'ignored' THEN 1 ELSE 0 END) AS ignored_count,
+                SUM(CASE WHEN status IN ('replied', 'externally_replied') THEN 1 ELSE 0 END) AS replied_count,
+                MAX(datetime(published_at)) AS latest_comment_at
+            FROM instagram_comments
+            WHERE COALESCE(is_reply, 0) = 0
+              AND COALESCE(instagram_media_id, '') <> ''
+            GROUP BY instagram_media_id
+            ORDER BY datetime(latest_comment_at) DESC, total_comments DESC
+            """
+        ).fetchall()
+    )
+
+
+def admin_update_video_description(
+    connection, platform: str, object_id: str, video_description: str
+) -> None:
+    if platform == "instagram":
+        connection.execute(
+            """
+            UPDATE instagram_comments
+            SET video_description = ?,
+                last_seen_at = datetime('now')
+            WHERE instagram_media_id = ?
+            """,
+            (video_description, object_id),
+        )
+    else:
+        connection.execute(
+            """
+            UPDATE comments
+            SET video_description = ?,
+                last_seen_at = datetime('now')
+            WHERE video_id = ?
+            """,
+            (video_description, object_id),
+        )
+    connection.commit()
+
+
+def admin_data(message: str | None = None):
+    connection = connect(DATABASE_PATH)
+    initialize_database(connection)
+    youtube_videos = admin_youtube_videos(connection)
+    instagram_media = admin_instagram_media(connection)
+    youtube_comment_total = sum(row["total_comments"] for row in youtube_videos)
+    instagram_comment_total = sum(row["total_comments"] for row in instagram_media)
+    described_total = sum(
+        1 for row in [*youtube_videos, *instagram_media] if row["video_description"]
+    )
+    connection.close()
+    return render_template_string(
+        ADMIN_TEMPLATE,
+        youtube_videos=youtube_videos,
+        instagram_media=instagram_media,
+        youtube_comment_total=youtube_comment_total,
+        instagram_comment_total=instagram_comment_total,
+        described_total=described_total,
+        message=message,
+    )
+
+
 def dashboard_data():
     connection = connect(DATABASE_PATH)
     initialize_database(connection)
@@ -789,6 +1089,39 @@ def load_page_data(message: str | None = None, error: str | None = None):
 @app.get("/")
 def index():
     return dashboard_data()
+
+
+@app.get("/admin")
+def admin_dashboard():
+    return admin_data(message=request.args.get("message"))
+
+
+@app.post("/admin/video-description")
+def admin_save_video_description():
+    platform = request.form.get("platform", "").strip()
+    object_id = request.form.get("object_id", "").strip()
+    video_description = request.form.get("video_description", "").strip()
+
+    if platform not in VALID_PLATFORMS:
+        return admin_data(message="Unknown platform."), 400
+    if not object_id:
+        return admin_data(message="Missing video/media ID."), 400
+
+    connection = connect(DATABASE_PATH)
+    initialize_database(connection)
+    admin_update_video_description(
+        connection,
+        platform,
+        object_id,
+        video_description,
+    )
+    connection.close()
+    return redirect(
+        url_for(
+            "admin_dashboard",
+            message="Prompt description saved.",
+        )
+    )
 
 
 @app.get("/reply")
