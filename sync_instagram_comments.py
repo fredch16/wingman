@@ -8,6 +8,8 @@ from database import (
     connect,
     count_instagram_comments,
     initialize_database,
+    is_sync_cache_fresh,
+    mark_sync_completed,
     reconcile_instagram_external_reply_status,
     upsert_instagram_comment,
 )
@@ -45,7 +47,19 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Print Reel metadata from Instagram and exit without syncing comments.",
     )
+    parser.add_argument(
+        "--override-cache",
+        action="store_true",
+        help="Run the sync even when the local sync cache is still fresh.",
+    )
     return parser.parse_args()
+
+
+def env_int(name: str, default: int) -> int:
+    try:
+        return int(env_value(name, str(default)))
+    except ValueError:
+        return default
 
 
 def one_line(value: str | None, limit: int = 90) -> str:
@@ -88,8 +102,24 @@ def main() -> int:
         media_id_filters = [args.media_id.strip()]
     else:
         media_id_filters = csv_env_values("INSTAGRAM_MEDIA_IDS")
+    cache_minutes = env_int("WINGMAN_SYNC_CACHE_MINUTES", 10)
+    sync_target = ",".join(sorted(media_id_filters)) if media_id_filters else "all"
 
     try:
+        if not args.list_media:
+            connection = connect(database_path)
+            initialize_database(connection)
+
+            if not args.override_cache and is_sync_cache_fresh(
+                connection, "instagram", sync_target, cache_minutes
+            ):
+                print(
+                    "Instagram sync cache is fresh "
+                    f"({cache_minutes} minutes); skipping API sync."
+                )
+                connection.close()
+                return 0
+
         client = InstagramClient(access_token, api_version)
 
         if not account_id:
@@ -111,9 +141,6 @@ def main() -> int:
                     break
             print(f"Found {media_count} matching Instagram Reels.")
             return 0
-
-        connection = connect(database_path)
-        initialize_database(connection)
 
         fetched_count = 0
         media_count = 0
@@ -184,6 +211,7 @@ def main() -> int:
             if args.media_id.strip():
                 break
 
+        synced_at = mark_sync_completed(connection, "instagram", sync_target)
         connection.commit()
         total_in_database = count_instagram_comments(connection)
         connection.close()
@@ -192,6 +220,7 @@ def main() -> int:
             f"Instagram sync complete. Processed {fetched_count} API comment rows "
             f"from {media_count} Reels ({reply_count} replies, {blank_count} blank-text rows)."
         )
+        print(f"Instagram sync cache updated at {synced_at}.")
         print(f"Instagram table now contains {total_in_database} unique comment rows.")
         return 0
 
