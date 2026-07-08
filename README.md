@@ -212,7 +212,7 @@ The review UI also supports:
 - Replied comments show the reply text Wingman posted.
 - Links to open the original YouTube video, comment, or Studio comments page.
 - Comment like/heart actions are not automated because the official YouTube Data API comments methods do not provide supported endpoints for those actions.
-- Keyboard shortcuts: A focuses the reply box, Esc leaves it, Enter or Cmd/Ctrl+Enter replies, R opens the Reply tab, i opens the Inbox tab, B generates batch drafts, D generates one AI draft, E rephrases a draft, N marks needs reply, P moves back to pending, S skips, Shift+I ignores, O opens the source comment, and arrow keys browse the queue. Shift+Enter adds a new line while writing a reply.
+- Keyboard shortcuts: A focuses the reply box, Esc leaves it, Enter or Cmd/Ctrl+Enter replies, r opens the Reply tab, i opens the Inbox tab, b generates batch drafts, D generates one AI draft, R rephrases a draft, N marks needs reply, P moves back to pending, S skips, Shift+I ignores, O opens the source comment, and arrow keys browse the queue. Shift+Enter adds a new line while writing a reply.
 
 By default, skipped comments return to the pending queue after 60 minutes. Override this in `.env`:
 

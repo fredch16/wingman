@@ -762,7 +762,6 @@ REPLY_TEMPLATE = """
         "arrowright": "next_comment_link",
         "b": "batch_drafts_button",
         "d": "draft_button",
-        "e": "rephrase_button",
         "i": "inbox_tab_link",
         "n": "needs_reply_button",
         "p": "pending_button",
@@ -770,6 +769,12 @@ REPLY_TEMPLATE = """
         "s": "skip_button",
         "o": "open_comment_link"
       };
+      if (event.key === "R" && !event.ctrlKey && !event.metaKey && !isTyping) {
+        event.preventDefault();
+        const rephraseButton = document.getElementById("rephrase_button");
+        if (rephraseButton) rephraseButton.click();
+        return;
+      }
       if (event.key === "I" && !event.ctrlKey && !event.metaKey && !isTyping) {
         event.preventDefault();
         const ignoreButton = document.getElementById("ignore_button");
