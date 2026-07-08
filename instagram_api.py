@@ -1,8 +1,10 @@
 import json
+import time
+from http.client import RemoteDisconnected
 from typing import Iterator, Optional
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
-from urllib.error import HTTPError, URLError
 
 
 class InstagramApiError(RuntimeError):
@@ -15,6 +17,26 @@ class InstagramClient:
             raise InstagramApiError("INSTAGRAM_ACCESS_TOKEN is missing from .env.")
         self.access_token = access_token
         self.base_url = f"https://graph.instagram.com/{api_version.strip('/')}"
+
+    def _send(self, request: Request) -> dict:
+        last_error = None
+        for attempt in range(3):
+            try:
+                with urlopen(request, timeout=30) as response:
+                    return json.loads(response.read().decode("utf-8"))
+            except HTTPError as exc:
+                details = exc.read().decode("utf-8", errors="replace")
+                raise InstagramApiError(
+                    f"Instagram API error {exc.code}: {details}"
+                ) from exc
+            except (RemoteDisconnected, TimeoutError, URLError) as exc:
+                last_error = exc
+                if attempt < 2:
+                    time.sleep(2**attempt)
+                    continue
+                break
+
+        raise InstagramApiError(f"Could not reach Instagram API: {last_error}")
 
     def get(self, path_or_url: str, params: Optional[dict] = None) -> dict:
         params = dict(params or {})
@@ -32,14 +54,7 @@ class InstagramClient:
             },
         )
 
-        try:
-            with urlopen(request, timeout=30) as response:
-                return json.loads(response.read().decode("utf-8"))
-        except HTTPError as exc:
-            details = exc.read().decode("utf-8", errors="replace")
-            raise InstagramApiError(f"Instagram API error {exc.code}: {details}") from exc
-        except URLError as exc:
-            raise InstagramApiError(f"Could not reach Instagram API: {exc}") from exc
+        return self._send(request)
 
     def post(self, path: str, params: Optional[dict] = None) -> dict:
         data = urlencode(dict(params or {})).encode("utf-8")
@@ -55,14 +70,7 @@ class InstagramClient:
             method="POST",
         )
 
-        try:
-            with urlopen(request, timeout=30) as response:
-                return json.loads(response.read().decode("utf-8"))
-        except HTTPError as exc:
-            details = exc.read().decode("utf-8", errors="replace")
-            raise InstagramApiError(f"Instagram API error {exc.code}: {details}") from exc
-        except URLError as exc:
-            raise InstagramApiError(f"Could not reach Instagram API: {exc}") from exc
+        return self._send(request)
 
 
 def resolve_instagram_account_id(client: InstagramClient, configured_id: str) -> str:
