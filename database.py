@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS comments (
     replied_at TEXT,
     skipped_until TEXT,
     last_seen_at TEXT,
+    local_updated_at TEXT,
     notes TEXT,
     ai_draft_text TEXT,
     ai_draft_model TEXT,
@@ -43,6 +44,7 @@ MIGRATIONS = [
     ("replied_at", "ALTER TABLE comments ADD COLUMN replied_at TEXT"),
     ("skipped_until", "ALTER TABLE comments ADD COLUMN skipped_until TEXT"),
     ("last_seen_at", "ALTER TABLE comments ADD COLUMN last_seen_at TEXT"),
+    ("local_updated_at", "ALTER TABLE comments ADD COLUMN local_updated_at TEXT"),
     ("notes", "ALTER TABLE comments ADD COLUMN notes TEXT"),
     ("video_description", "ALTER TABLE comments ADD COLUMN video_description TEXT"),
     ("ai_draft_text", "ALTER TABLE comments ADD COLUMN ai_draft_text TEXT"),
@@ -110,6 +112,7 @@ CREATE TABLE IF NOT EXISTS instagram_comments (
     replied_at TEXT,
     skipped_until TEXT,
     last_seen_at TEXT,
+    local_updated_at TEXT,
     notes TEXT,
     ai_draft_text TEXT,
     ai_draft_model TEXT,
@@ -118,6 +121,14 @@ CREATE TABLE IF NOT EXISTS instagram_comments (
     status TEXT DEFAULT 'synced'
 );
 """
+
+
+INSTAGRAM_MIGRATIONS = [
+    (
+        "local_updated_at",
+        "ALTER TABLE instagram_comments ADD COLUMN local_updated_at TEXT",
+    ),
+]
 
 
 INSTAGRAM_AI_DRAFTS_SCHEMA = """
@@ -163,6 +174,14 @@ def initialize_database(connection: sqlite3.Connection) -> None:
     }
     for column_name, statement in MIGRATIONS:
         if column_name not in existing_columns:
+            connection.execute(statement)
+
+    existing_instagram_columns = {
+        row["name"]
+        for row in connection.execute("PRAGMA table_info(instagram_comments)")
+    }
+    for column_name, statement in INSTAGRAM_MIGRATIONS:
+        if column_name not in existing_instagram_columns:
             connection.execute(statement)
     connection.commit()
 
@@ -803,16 +822,18 @@ def mark_comment_replied(
 ) -> None:
     """Mark a top-level comment as replied to through Wingman."""
     record_action(connection, comment_id, "reply", youtube_reply_id)
+    now = utc_now_iso()
     connection.execute(
         """
         UPDATE comments
         SET status = 'replied',
             wingman_reply_text = ?,
             youtube_reply_id = ?,
-            replied_at = ?
+            replied_at = ?,
+            local_updated_at = ?
         WHERE id = ?
         """,
-        (reply_text, youtube_reply_id, utc_now_iso(), comment_id),
+        (reply_text, youtube_reply_id, now, now, comment_id),
     )
     connection.commit()
 
@@ -854,6 +875,7 @@ def mark_instagram_comment_replied(
     instagram_reply_id: str,
 ) -> None:
     """Mark an Instagram comment as replied to through Wingman."""
+    now = utc_now_iso()
     connection.execute(
         """
         UPDATE instagram_comments
@@ -861,10 +883,11 @@ def mark_instagram_comment_replied(
             wingman_reply_text = ?,
             instagram_reply_id = ?,
             replied_at = ?,
-            last_seen_at = ?
+            last_seen_at = ?,
+            local_updated_at = ?
         WHERE id = ?
         """,
-        (reply_text, instagram_reply_id, utc_now_iso(), utc_now_iso(), comment_id),
+        (reply_text, instagram_reply_id, now, now, now, comment_id),
     )
     connection.commit()
 
@@ -953,15 +976,17 @@ def update_comment_status(
     """Update a comment's local review status."""
     record_action(connection, comment_id, action)
     skipped_until = utc_future_iso(skip_minutes) if status == "skipped" else None
+    now = utc_now_iso()
     connection.execute(
         """
         UPDATE comments
         SET status = ?,
             skipped_until = ?,
-            last_seen_at = ?
+            last_seen_at = ?,
+            local_updated_at = ?
         WHERE id = ?
         """,
-        (status, skipped_until, utc_now_iso(), comment_id),
+        (status, skipped_until, now, now, comment_id),
     )
     connection.commit()
 
@@ -974,15 +999,17 @@ def update_instagram_comment_status(
 ) -> None:
     """Update an Instagram comment's local review status."""
     skipped_until = utc_future_iso(skip_minutes) if status == "skipped" else None
+    now = utc_now_iso()
     connection.execute(
         """
         UPDATE instagram_comments
         SET status = ?,
             skipped_until = ?,
-            last_seen_at = ?
+            last_seen_at = ?,
+            local_updated_at = ?
         WHERE id = ?
         """,
-        (status, skipped_until, utc_now_iso(), comment_id),
+        (status, skipped_until, now, now, comment_id),
     )
     connection.commit()
 
@@ -991,14 +1018,16 @@ def update_comment_notes(
     connection: sqlite3.Connection, comment_id: int, notes: str
 ) -> None:
     record_action(connection, comment_id, "notes")
+    now = utc_now_iso()
     connection.execute(
         """
         UPDATE comments
         SET notes = ?,
-            last_seen_at = ?
+            last_seen_at = ?,
+            local_updated_at = ?
         WHERE id = ?
         """,
-        (notes, utc_now_iso(), comment_id),
+        (notes, now, now, comment_id),
     )
     connection.commit()
 
@@ -1006,14 +1035,16 @@ def update_comment_notes(
 def update_instagram_comment_notes(
     connection: sqlite3.Connection, comment_id: int, notes: str
 ) -> None:
+    now = utc_now_iso()
     connection.execute(
         """
         UPDATE instagram_comments
         SET notes = ?,
-            last_seen_at = ?
+            last_seen_at = ?,
+            local_updated_at = ?
         WHERE id = ?
         """,
-        (notes, utc_now_iso(), comment_id),
+        (notes, now, now, comment_id),
     )
     connection.commit()
 
@@ -1026,25 +1057,28 @@ def update_video_description(
     if not comment:
         return
 
+    now = utc_now_iso()
     if comment["video_id"]:
         connection.execute(
             """
             UPDATE comments
             SET video_description = ?,
-                last_seen_at = ?
+                last_seen_at = ?,
+                local_updated_at = ?
             WHERE video_id = ?
             """,
-            (video_description, utc_now_iso(), comment["video_id"]),
+            (video_description, now, now, comment["video_id"]),
         )
     else:
         connection.execute(
             """
             UPDATE comments
             SET video_description = ?,
-                last_seen_at = ?
+                last_seen_at = ?,
+                local_updated_at = ?
             WHERE id = ?
             """,
-            (video_description, utc_now_iso(), comment_id),
+            (video_description, now, now, comment_id),
         )
     connection.commit()
 
@@ -1057,25 +1091,28 @@ def update_instagram_video_description(
     if not comment:
         return
 
+    now = utc_now_iso()
     if comment["instagram_media_id"]:
         connection.execute(
             """
             UPDATE instagram_comments
             SET video_description = ?,
-                last_seen_at = ?
+                last_seen_at = ?,
+                local_updated_at = ?
             WHERE instagram_media_id = ?
             """,
-            (video_description, utc_now_iso(), comment["instagram_media_id"]),
+            (video_description, now, now, comment["instagram_media_id"]),
         )
     else:
         connection.execute(
             """
             UPDATE instagram_comments
             SET video_description = ?,
-                last_seen_at = ?
+                last_seen_at = ?,
+                local_updated_at = ?
             WHERE id = ?
             """,
-            (video_description, utc_now_iso(), comment_id),
+            (video_description, now, now, comment_id),
         )
     connection.commit()
 
@@ -1123,10 +1160,11 @@ def save_ai_draft(
         SET ai_draft_text = ?,
             ai_draft_model = ?,
             ai_draft_provider = ?,
-            ai_drafted_at = ?
+            ai_drafted_at = ?,
+            local_updated_at = ?
         WHERE id = ?
         """,
-        (draft_text, model, provider, created_at, comment_id),
+        (draft_text, model, provider, created_at, created_at, comment_id),
     )
     connection.commit()
 
@@ -1174,10 +1212,11 @@ def save_instagram_ai_draft(
         SET ai_draft_text = ?,
             ai_draft_model = ?,
             ai_draft_provider = ?,
-            ai_drafted_at = ?
+            ai_drafted_at = ?,
+            local_updated_at = ?
         WHERE id = ?
         """,
-        (draft_text, model, provider, created_at, comment_id),
+        (draft_text, model, provider, created_at, created_at, comment_id),
     )
     connection.commit()
 

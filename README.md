@@ -197,6 +197,46 @@ WINGMAN_SKIP_MINUTES=60
 WINGMAN_PORT=5000
 ```
 
+## Sync Database State Through Git
+
+`comments.db` is intentionally ignored by git because SQLite databases are binary files and do not merge cleanly. To move comment state between machines, export the database to deterministic JSON files, commit those files, then import them on the other machine.
+
+On the machine with the newest local state:
+
+```bash
+source .venv/bin/activate
+python db_sync.py export
+git add db_sync db_sync.py database.py README.md
+git commit -m "Sync Wingman database state"
+git push
+```
+
+On another machine:
+
+```bash
+git pull
+source .venv/bin/activate
+python db_sync.py import
+```
+
+The export files live in:
+
+```text
+db_sync/youtube_comments.json
+db_sync/instagram_comments.json
+db_sync/manifest.json
+```
+
+The import command merges by platform comment ID, not by local SQLite row ID. API-fetched fields use `fetched_at` to decide freshness, while local workflow fields use `local_updated_at`; this protects newer notes, statuses, manual video descriptions, drafts, and reply state from being overwritten by an older machine.
+
+Useful checks:
+
+```bash
+python db_sync.py status
+python db_sync.py export
+python db_sync.py import
+```
+
 ## OpenAI Draft Replies
 
 Wingman can generate an AI draft and place it into the reply box for you to edit. It never posts AI output automatically. You still have to click **Confirm & Reply** to publish.
