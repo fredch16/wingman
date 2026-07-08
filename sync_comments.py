@@ -8,6 +8,8 @@ from database import (
     connect,
     count_comments,
     initialize_database,
+    is_sync_cache_fresh,
+    mark_sync_completed,
     reconcile_external_reply_status,
     upsert_comment,
 )
@@ -37,7 +39,19 @@ def parse_args() -> argparse.Namespace:
         default=env_value("YOUTUBE_VIDEO_ID", ""),
         help="Only sync comment threads and replies for this video ID.",
     )
+    parser.add_argument(
+        "--override-cache",
+        action="store_true",
+        help="Run the sync even when the local sync cache is still fresh.",
+    )
     return parser.parse_args()
+
+
+def env_int(name: str, default: int) -> int:
+    try:
+        return int(env_value(name, str(default)))
+    except ValueError:
+        return default
 
 
 def main() -> int:
@@ -48,8 +62,23 @@ def main() -> int:
     token_file = env_value("YOUTUBE_TOKEN_FILE", "token.json")
     database_path = env_value("DATABASE_PATH", "comments.db")
     video_id_filter = args.video_id.strip()
+    cache_minutes = env_int("WINGMAN_SYNC_CACHE_MINUTES", 10)
+    sync_target = video_id_filter or "all"
 
     try:
+        connection = connect(database_path)
+        initialize_database(connection)
+
+        if not args.override_cache and is_sync_cache_fresh(
+            connection, "youtube", sync_target, cache_minutes
+        ):
+            print(
+                "YouTube sync cache is fresh "
+                f"({cache_minutes} minutes); skipping API sync."
+            )
+            connection.close()
+            return 0
+
         print("Authenticating with YouTube...")
         youtube = authenticate(client_secrets_file, token_file)
 
@@ -58,9 +87,6 @@ def main() -> int:
         print(f"Authenticated channel: {channel_id}")
         if video_id_filter:
             print(f"Syncing only video: {video_id_filter}")
-
-        connection = connect(database_path)
-        initialize_database(connection)
 
         fetched_count = 0
         thread_count = 0
@@ -126,6 +152,7 @@ def main() -> int:
                 )
                 last_progress_count = fetched_count
 
+        synced_at = mark_sync_completed(connection, "youtube", sync_target)
         connection.commit()
         total_in_database = count_comments(connection)
         connection.close()
@@ -134,6 +161,7 @@ def main() -> int:
             f"Sync complete. Fetched {fetched_count} comments this run "
             f"({thread_count} top-level, {reply_count} replies)."
         )
+        print(f"YouTube sync cache updated at {synced_at}.")
         print(f"Database now contains {total_in_database} comments.")
         return 0
 

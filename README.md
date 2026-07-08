@@ -73,10 +73,20 @@ Useful variants:
 python run_wingman.py --skip-youtube
 python run_wingman.py --skip-instagram
 python run_wingman.py --no-sync
+python run_wingman.py --override-cache
 python run_wingman.py --instagram-media-id INSTAGRAM_MEDIA_ID_HERE
 python run_wingman.py --youtube-video-id VIDEO_ID_HERE
 python run_wingman.py --port 5001
 ```
+
+By default, each comment sync is skipped when the same source and target synced
+successfully in the last 10 minutes. Override the window in `.env`:
+
+```text
+WINGMAN_SYNC_CACHE_MINUTES=10
+```
+
+Use `--override-cache` when you want to force fresh API calls immediately.
 
 Open:
 
@@ -95,6 +105,13 @@ To sync only one video, pass its YouTube video ID:
 
 ```bash
 python sync_comments.py --video-id VIDEO_ID_HERE
+```
+
+Use `--override-cache` to force a fresh YouTube sync even when the cache is
+still fresh:
+
+```bash
+python sync_comments.py --override-cache
 ```
 
 You can also put a default video filter in `.env`:
@@ -143,6 +160,13 @@ To sync only one Reel/media ID:
 
 ```bash
 python sync_instagram_comments.py --media-id INSTAGRAM_MEDIA_ID_HERE
+```
+
+Use `--override-cache` to force a fresh Instagram sync even when the cache is
+still fresh:
+
+```bash
+python sync_instagram_comments.py --override-cache
 ```
 
 By default, leaving the media ID filters blank syncs and reviews all Reels returned

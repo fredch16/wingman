@@ -30,6 +30,11 @@ def parse_args() -> argparse.Namespace:
         help="Start the app without running any sync scripts.",
     )
     parser.add_argument(
+        "--override-cache",
+        action="store_true",
+        help="Force sync scripts to call APIs even when the sync cache is fresh.",
+    )
+    parser.add_argument(
         "--youtube-video-id",
         default="",
         help="Only sync this YouTube video ID.",
@@ -68,12 +73,16 @@ def main() -> int:
         command = [python, "sync_comments.py"]
         if args.youtube_video_id:
             command.extend(["--video-id", args.youtube_video_id])
+        if args.override_cache:
+            command.append("--override-cache")
         run_step("Syncing YouTube comments", command, env)
 
     if not args.no_sync and not args.skip_instagram:
         command = [python, "sync_instagram_comments.py"]
         if args.instagram_media_id:
             command.extend(["--media-id", args.instagram_media_id])
+        if args.override_cache:
+            command.append("--override-cache")
         run_step("Syncing Instagram comments", command, env)
 
     print("\n==> Starting Wingman")

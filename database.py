@@ -87,6 +87,16 @@ CREATE TABLE IF NOT EXISTS ai_drafts (
 """
 
 
+SYNC_STATE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS sync_state (
+    source TEXT NOT NULL,
+    target TEXT NOT NULL DEFAULT '',
+    last_synced_at TEXT NOT NULL,
+    PRIMARY KEY (source, target)
+);
+"""
+
+
 INSTAGRAM_COMMENTS_SCHEMA = """
 CREATE TABLE IF NOT EXISTS instagram_comments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -167,6 +177,7 @@ def initialize_database(connection: sqlite3.Connection) -> None:
     connection.execute(SCHEMA)
     connection.execute(ACTION_HISTORY_SCHEMA)
     connection.execute(AI_DRAFTS_SCHEMA)
+    connection.execute(SYNC_STATE_SCHEMA)
     connection.execute(INSTAGRAM_COMMENTS_SCHEMA)
     connection.execute(INSTAGRAM_AI_DRAFTS_SCHEMA)
     existing_columns = {
@@ -184,6 +195,61 @@ def initialize_database(connection: sqlite3.Connection) -> None:
         if column_name not in existing_instagram_columns:
             connection.execute(statement)
     connection.commit()
+
+
+def get_sync_last_synced_at(
+    connection: sqlite3.Connection, source: str, target: str = ""
+) -> str | None:
+    row = connection.execute(
+        """
+        SELECT last_synced_at
+        FROM sync_state
+        WHERE source = ?
+          AND target = ?
+        """,
+        (source, target),
+    ).fetchone()
+    return row["last_synced_at"] if row else None
+
+
+def is_sync_cache_fresh(
+    connection: sqlite3.Connection,
+    source: str,
+    target: str = "",
+    cache_minutes: int = 10,
+) -> bool:
+    if cache_minutes <= 0:
+        return False
+
+    last_synced_at = get_sync_last_synced_at(connection, source, target)
+    if not last_synced_at:
+        return False
+
+    try:
+        last_synced = datetime.fromisoformat(last_synced_at)
+    except ValueError:
+        return False
+
+    if last_synced.tzinfo is None:
+        last_synced = last_synced.replace(tzinfo=timezone.utc)
+
+    return datetime.now(timezone.utc) - last_synced < timedelta(minutes=cache_minutes)
+
+
+def mark_sync_completed(
+    connection: sqlite3.Connection, source: str, target: str = ""
+) -> str:
+    synced_at = utc_now_iso()
+    connection.execute(
+        """
+        INSERT INTO sync_state (source, target, last_synced_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(source, target) DO UPDATE SET
+            last_synced_at = excluded.last_synced_at
+        """,
+        (source, target, synced_at),
+    )
+    return synced_at
 
 
 def upsert_comment(connection: sqlite3.Connection, comment: dict) -> None:
