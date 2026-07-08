@@ -600,8 +600,8 @@ REPLY_TEMPLATE = """
       <div>{{ offset + 1 if review_count else 0 }}/{{ review_count }}</div>
     </div>
     <div class="tabs">
-      <a class="chip {% if status_filter == 'pending' %}primary{% endif %}" href="{{ url_for('reply_queue', platform=platform, status='pending') }}">Inbox <span>{{ stats.pending }}</span></a>
-      <a class="chip {% if status_filter == 'needs_reply' %}primary{% endif %}" href="{{ url_for('reply_queue', platform=platform, status='needs_reply') }}">Reply <span>{{ stats.needs_reply }}</span></a>
+      <a class="chip {% if status_filter == 'pending' %}primary{% endif %}" id="inbox_tab_link" href="{{ url_for('reply_queue', platform=platform, status='pending') }}">Inbox <span>{{ stats.pending }}</span></a>
+      <a class="chip {% if status_filter == 'needs_reply' %}primary{% endif %}" id="reply_tab_link" href="{{ url_for('reply_queue', platform=platform, status='needs_reply') }}">Reply <span>{{ stats.needs_reply }}</span></a>
       <a class="chip {% if status_filter == 'ignored' %}active{% endif %}" href="{{ url_for('reply_queue', platform=platform, status='ignored') }}">Ignored</a>
       <a class="chip {% if status_filter == 'replied' %}active{% endif %}" href="{{ url_for('reply_queue', platform=platform, status='replied') }}">Done</a>
     </div>
@@ -612,7 +612,7 @@ REPLY_TEMPLATE = """
     {% if status_filter == 'needs_reply' %}
       <form class="batch" method="post" action="{{ url_for('generate_batch_drafts') }}">
         <input type="hidden" name="platform" value="{{ platform }}">
-        <button class="button" type="submit" title="Generate drafts for everything in Reply without a draft">Batch drafts</button>
+        <button class="button" type="submit" id="batch_drafts_button" title="Generate drafts for everything in Reply without a draft">Batch drafts</button>
       </form>
     {% endif %}
 
@@ -653,7 +653,7 @@ REPLY_TEMPLATE = """
                 <button type="submit" id="notes_button" formaction="{{ url_for('save_notes') }}" formmethod="post" title="Save notes">Save</button>
               </div>
               <div class="right">
-                <span class="muted">A notes · N reply · S next · I ignore</span>
+                <span class="muted">A notes · R reply tab · S skip · Shift+I ignore</span>
               </div>
             </div>
           </form>
@@ -760,14 +760,22 @@ REPLY_TEMPLATE = """
       const targets = {
         "arrowleft": "previous_comment_link",
         "arrowright": "next_comment_link",
+        "b": "batch_drafts_button",
         "d": "draft_button",
+        "e": "rephrase_button",
+        "i": "inbox_tab_link",
         "n": "needs_reply_button",
         "p": "pending_button",
-        "r": "rephrase_button",
+        "r": "reply_tab_link",
         "s": "skip_button",
-        "i": "ignore_button",
         "o": "open_comment_link"
       };
+      if (event.key === "I" && !event.ctrlKey && !event.metaKey && !isTyping) {
+        event.preventDefault();
+        const ignoreButton = document.getElementById("ignore_button");
+        if (ignoreButton) ignoreButton.click();
+        return;
+      }
       if (targets[key] && !event.ctrlKey && !event.metaKey && !isTyping) {
         event.preventDefault();
         const target = document.getElementById(targets[key]);
