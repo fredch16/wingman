@@ -1,10 +1,10 @@
 [
   {
     "database_path": "comments.db",
-    "exported_at": "2026-07-08T10:24:18.508760+00:00",
+    "exported_at": "2026-07-17T21:14:10.675721+00:00",
     "tables": {
-      "comments": 845,
-      "instagram_comments": 420
+      "comments": 1215,
+      "instagram_comments": 429
     }
   }
 ]
