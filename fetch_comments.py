@@ -27,9 +27,11 @@ from reply_detection import (
 from video_catalog import (
     PlaylistPaginationError,
     VideoStoreSummary,
+    comments_checked_recently,
     enabled_video_ids,
     fetch_all_upload_videos,
     list_stored_videos,
+    mark_comments_checked,
     set_video_enabled,
     store_discovered_videos,
 )
@@ -65,6 +67,7 @@ class VideoSyncResult:
     fetch_result: FetchResult | None = None
     sync_summary: SyncSummary | None = None
     error: str | None = None
+    skipped_reason: str | None = None
 
 
 class PaginationError(RuntimeError):
@@ -243,14 +246,24 @@ def sync_videos(
     youtube: Any,
     video_ids: list[str],
     connection: sqlite3.Connection,
+    refresh: bool = False,
 ) -> list[VideoSyncResult]:
     """Fetch and persist each configured video without aborting later videos."""
     results = []
     for video_id in video_ids:
         print(f"Video: {video_id}")
+        if not refresh and comments_checked_recently(connection, video_id):
+            results.append(
+                VideoSyncResult(
+                    video_id=video_id,
+                    skipped_reason="comments checked within the last hour",
+                )
+            )
+            continue
         try:
             fetch_result = fetch_all_comments_for_video(youtube, video_id)
             sync_summary = sync_comments(connection, fetch_result.comments)
+            mark_comments_checked(connection, video_id)
             results.append(
                 VideoSyncResult(
                     video_id=video_id,
@@ -259,7 +272,10 @@ def sync_videos(
                 )
             )
         except PageFetchError as error:
-            results.append(VideoSyncResult(video_id, error=page_error_message(error)))
+            error_message = page_error_message(error)
+            if "Comments are disabled" in error_message:
+                mark_comments_checked(connection, video_id)
+            results.append(VideoSyncResult(video_id, error=error_message))
         except PaginationError as error:
             results.append(VideoSyncResult(video_id, error=f"Pagination error: {error}"))
     return results
@@ -269,6 +285,10 @@ def print_sync_results(results: list[VideoSyncResult]) -> None:
     """Print per-video details followed by an aggregate summary."""
     for result in results:
         print(f"\nVideo summary: {result.video_id}")
+        if result.skipped_reason:
+            print("Status: Skipped")
+            print(f"Reason: {result.skipped_reason}")
+            continue
         if result.error:
             print(f"Status: Failed")
             print(f"Error: {result.error}")
@@ -285,14 +305,21 @@ def print_sync_results(results: list[VideoSyncResult]) -> None:
         if not result.fetch_result.comments:
             print("No comments returned for this video.")
 
-    successful = [result for result in results if not result.error]
+    successful = [
+        result for result in results if result.fetch_result is not None
+    ]
+    skipped = [result for result in results if result.skipped_reason]
     summaries = [
         result.sync_summary for result in successful if result.sync_summary is not None
     ]
     print("\nOverall summary")
     print(f"Videos configured: {len(results)}")
     print(f"Videos completed: {len(successful)}")
-    print(f"Videos failed: {len(results) - len(successful)}")
+    print(f"Videos skipped: {len(skipped)}")
+    print(
+        f"Videos failed: "
+        f"{len(results) - len(successful) - len(skipped)}"
+    )
     print(f"Fetched: {sum(summary.fetched for summary in summaries)}")
     print(f"Newly inserted: {sum(summary.newly_inserted for summary in summaries)}")
     print(f"Updated: {sum(summary.updated for summary in summaries)}")
@@ -345,6 +372,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="check stored comments for replies from the authenticated creator",
     )
+    parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="ignore one-hour freshness checks and force API refreshes",
+    )
     return parser.parse_args(argv)
 
 
@@ -368,10 +400,17 @@ def print_video_list(connection: sqlite3.Connection) -> None:
         status = "enabled" if video.is_enabled else "disabled"
         print(f"[{status}] {video.video_id} | {video.title}")
         print(f"Published: {video.published_at or 'Unknown'}")
+        print(
+            f"Comments checked: "
+            f"{video.comments_last_checked_at or 'Never'}"
+        )
 
 
 def print_reply_check_summary(summary: ReplyCheckSummary) -> None:
     print("\nCreator reply check")
+    if summary.skipped:
+        print("Skipped: backlog checked within the last hour")
+        return
     print(f"Checked: {summary.checked}")
     print(f"Replied: {summary.replied}")
     print(f"Unreplied: {summary.unreplied}")
@@ -408,7 +447,10 @@ def main(argv: list[str] | None = None) -> int:
             store_creator_channel_id(connection, creator_channel_id)
             if args.backfill_replies:
                 reply_summary = backfill_reply_status(
-                    youtube, connection, creator_channel_id
+                    youtube,
+                    connection,
+                    creator_channel_id,
+                    refresh=args.refresh,
                 )
                 print_reply_check_summary(reply_summary)
                 return 1 if reply_summary.failed else 0
@@ -432,16 +474,24 @@ def main(argv: list[str] | None = None) -> int:
             if not video_ids:
                 print("No enabled videos to sync.")
                 return 0
-            results = sync_videos(youtube, video_ids, connection)
-            completed_video_ids = [
-                result.video_id for result in results if not result.error
+            results = sync_videos(
+                youtube,
+                video_ids,
+                connection,
+                refresh=args.refresh,
+            )
+            reply_check_video_ids = [
+                result.video_id
+                for result in results
+                if not result.error
             ]
-            if completed_video_ids:
+            if reply_check_video_ids:
                 reply_summary = backfill_reply_status(
                     youtube,
                     connection,
                     creator_channel_id,
-                    video_ids=completed_video_ids,
+                    video_ids=reply_check_video_ids,
+                    refresh=args.refresh,
                 )
             else:
                 reply_summary = ReplyCheckSummary(0, 0, 0, 0)
@@ -470,7 +520,8 @@ def main(argv: list[str] | None = None) -> int:
     print("\nFinished")
     print_sync_results(results)
     print_reply_check_summary(reply_summary)
-    return 1 if all(result.error for result in results) or reply_summary.failed else 0
+    failed_results = [result for result in results if result.error]
+    return 1 if len(failed_results) == len(results) or reply_summary.failed else 0
 
 
 if __name__ == "__main__":

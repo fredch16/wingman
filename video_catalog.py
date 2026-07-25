@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 
@@ -39,6 +39,7 @@ class StoredVideo:
     is_enabled: bool
     first_seen_at: str
     last_seen_at: str
+    comments_last_checked_at: str | None
 
 
 class PlaylistPaginationError(RuntimeError):
@@ -127,10 +128,18 @@ def create_videos_table(connection: sqlite3.Connection) -> None:
             thumbnail_url TEXT NOT NULL,
             is_enabled INTEGER NOT NULL DEFAULT 1,
             first_seen_at TEXT NOT NULL,
-            last_seen_at TEXT NOT NULL
+            last_seen_at TEXT NOT NULL,
+            comments_last_checked_at TEXT
         )
         """
     )
+    existing_columns = {
+        row["name"] for row in connection.execute("PRAGMA table_info(videos)")
+    }
+    if "comments_last_checked_at" not in existing_columns:
+        connection.execute(
+            "ALTER TABLE videos ADD COLUMN comments_last_checked_at TEXT"
+        )
 
 
 def store_discovered_videos(
@@ -198,7 +207,7 @@ def list_stored_videos(connection: sqlite3.Connection) -> list[StoredVideo]:
     rows = connection.execute(
         """
         SELECT video_id, title, published_at, thumbnail_url, is_enabled,
-               first_seen_at, last_seen_at
+               first_seen_at, last_seen_at, comments_last_checked_at
         FROM videos
         ORDER BY published_at DESC, video_id
         """
@@ -212,6 +221,7 @@ def list_stored_videos(connection: sqlite3.Connection) -> list[StoredVideo]:
             is_enabled=bool(row["is_enabled"]),
             first_seen_at=row["first_seen_at"],
             last_seen_at=row["last_seen_at"],
+            comments_last_checked_at=row["comments_last_checked_at"],
         )
         for row in rows
     ]
@@ -233,3 +243,39 @@ def set_video_enabled(
             (int(is_enabled), video_id),
         )
     return cursor.rowcount > 0
+
+
+def comments_checked_recently(
+    connection: sqlite3.Connection,
+    video_id: str,
+    now: datetime | None = None,
+    freshness: timedelta = timedelta(hours=1),
+) -> bool:
+    create_videos_table(connection)
+    row = connection.execute(
+        "SELECT comments_last_checked_at FROM videos WHERE video_id = ?",
+        (video_id,),
+    ).fetchone()
+    if not row or not row["comments_last_checked_at"]:
+        return False
+    checked_at = datetime.fromisoformat(
+        row["comments_last_checked_at"].replace("Z", "+00:00")
+    )
+    return (now or datetime.now(timezone.utc)) - checked_at < freshness
+
+
+def mark_comments_checked(
+    connection: sqlite3.Connection,
+    video_id: str,
+    checked_at: str | None = None,
+) -> None:
+    create_videos_table(connection)
+    with connection:
+        connection.execute(
+            """
+            UPDATE videos
+            SET comments_last_checked_at = ?
+            WHERE video_id = ?
+            """,
+            (checked_at or utc_now(), video_id),
+        )

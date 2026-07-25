@@ -2,12 +2,13 @@
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from comment_store import create_comments_table
 
 CREATOR_CHANNEL_SETTING = "authenticated_creator_channel_id"
+BACKLOG_CHECK_SETTING = "reply_backlog_last_checked_at"
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,7 @@ class ReplyCheckSummary:
     replied: int
     unreplied: int
     failed: int
+    skipped: bool = False
 
 
 def utc_now() -> str:
@@ -76,6 +78,43 @@ def get_stored_creator_channel_id(
     return row["value"] if row else None
 
 
+def get_setting(connection: sqlite3.Connection, key: str) -> str | None:
+    create_settings_table(connection)
+    row = connection.execute(
+        "SELECT value FROM settings WHERE key = ?", (key,)
+    ).fetchone()
+    return row["value"] if row else None
+
+
+def store_setting(
+    connection: sqlite3.Connection, key: str, value: str
+) -> None:
+    create_settings_table(connection)
+    with connection:
+        connection.execute(
+            """
+            INSERT INTO settings (key, value, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value,
+                updated_at = excluded.updated_at
+            """,
+            (key, value, utc_now()),
+        )
+
+
+def backlog_checked_recently(
+    connection: sqlite3.Connection,
+    now: datetime | None = None,
+    freshness: timedelta = timedelta(hours=1),
+) -> bool:
+    value = get_setting(connection, BACKLOG_CHECK_SETTING)
+    if not value:
+        return False
+    checked_at = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return (now or datetime.now(timezone.utc)) - checked_at < freshness
+
+
 def fetch_authenticated_creator_channel_id(youtube: Any) -> str:
     response = youtube.channels().list(part="id", mine=True).execute()
     items = response.get("items", [])
@@ -87,6 +126,7 @@ def fetch_authenticated_creator_channel_id(youtube: Any) -> str:
 def comments_pending_reply_check(
     connection: sqlite3.Connection,
     video_ids: list[str] | None = None,
+    include_checked_unreplied: bool = False,
 ) -> list[ReplyCheckTarget]:
     create_comments_table(connection)
     parameters: tuple[object, ...] = ()
@@ -95,12 +135,15 @@ def comments_pending_reply_check(
         placeholders = ", ".join("?" for _ in video_ids)
         video_filter = f" AND video_id IN ({placeholders})"
         parameters = tuple(video_ids)
+    checked_filter = (
+        "" if include_checked_unreplied else "AND reply_status_checked_at IS NULL"
+    )
     rows = connection.execute(
         f"""
         SELECT comment_id, thread_id, video_id, total_reply_count
         FROM comments
-        WHERE reply_status_checked_at IS NULL
-          AND has_creator_reply = 0
+        WHERE has_creator_reply = 0
+          {checked_filter}
         {video_filter}
         ORDER BY published_at, comment_id
         """,
@@ -228,9 +271,19 @@ def backfill_reply_status(
     creator_channel_id: str,
     video_ids: list[str] | None = None,
     checked_at: str | None = None,
+    refresh: bool = False,
+    now: datetime | None = None,
 ) -> ReplyCheckSummary:
     """Check each unchecked comment once and persist successful results."""
-    targets = comments_pending_reply_check(connection, video_ids)
+    if not refresh and backlog_checked_recently(connection, now=now):
+        return ReplyCheckSummary(0, 0, 0, 0, skipped=True)
+
+    operation_checked_at = checked_at or utc_now()
+    targets = comments_pending_reply_check(
+        connection,
+        video_ids,
+        include_checked_unreplied=refresh,
+    )
     replied = 0
     unreplied = 0
     failed = 0
@@ -243,7 +296,7 @@ def backfill_reply_status(
                 connection,
                 target.comment_id,
                 creator_reply,
-                checked_at or utc_now(),
+                operation_checked_at,
             )
             if creator_reply:
                 replied += 1
@@ -253,9 +306,16 @@ def backfill_reply_status(
             failed += 1
             print(f"Reply check failed for {target.comment_id}: {error}")
 
-    return ReplyCheckSummary(
+    summary = ReplyCheckSummary(
         checked=replied + unreplied,
         replied=replied,
         unreplied=unreplied,
         failed=failed,
     )
+    if not failed:
+        store_setting(
+            connection,
+            BACKLOG_CHECK_SETTING,
+            operation_checked_at,
+        )
+    return summary

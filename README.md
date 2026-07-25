@@ -76,6 +76,10 @@ python fetch_comments.py --list-videos
 
 # Backfill creator-reply status for unchecked stored comments
 python fetch_comments.py --backfill-replies
+
+# Force either sync mode to ignore its one-hour freshness check
+python fetch_comments.py --sync-enabled --refresh
+python fetch_comments.py --backfill-replies --refresh
 ```
 
 The script reports a result for each video and an overall summary. A video with
@@ -89,6 +93,13 @@ complete and requests the full reply list only when necessary. Confirmed creator
 replies are excluded from the active inbox, and repeat runs do not recheck
 completed rows. The backfill summary reports checked, replied, and unreplied
 totals.
+
+Top-level comment fetches and creator-reply backlog checks have independent
+last-checked timestamps and a one-hour freshness window. A recently synced
+video skips comment fetching without preventing a due backlog check.
+`--refresh` bypasses the relevant freshness check; forced backlog refreshes
+recheck previously unreplied comments but never recheck confirmed creator
+replies.
 
 Existing databases are migrated automatically when the inbox is opened or
 comments are synced. Existing comments default to `new`; ignored and replied

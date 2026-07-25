@@ -7,6 +7,7 @@ from unittest.mock import ANY, Mock, patch
 from fetch_comments import Comment, FetchResult, sync_videos
 from video_catalog import (
     Video,
+    create_videos_table,
     enabled_video_ids,
     fetch_all_upload_videos,
     list_stored_videos,
@@ -89,6 +90,28 @@ class VideoCatalogTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.connection.close()
 
+    def test_migrates_existing_videos_with_comment_check_timestamp(self) -> None:
+        self.connection.execute(
+            """
+            CREATE TABLE videos (
+                video_id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                published_at TEXT NOT NULL,
+                thumbnail_url TEXT NOT NULL,
+                is_enabled INTEGER NOT NULL DEFAULT 1,
+                first_seen_at TEXT NOT NULL,
+                last_seen_at TEXT NOT NULL
+            )
+            """
+        )
+
+        create_videos_table(self.connection)
+
+        columns = {
+            row["name"] for row in self.connection.execute("PRAGMA table_info(videos)")
+        }
+        self.assertIn("comments_last_checked_at", columns)
+
     def test_uploads_playlist_pagination(self) -> None:
         youtube = discovery_client(
             {
@@ -149,6 +172,27 @@ class VideoCatalogTests(unittest.TestCase):
 
         fetch.assert_called_once_with(ANY, "abcdefghijk")
         self.assertEqual([result.video_id for result in results], ["abcdefghijk"])
+
+    @patch("fetch_comments.fetch_all_comments_for_video")
+    def test_recent_comment_sync_skips_unless_refreshed(self, fetch: Mock) -> None:
+        store_discovered_videos(
+            self.connection,
+            [stored_video("abcdefghijk", "Video")],
+        )
+        fetch.return_value = FetchResult(
+            [fetched_comment("abcdefghijk")], pages_fetched=1
+        )
+
+        first = sync_videos(Mock(), ["abcdefghijk"], self.connection)
+        second = sync_videos(Mock(), ["abcdefghijk"], self.connection)
+        forced = sync_videos(
+            Mock(), ["abcdefghijk"], self.connection, refresh=True
+        )
+
+        self.assertIsNone(first[0].skipped_reason)
+        self.assertIn("last hour", second[0].skipped_reason or "")
+        self.assertIsNone(forced[0].skipped_reason)
+        self.assertEqual(fetch.call_count, 2)
 
 
 if __name__ == "__main__":

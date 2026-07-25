@@ -2,14 +2,17 @@
 
 import sqlite3
 import unittest
+from datetime import datetime, timezone
 from unittest.mock import Mock
 
 from comment_store import sync_comments
 from fetch_comments import Comment
 from reply_detection import (
+    BACKLOG_CHECK_SETTING,
     backfill_reply_status,
     get_stored_creator_channel_id,
     store_creator_channel_id,
+    store_setting,
 )
 
 CREATOR_CHANNEL_ID = "creator-channel"
@@ -180,7 +183,47 @@ class ReplyDetectionTests(unittest.TestCase):
 
         self.assertEqual(first.checked, 1)
         self.assertEqual(second.checked, 0)
+        self.assertTrue(second.skipped)
         youtube.commentThreads.return_value.list.assert_called_once()
+
+    def test_recent_backlog_check_skips_pending_comments(self) -> None:
+        sync_comments(self.connection, [comment(total_reply_count=0)])
+        store_setting(
+            self.connection,
+            BACKLOG_CHECK_SETTING,
+            "2026-07-25T12:00:00Z",
+        )
+
+        summary = backfill_reply_status(
+            Mock(),
+            self.connection,
+            CREATOR_CHANNEL_ID,
+            now=datetime(2026, 7, 25, 12, 15, tzinfo=timezone.utc),
+        )
+
+        self.assertTrue(summary.skipped)
+        self.assertEqual(summary.checked, 0)
+        self.assertIsNone(self.stored_row()["reply_status_checked_at"])
+
+    def test_refresh_overrides_recent_backlog_check(self) -> None:
+        sync_comments(self.connection, [comment(total_reply_count=0)])
+        store_setting(
+            self.connection,
+            BACKLOG_CHECK_SETTING,
+            "2026-07-25T12:00:00Z",
+        )
+
+        summary = backfill_reply_status(
+            Mock(),
+            self.connection,
+            CREATOR_CHANNEL_ID,
+            refresh=True,
+            checked_at="2026-07-25T12:15:00Z",
+            now=datetime(2026, 7, 25, 12, 15, tzinfo=timezone.utc),
+        )
+
+        self.assertFalse(summary.skipped)
+        self.assertEqual(summary.checked, 1)
 
 
 if __name__ == "__main__":
