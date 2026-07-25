@@ -18,6 +18,12 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from comment_store import SyncSummary, connect_database, sync_comments
+from reply_detection import (
+    ReplyCheckSummary,
+    backfill_reply_status,
+    fetch_authenticated_creator_channel_id,
+    store_creator_channel_id,
+)
 from video_catalog import (
     PlaylistPaginationError,
     VideoStoreSummary,
@@ -334,6 +340,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="list stored videos and their enabled status",
     )
+    modes.add_argument(
+        "--backfill-replies",
+        action="store_true",
+        help="check stored comments for replies from the authenticated creator",
+    )
     return parser.parse_args(argv)
 
 
@@ -357,6 +368,15 @@ def print_video_list(connection: sqlite3.Connection) -> None:
         status = "enabled" if video.is_enabled else "disabled"
         print(f"[{status}] {video.video_id} | {video.title}")
         print(f"Published: {video.published_at or 'Unknown'}")
+
+
+def print_reply_check_summary(summary: ReplyCheckSummary) -> None:
+    print("\nCreator reply check")
+    print(f"Checked: {summary.checked}")
+    print(f"Replied: {summary.replied}")
+    print(f"Unreplied: {summary.unreplied}")
+    if summary.failed:
+        print(f"Failed: {summary.failed}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -384,6 +404,15 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
 
             youtube = get_authenticated_youtube_client()
+            creator_channel_id = fetch_authenticated_creator_channel_id(youtube)
+            store_creator_channel_id(connection, creator_channel_id)
+            if args.backfill_replies:
+                reply_summary = backfill_reply_status(
+                    youtube, connection, creator_channel_id
+                )
+                print_reply_check_summary(reply_summary)
+                return 1 if reply_summary.failed else 0
+
             if args.video_id:
                 video_ids = [validate_video_id(args.video_id)]
             elif args.sync_enabled:
@@ -404,6 +433,18 @@ def main(argv: list[str] | None = None) -> int:
                 print("No enabled videos to sync.")
                 return 0
             results = sync_videos(youtube, video_ids, connection)
+            completed_video_ids = [
+                result.video_id for result in results if not result.error
+            ]
+            if completed_video_ids:
+                reply_summary = backfill_reply_status(
+                    youtube,
+                    connection,
+                    creator_channel_id,
+                    video_ids=completed_video_ids,
+                )
+            else:
+                reply_summary = ReplyCheckSummary(0, 0, 0, 0)
     except ValueError as error:
         print(f"Configuration error: {error}", file=sys.stderr)
         return 1
@@ -428,7 +469,8 @@ def main(argv: list[str] | None = None) -> int:
 
     print("\nFinished")
     print_sync_results(results)
-    return 1 if all(result.error for result in results) else 0
+    print_reply_check_summary(reply_summary)
+    return 1 if all(result.error for result in results) or reply_summary.failed else 0
 
 
 if __name__ == "__main__":

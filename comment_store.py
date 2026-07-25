@@ -35,6 +35,10 @@ INBOX_COLUMNS = {
     "needs_research": "INTEGER NOT NULL DEFAULT 0",
     "is_ignored": "INTEGER NOT NULL DEFAULT 0",
     "replied_at": "TEXT",
+    "has_creator_reply": "INTEGER NOT NULL DEFAULT 0",
+    "creator_reply_id": "TEXT",
+    "creator_replied_at": "TEXT",
+    "reply_status_checked_at": "TEXT",
 }
 
 
@@ -83,7 +87,11 @@ def create_comments_table(connection: sqlite3.Connection) -> None:
             final_reply TEXT,
             needs_research INTEGER NOT NULL DEFAULT 0,
             is_ignored INTEGER NOT NULL DEFAULT 0,
-            replied_at TEXT
+            replied_at TEXT,
+            has_creator_reply INTEGER NOT NULL DEFAULT 0,
+            creator_reply_id TEXT,
+            creator_replied_at TEXT,
+            reply_status_checked_at TEXT
         )
         """
     )

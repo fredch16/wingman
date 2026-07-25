@@ -27,6 +27,10 @@ class Comment:
     needs_research: bool
     is_ignored: bool
     replied_at: str | None
+    has_creator_reply: bool
+    creator_reply_id: str | None
+    creator_replied_at: str | None
+    reply_status_checked_at: str | None
 
 
 def utc_now() -> str:
@@ -46,13 +50,18 @@ class CommentRepository:
 
     def list_inbox_comments(self, filter_name: str = "all") -> list[Comment]:
         filters = {
-            "all": "comments.is_ignored = 0 AND comments.status != 'replied'",
+            "all": (
+                "comments.is_ignored = 0 AND comments.status != 'replied' "
+                "AND comments.has_creator_reply = 0"
+            ),
             "new": (
-                "comments.is_ignored = 0 AND comments.status = 'new'"
+                "comments.is_ignored = 0 AND comments.status = 'new' "
+                "AND comments.has_creator_reply = 0"
             ),
             "needs_research": (
                 "comments.is_ignored = 0 AND comments.status != 'replied' "
-                "AND comments.needs_research = 1"
+                "AND comments.needs_research = 1 "
+                "AND comments.has_creator_reply = 0"
             ),
             "ignored": "comments.is_ignored = 1",
             "replied": "comments.status = 'replied'",
@@ -76,7 +85,11 @@ class CommentRepository:
                 comments.final_reply,
                 comments.needs_research,
                 comments.is_ignored,
-                comments.replied_at
+                comments.replied_at,
+                comments.has_creator_reply,
+                comments.creator_reply_id,
+                comments.creator_replied_at,
+                comments.reply_status_checked_at
             FROM comments
             LEFT JOIN videos ON videos.video_id = comments.video_id
             WHERE {filters[filter_name]}
@@ -103,7 +116,11 @@ class CommentRepository:
                 comments.final_reply,
                 comments.needs_research,
                 comments.is_ignored,
-                comments.replied_at
+                comments.replied_at,
+                comments.has_creator_reply,
+                comments.creator_reply_id,
+                comments.creator_replied_at,
+                comments.reply_status_checked_at
             FROM comments
             LEFT JOIN videos ON videos.video_id = comments.video_id
             WHERE comments.comment_id = ?
@@ -186,4 +203,8 @@ class CommentRepository:
             needs_research=bool(row["needs_research"]),
             is_ignored=bool(row["is_ignored"]),
             replied_at=row["replied_at"],
+            has_creator_reply=bool(row["has_creator_reply"]),
+            creator_reply_id=row["creator_reply_id"],
+            creator_replied_at=row["creator_replied_at"],
+            reply_status_checked_at=row["reply_status_checked_at"],
         )

@@ -73,12 +73,22 @@ python fetch_comments.py --disable-video VIDEO_ID
 
 # List stored videos and their status
 python fetch_comments.py --list-videos
+
+# Backfill creator-reply status for unchecked stored comments
+python fetch_comments.py --backfill-replies
 ```
 
 The script reports a result for each video and an overall summary. A video with
 disabled comments or no comments does not prevent later videos from syncing.
 Other API failures are reported with the affected video and page.
 `comments.db` is created automatically and is ignored by Git.
+
+After comment sync, Wingman checks previously unchecked threads for replies from
+the authenticated creator channel. It uses embedded thread replies when
+complete and requests the full reply list only when necessary. Confirmed creator
+replies are excluded from the active inbox, and repeat runs do not recheck
+completed rows. The backfill summary reports checked, replied, and unreplied
+totals.
 
 Existing databases are migrated automatically when the inbox is opened or
 comments are synced. Existing comments default to `new`; ignored and replied
@@ -94,12 +104,14 @@ python app.py
 
 Then open `http://127.0.0.1:5000`. The UI lists active inbox comments, provides
 new, research, ignored, and replied filters, and supports local ignore,
-research, and replied state changes. It does not generate or post replies.
+research, and replied state changes. Comment details include a direct
+**Open on YouTube** link. The UI does not generate or post replies.
 
 ## Tests
 
-The uploads pagination, comment pagination, enabled-state, inbox repository,
-database migration, and SQLite persistence tests do not contact YouTube:
+The uploads pagination, comment pagination, creator-reply detection,
+enabled-state, inbox repository, database migration, and SQLite persistence
+tests do not contact YouTube:
 
 ```bash
 python -m unittest -v

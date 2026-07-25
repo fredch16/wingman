@@ -113,6 +113,10 @@ class InboxRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Full text for comment-new", response.data)
         self.assertIn(b"PID Explained in 60 Seconds", response.data)
+        self.assertIn(
+            b"https://www.youtube.com/watch?v=abcdefghijk&lc=comment-new",
+            response.data,
+        )
         self.assertEqual(self.client.get("/comments/missing").status_code, 404)
 
     def test_ignore_and_unignore_action(self) -> None:

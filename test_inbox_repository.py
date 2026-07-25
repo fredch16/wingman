@@ -116,6 +116,27 @@ class CommentRepositoryTests(unittest.TestCase):
         self.assertEqual(row["final_reply"], "Final response")
         self.assertEqual(row["replied_at"], "2026-07-25T12:00:00Z")
 
+    def test_detected_creator_replies_leave_active_inbox(self) -> None:
+        self.connection.execute(
+            """
+            UPDATE comments SET
+                has_creator_reply = 1,
+                creator_reply_id = 'reply-1',
+                creator_replied_at = '2026-07-25T12:00:00Z',
+                reply_status_checked_at = '2026-07-25T12:01:00Z'
+            WHERE comment_id = 'comment-1'
+            """
+        )
+
+        active_ids = {
+            comment.comment_id
+            for comment in self.repository.list_active_inbox_comments()
+        }
+        detected = self.repository.get_comment("comment-1")
+        self.assertNotIn("comment-1", active_ids)
+        self.assertIsNotNone(detected)
+        self.assertTrue(detected.has_creator_reply)
+
 
 if __name__ == "__main__":
     unittest.main()

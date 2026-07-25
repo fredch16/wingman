@@ -127,12 +127,15 @@ main {
   margin-top: 1.5rem;
 }
 
-button {
+button,
+.button-link {
   background: white;
   border: 1px solid #aeb5c1;
   border-radius: 5px;
+  color: inherit;
   cursor: pointer;
   padding: 0.6rem 0.85rem;
+  text-decoration: none;
 }
 
 button.primary {

@@ -18,6 +18,16 @@
         <dt>Needs research</dt>
         <dd>{{ 'Yes' if comment.needs_research else 'No' }}</dd>
       </div>
+      <div>
+        <dt>Creator replied</dt>
+        <dd>{{ 'Yes' if comment.has_creator_reply else 'No' }}</dd>
+      </div>
+      {% if comment.creator_replied_at %}
+        <div>
+          <dt>Creator replied at</dt>
+          <dd>{{ comment.creator_replied_at }}</dd>
+        </div>
+      {% endif %}
       {% if comment.classification_reason %}
         <div>
           <dt>Classification reason</dt>
@@ -36,6 +46,10 @@
     </dl>
 
     <div class="actions">
+      <a class="button-link"
+         href="https://www.youtube.com/watch?v={{ comment.video_id }}&lc={{ comment.comment_id }}"
+         target="_blank"
+         rel="noopener noreferrer">Open on YouTube</a>
       <form method="post"
             action="{{ url_for('toggle_ignored', comment_id=comment.comment_id) }}">
         <button type="submit">
