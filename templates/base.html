@@ -11,24 +11,39 @@
     <div class="app-shell">
       <aside class="sidebar">
         <a class="brand" href="{{ url_for('inbox') }}" aria-label="Wingman home">
-          <span class="brand-mark">W</span>
-          <span>Wingman</span>
+          <span class="brand-mark"><span>C</span></span>
+          <span class="brand-copy">
+            <strong>Wingman</strong>
+            <small>by C Labs</small>
+          </span>
         </a>
         <nav class="primary-nav" aria-label="Primary navigation">
           <a class="{{ 'active' if request.endpoint == 'inbox' and request.args.get('view', 'inbox') == 'inbox' }}"
              href="{{ url_for('inbox') }}">
-            <span class="nav-icon">⌂</span>Inbox
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 5.5h16v13H4zM4 14h4l2 2h4l2-2h4"/>
+            </svg>
+            <span>Inbox</span>
           </a>
           <a class="{{ 'active' if request.endpoint == 'inbox' and request.args.get('view') == 'ignored' }}"
              href="{{ url_for('inbox', view='ignored') }}">
-            <span class="nav-icon">⊘</span>Ignored
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="8"/><path d="m6.4 6.4 11.2 11.2"/>
+            </svg>
+            <span>Ignored</span>
           </a>
           <a class="{{ 'active' if request.endpoint == 'video_contexts' }}"
              href="{{ url_for('video_contexts') }}">
-            <span class="nav-icon">◇</span>Video context
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/>
+            </svg>
+            <span>Video context</span>
           </a>
           <a href="#" aria-disabled="true">
-            <span class="nav-icon">⚙</span>Settings
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1A7 7 0 0 0 15 6.2L14.7 4h-5.4L9 6.2a7 7 0 0 0-1.5.9l-2.4-1-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 1.5.9l.3 2.2h5.4l.3-2.2a7 7 0 0 0 1.5-.9l2.4 1 2-3.4-2-1.5a7 7 0 0 0 .1-1z"/>
+            </svg>
+            <span>Settings</span>
           </a>
         </nav>
         <div class="sidebar-footer">

@@ -128,7 +128,8 @@ reload. Priority is presented as Critical, High, Medium, or Low; numerical
 scores and classification metadata stay hidden until **Developer mode** is
 enabled. Developer mode also reveals Wingman's plain-language ranking
 explanation between the comment and reply editor. The **Ignored** view keeps
-dismissed conversations available.
+dismissed conversations available. The dark, C Labs-inspired interface uses a
+restrained coral accent and semantic colors for categories and reply states.
 
 Comment detail pages include a reply form that publishes directly beneath the
 top-level YouTube comment. Posting is explicit and immediate. Wingman updates
