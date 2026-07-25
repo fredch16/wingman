@@ -1,8 +1,9 @@
 # Wingman YouTube Comment Fetcher
 
-This first-step MVP fetches only the first page (up to 100) of the latest
-top-level comments from one public YouTube video and prints them in the
-terminal. It does not fetch replies; it prints each thread's total reply count.
+This MVP follows YouTube pagination to fetch every available top-level comment
+from one configured public YouTube video and prints them in the terminal.
+Replies are not fetched yet; the script only prints each thread's total reply
+count.
 
 ## Setup and run
 
@@ -47,3 +48,11 @@ terminal. It does not fetch replies; it prints each thread's total reply count.
 The script reports missing configuration, invalid or missing videos, disabled
 comments, quota/rate-limit failures, authorization errors, other API errors,
 network failures, and videos for which no comments are returned.
+
+## Tests
+
+The pagination tests use mocked API responses and never contact YouTube:
+
+```bash
+python -m unittest -v
+```
