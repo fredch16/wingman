@@ -133,6 +133,7 @@ class InboxRouteTests(unittest.TestCase):
                 "YOUTUBE_CLIENT": self.youtube,
                 "YOUTUBE_REPLY_SERVICE": post_reply,
                 "CLASSIFICATION_SERVICE": self.classifier,
+                "CLASSIFICATION_DRY_RUN": False,
             }
         )
         self.client = app.test_client()
@@ -282,6 +283,42 @@ class InboxRouteTests(unittest.TestCase):
         classify_rest = self.client.post("/inbox/classify-all")
         self.assertEqual(classify_rest.status_code, 302)
         self.assertEqual(len(self.classifier.calls), 12)
+
+    def test_dry_run_displays_result_without_updating_database(self) -> None:
+        dry_classifier = FakeProductionClassifier()
+        dry_app = create_app(
+            {
+                "TESTING": True,
+                "DATABASE": self.database_path,
+                "CLASSIFICATION_SERVICE": dry_classifier,
+                "CLASSIFICATION_DRY_RUN": True,
+            }
+        )
+        dry_client = dry_app.test_client()
+
+        response = dry_client.post(
+            "/comments/comment-unclassified/classify",
+            follow_redirects=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Classification dry run is active", response.data)
+        self.assertIn(b"Priority 0.88", response.data)
+        row = self.row("comment-unclassified")
+        self.assertIsNone(row["classified_at"])
+        self.assertIsNone(row["priority"])
+
+        restarted_app = create_app(
+            {
+                "TESTING": True,
+                "DATABASE": self.database_path,
+                "CLASSIFICATION_SERVICE": FakeProductionClassifier(),
+                "CLASSIFICATION_DRY_RUN": True,
+            }
+        )
+        restarted_page = restarted_app.test_client().get("/")
+        self.assertIn(b"Classify This", restarted_page.data)
+        self.assertNotIn(b"Priority 0.88", restarted_page.data)
 
     def test_posts_reply_to_youtube_then_updates_inbox(self) -> None:
         detail = self.client.get("/comments/comment-new")

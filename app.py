@@ -2,6 +2,7 @@
 
 import os
 import sqlite3
+from dataclasses import replace
 from typing import Any
 
 from dotenv import load_dotenv
@@ -15,7 +16,7 @@ from classification_service import ClassificationService, CommentClassification
 from comment_store import connect_database
 from fetch_comments import api_error_message, get_authenticated_youtube_client
 from inbox_repository import CommentRepository
-from production_classification import classify_stored_comment
+from production_classification import ClassificationRecord, classify_stored_comment
 from youtube_reply import post_comment_reply
 
 
@@ -25,6 +26,10 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     app.config.from_mapping(
         DATABASE=os.getenv("DATABASE_PATH", "comments.db").strip() or "comments.db",
         OPENAI_MODEL=os.getenv("OPENAI_MODEL", "").strip() or "gpt-5.6-sol",
+        CLASSIFICATION_DRY_RUN=(
+            os.getenv("WINGMAN_CLASSIFICATION_DRY_RUN", "true").strip().lower()
+            not in {"0", "false", "no", "off"}
+        ),
     )
     if test_config:
         app.config.update(test_config)
@@ -41,6 +46,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     app.extensions["reply_errors"] = {}
     app.extensions["reply_drafts"] = {}
     app.extensions["production_classification_errors"] = {}
+    app.extensions["production_classification_results"] = {}
 
     def classification_service() -> ClassificationService:
         if "classification_service" not in app.extensions:
@@ -66,13 +72,51 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
 
     @app.get("/")
     def inbox() -> str:
+        classified_by_id = {
+            comment.comment_id: comment
+            for comment in repository().list_classified_inbox_comments()
+        }
+        dry_run_results: dict[str, ClassificationRecord] = app.extensions[
+            "production_classification_results"
+        ]
+        for comment_id, record in dry_run_results.items():
+            comment = repository().get_comment(comment_id)
+            if comment is None:
+                continue
+            result = record.result
+            classified_by_id[comment_id] = replace(
+                comment,
+                category=result.category,
+                priority=result.priority,
+                reply_worthy=result.reply_worthy,
+                needs_research=result.needs_research,
+                classification_reason=result.reason,
+                classified_at=record.classified_at,
+                classification_model=record.classification_model,
+                classification_version=record.classification_version,
+            )
+        comments = sorted(
+            classified_by_id.values(),
+            key=lambda comment: comment.published_at,
+            reverse=True,
+        )
+        comments.sort(
+            key=lambda comment: comment.priority or 0.0,
+            reverse=True,
+        )
+        unclassified_comments = [
+            comment
+            for comment in repository().list_unclassified_inbox_comments()
+            if comment.comment_id not in dry_run_results
+        ]
         return render_template(
             "inbox.html",
-            comments=repository().list_classified_inbox_comments(),
-            unclassified_comments=repository().list_unclassified_inbox_comments(),
+            comments=comments,
+            unclassified_comments=unclassified_comments,
             classification_errors=app.extensions[
                 "production_classification_errors"
             ],
+            classification_dry_run=app.config["CLASSIFICATION_DRY_RUN"],
         )
 
     def classify_production_comment(comment_id: str) -> None:
@@ -89,11 +133,16 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             "production_classification_errors"
         ]
         try:
-            classify_stored_comment(
+            record = classify_stored_comment(
                 repository(),
                 classification_service(),
                 comment_id,
+                persist=not app.config["CLASSIFICATION_DRY_RUN"],
             )
+            if app.config["CLASSIFICATION_DRY_RUN"]:
+                app.extensions["production_classification_results"][
+                    comment_id
+                ] = record
             errors.pop(comment_id, None)
         except Exception as error:
             errors[comment_id] = str(error)

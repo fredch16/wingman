@@ -16,6 +16,13 @@
     </div>
   </div>
 
+  {% if classification_dry_run %}
+    <p class="dry-run-banner">
+      Classification dry run is active. Results are held in memory and reset
+      when Wingman restarts; SQLite is not changed.
+    </p>
+  {% endif %}
+
   {% if comments %}
     <section class="production-inbox">
       {% for comment in comments %}

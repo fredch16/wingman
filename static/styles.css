@@ -304,6 +304,15 @@ button:disabled {
   margin-bottom: 1.5rem;
 }
 
+.dry-run-banner {
+  background: #fff8df;
+  border: 1px solid #e6cc78;
+  border-radius: 6px;
+  color: #70560d;
+  margin: 0 0 1.25rem;
+  padding: 0.75rem;
+}
+
 .inbox-batch-actions,
 .inbox-card-actions {
   display: flex;
