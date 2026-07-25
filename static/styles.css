@@ -230,6 +230,43 @@ button.primary {
   padding: 0.75rem;
 }
 
+.reply-form {
+  border-top: 1px solid #dfe2e7;
+  display: grid;
+  flex-basis: 100%;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+}
+
+.reply-form label {
+  font-weight: 700;
+}
+
+.reply-form textarea {
+  border: 1px solid #aeb5c1;
+  border-radius: 5px;
+  box-sizing: border-box;
+  font: inherit;
+  line-height: 1.4;
+  padding: 0.7rem;
+  resize: vertical;
+  width: 100%;
+}
+
+.reply-form button {
+  justify-self: start;
+}
+
+.reply-form small {
+  color: #687080;
+}
+
+.form-error {
+  color: #9c2626;
+  margin: 0;
+}
+
 @media (max-width: 600px) {
   .page-heading {
     align-items: flex-start;

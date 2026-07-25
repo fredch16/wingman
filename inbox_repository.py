@@ -176,6 +176,28 @@ class CommentRepository:
             (final_reply, replied_at or utc_now()),
         )
 
+    def mark_youtube_replied(
+        self,
+        comment_id: str,
+        reply_id: str,
+        final_reply: str,
+        replied_at: str | None = None,
+    ) -> bool:
+        timestamp = replied_at or utc_now()
+        return self._update(
+            comment_id,
+            """
+            status = 'replied',
+            final_reply = ?,
+            replied_at = ?,
+            has_creator_reply = 1,
+            creator_reply_id = ?,
+            creator_replied_at = ?,
+            reply_status_checked_at = ?
+            """,
+            (final_reply, timestamp, reply_id, timestamp, timestamp),
+        )
+
     def update_priority(self, comment_id: str, priority: str | None) -> bool:
         return self._update(comment_id, "priority = ?", (priority,))
 

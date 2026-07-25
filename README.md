@@ -6,7 +6,7 @@ enabled videos. Uploads and comments are fully paginated. Each sync preserves
 first-seen timestamps, refreshes last-seen timestamps, and reports inserted,
 updated, and unchanged counts. Synced comments enter a reusable local Wingman
 inbox with workflow fields for status, priority, category, research, and reply
-drafts. Replies are not posted to YouTube.
+drafts. Approved replies can be posted directly to YouTube from the local UI.
 
 ## Setup and run
 
@@ -45,7 +45,8 @@ drafts. Replies are not posted to YouTube.
    python fetch_comments.py
    ```
 
-   On the first run, approve the read-only YouTube permission in the browser.
+   On the first run, approve the YouTube account-management permission in the
+   browser. It is required to publish replies.
    The resulting OAuth token is saved to `token.json` for later runs.
 
 The default command discovers the channel's uploads before syncing. Newly
@@ -124,7 +125,15 @@ python app.py
 Then open `http://127.0.0.1:5000`. The UI lists active inbox comments, provides
 new, research, ignored, and replied filters, and supports local ignore,
 research, and replied state changes. Comment details include a direct
-**Open on YouTube** link. The UI does not generate or post replies.
+**Open on YouTube** link. The UI does not generate replies automatically.
+
+Comment detail pages include a reply form that publishes directly beneath the
+top-level YouTube comment. Posting is explicit and immediate. Wingman updates
+the local inbox to replied only after YouTube confirms the new reply.
+
+Existing installations previously used a read-only OAuth scope. The first
+authenticated action after this update will open the Google consent flow once
+to grant the `youtube.force-ssl` permission and refresh the ignored local token.
 
 ## Classification playground
 

@@ -79,6 +79,34 @@ class CommentRepositoryTests(unittest.TestCase):
         self.assertEqual(row["category"], "technical")
         self.assertEqual(row["draft_reply"], "Draft response")
 
+    def test_marks_confirmed_youtube_reply(self) -> None:
+        self.assertTrue(
+            self.repository.mark_youtube_replied(
+                "comment-1",
+                reply_id="youtube-reply-1",
+                final_reply="Published response",
+                replied_at="2026-07-25T15:00:00Z",
+            )
+        )
+
+        row = self.connection.execute(
+            """
+            SELECT status, final_reply, replied_at, has_creator_reply,
+                   creator_reply_id, creator_replied_at, reply_status_checked_at
+            FROM comments
+            WHERE comment_id = 'comment-1'
+            """
+        ).fetchone()
+        self.assertEqual(row["status"], "replied")
+        self.assertEqual(row["final_reply"], "Published response")
+        self.assertEqual(row["replied_at"], "2026-07-25T15:00:00Z")
+        self.assertEqual(row["has_creator_reply"], 1)
+        self.assertEqual(row["creator_reply_id"], "youtube-reply-1")
+        self.assertEqual(row["creator_replied_at"], "2026-07-25T15:00:00Z")
+        self.assertEqual(
+            row["reply_status_checked_at"], "2026-07-25T15:00:00Z"
+        )
+
     def test_ignored_comments_leave_active_inbox(self) -> None:
         self.assertTrue(self.repository.mark_ignored("comment-1"))
 

@@ -10,6 +10,7 @@ from comment_store import connect_database, sync_comments
 from fetch_comments import Comment as FetchedComment
 from inbox_repository import CommentRepository
 from video_catalog import Video, store_discovered_videos
+from youtube_reply import PostedReply
 
 
 def fetched_comment(comment_id: str, author: str) -> FetchedComment:
@@ -66,7 +67,25 @@ class InboxRouteTests(unittest.TestCase):
         finally:
             connection.close()
 
-        app = create_app({"TESTING": True, "DATABASE": self.database_path})
+        self.reply_calls: list[tuple[object, str, str]] = []
+
+        def post_reply(youtube: object, comment_id: str, text: str) -> PostedReply:
+            self.reply_calls.append((youtube, comment_id, text))
+            return PostedReply(
+                reply_id="youtube-reply-1",
+                text=text,
+                published_at="2026-07-25T15:00:00Z",
+            )
+
+        self.youtube = object()
+        app = create_app(
+            {
+                "TESTING": True,
+                "DATABASE": self.database_path,
+                "YOUTUBE_CLIENT": self.youtube,
+                "YOUTUBE_REPLY_SERVICE": post_reply,
+            }
+        )
         self.client = app.test_client()
 
     def tearDown(self) -> None:
@@ -149,6 +168,55 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn(
             b"New Author", self.client.get("/?filter=replied").data
         )
+
+    def test_posts_reply_to_youtube_then_updates_inbox(self) -> None:
+        detail = self.client.get("/comments/comment-new")
+        self.assertIn(b"Post reply", detail.data)
+        self.assertIn(b"publishes immediately", detail.data)
+
+        response = self.client.post(
+            "/comments/comment-new/reply",
+            data={"reply_text": "  Thanks for the thoughtful question.  "},
+            follow_redirects=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            self.reply_calls,
+            [
+                (
+                    self.youtube,
+                    "comment-new",
+                    "Thanks for the thoughtful question.",
+                )
+            ],
+        )
+        row = self.row("comment-new")
+        self.assertEqual(row["status"], "replied")
+        self.assertEqual(row["final_reply"], "Thanks for the thoughtful question.")
+        self.assertEqual(row["has_creator_reply"], 1)
+        self.assertEqual(row["creator_reply_id"], "youtube-reply-1")
+        self.assertNotIn(b"Post reply", response.data)
+        self.assertEqual(
+            self.client.post(
+                "/comments/comment-new/reply",
+                data={"reply_text": "Duplicate"},
+            ).status_code,
+            409,
+        )
+        self.assertEqual(len(self.reply_calls), 1)
+
+    def test_empty_reply_does_not_update_inbox(self) -> None:
+        response = self.client.post(
+            "/comments/comment-new/reply",
+            data={"reply_text": "   "},
+            follow_redirects=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Reply text cannot be empty.", response.data)
+        self.assertEqual(self.reply_calls, [])
+        self.assertEqual(self.row("comment-new")["status"], "new")
 
 
 if __name__ == "__main__":

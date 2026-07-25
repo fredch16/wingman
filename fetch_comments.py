@@ -37,7 +37,7 @@ from video_catalog import (
     store_discovered_videos,
 )
 
-SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
+SCOPES = ["https://www.googleapis.com/auth/youtube.force-ssl"]
 
 
 @dataclass(frozen=True)
@@ -127,6 +127,9 @@ def youtube_credentials(client_secrets_file: str, token_file: str) -> Credential
     credentials = None
     if token_path.is_file():
         credentials = Credentials.from_authorized_user_file(token_path)
+
+    if credentials and not credentials.has_scopes(SCOPES):
+        credentials = None
 
     if credentials and credentials.expired and credentials.refresh_token:
         credentials.refresh(Request())
