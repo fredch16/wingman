@@ -5,15 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Wingman Inbox{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="{{ url_for('static', filename='app.js') }}" defer></script>
   </head>
   <body>
-    <header class="site-header">
-      <nav>
-        <a href="{{ url_for('inbox') }}">Wingman Inbox</a>
-        <a href="{{ url_for('classification_playground') }}">Classification Playground</a>
-        <a href="{{ url_for('video_contexts') }}">Video Context</a>
-      </nav>
-    </header>
-    <main>{% block content %}{% endblock %}</main>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="{{ url_for('inbox') }}" aria-label="Wingman home">
+          <span class="brand-mark">W</span>
+          <span>Wingman</span>
+        </a>
+        <nav class="primary-nav" aria-label="Primary navigation">
+          <a class="{{ 'active' if request.endpoint == 'inbox' and request.args.get('view', 'inbox') == 'inbox' }}"
+             href="{{ url_for('inbox') }}">
+            <span class="nav-icon">⌂</span>Inbox
+          </a>
+          <a class="{{ 'active' if request.endpoint == 'inbox' and request.args.get('view') == 'ignored' }}"
+             href="{{ url_for('inbox', view='ignored') }}">
+            <span class="nav-icon">⊘</span>Ignored
+          </a>
+          <a class="{{ 'active' if request.endpoint == 'video_contexts' }}"
+             href="{{ url_for('video_contexts') }}">
+            <span class="nav-icon">◇</span>Video context
+          </a>
+          <a href="#" aria-disabled="true">
+            <span class="nav-icon">⚙</span>Settings
+          </a>
+        </nav>
+        <div class="sidebar-footer">
+          <label class="developer-toggle">
+            <span>
+              <strong>Developer mode</strong>
+              <small>Show AI diagnostics</small>
+            </span>
+            <input id="developer-mode" type="checkbox" role="switch">
+            <span class="toggle-track" aria-hidden="true"></span>
+          </label>
+          <a class="quiet-link" href="{{ url_for('classification_playground') }}">
+            Classification playground
+          </a>
+        </div>
+      </aside>
+      <main>{% block content %}{% endblock %}</main>
+    </div>
   </body>
 </html>

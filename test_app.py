@@ -171,12 +171,14 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn(b"Full text for comment-low", response.data)
         self.assertIn(b"PID Explained in 60 Seconds", response.data)
         self.assertIn(b"2026-07-25T10:00:00Z", response.data)
-        self.assertIn(b"Priority 0.95", response.data)
+        self.assertIn(b"Critical", response.data)
+        self.assertIn(b"Priority score", response.data)
+        self.assertIn(b"0.95", response.data)
         self.assertIn(b"community_connection", response.data)
         self.assertIn(b"Meaningful personal impact.", response.data)
         self.assertIn(b"old-model", response.data)
         self.assertIn(b"production-v1", response.data)
-        self.assertIn(b"Generate Reply", response.data)
+        self.assertIn(b"Generate Draft", response.data)
         self.assertIn(b"Reclassify", response.data)
         self.assertLess(
             response.data.index(b"Full text for comment-new"),
@@ -190,11 +192,11 @@ class InboxRouteTests(unittest.TestCase):
     def test_unclassified_comments_have_manual_and_batch_actions(self) -> None:
         response = self.client.get("/")
 
-        self.assertIn(b"Unclassified comments", response.data)
+        self.assertIn(b"Unclassified", response.data)
         self.assertIn(b"Full text for comment-unclassified", response.data)
-        self.assertIn(b"Classify This", response.data)
-        self.assertIn(b"Classify Top 10 Unclassified", response.data)
-        self.assertIn(b"Classify All Unclassified", response.data)
+        self.assertIn(b"Classify comment", response.data)
+        self.assertIn(b"Classify next 10", response.data)
+        self.assertIn(b"Classify all", response.data)
 
     def test_comment_detail_and_missing_comment(self) -> None:
         response = self.client.get("/comments/comment-new")
@@ -262,7 +264,8 @@ class InboxRouteTests(unittest.TestCase):
         )
         self.assertEqual(row["classification_version"], "production-v2")
         self.assertIn(b"Full text for comment-unclassified", response.data)
-        self.assertIn(b"Priority 0.88", response.data)
+        self.assertIn(b"High", response.data)
+        self.assertIn(b"0.88", response.data)
 
     def test_reclassifies_existing_comment(self) -> None:
         response = self.client.post(
@@ -313,8 +316,8 @@ class InboxRouteTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Classification dry run is active", response.data)
-        self.assertIn(b"Priority 0.88", response.data)
+        self.assertIn(b"Dry run", response.data)
+        self.assertIn(b"0.88", response.data)
         row = self.row("comment-unclassified")
         self.assertIsNone(row["classified_at"])
         self.assertIsNone(row["priority"])
@@ -328,12 +331,12 @@ class InboxRouteTests(unittest.TestCase):
             }
         )
         restarted_page = restarted_app.test_client().get("/")
-        self.assertIn(b"Classify This", restarted_page.data)
-        self.assertNotIn(b"Priority 0.88", restarted_page.data)
+        self.assertIn(b"Classify comment", restarted_page.data)
+        self.assertNotIn(b"0.88", restarted_page.data)
 
     def test_generates_edits_and_locally_approves_reply(self) -> None:
         detail = self.client.get("/comments/comment-new")
-        self.assertIn(b"Generate Reply", detail.data)
+        self.assertIn(b"Generate Draft", detail.data)
         self.assertNotIn(b"Post reply", detail.data)
 
         response = self.client.post(
@@ -358,15 +361,25 @@ class InboxRouteTests(unittest.TestCase):
 
         approved = self.client.post(
             "/comments/comment-new/approve-reply",
+            data={"draft_reply": "Final edit from the approval screen."},
             follow_redirects=True,
         )
         self.assertEqual(approved.status_code, 200)
         row = self.row("comment-new")
         self.assertEqual(row["status"], "approved")
-        self.assertEqual(row["final_reply"], "Edited by Fred.")
+        self.assertEqual(row["draft_reply"], "Final edit from the approval screen.")
+        self.assertEqual(row["final_reply"], "Final edit from the approval screen.")
         self.assertIsNotNone(row["reply_approved_at"])
-        self.assertIn(b"Nothing was posted to YouTube", approved.data)
+        self.assertIn(b"Approved", approved.data)
         self.assertEqual(self.reply_calls, [])
+
+    def test_ignored_view_lists_ignored_conversations(self) -> None:
+        response = self.client.get("/?view=ignored")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Ignored Author", response.data)
+        self.assertNotIn(b"New Author", response.data)
+        self.assertIn(b"Move to inbox", response.data)
 
     def test_video_context_can_be_edited(self) -> None:
         response = self.client.post(

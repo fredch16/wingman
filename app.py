@@ -85,6 +85,9 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
 
     @app.get("/")
     def inbox() -> str:
+        view = request.args.get("view", "inbox")
+        if view not in {"inbox", "ignored"}:
+            abort(404)
         classified_by_id = {
             comment.comment_id: comment
             for comment in repository().list_classified_inbox_comments()
@@ -108,24 +111,29 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 classification_model=record.classification_model,
                 classification_version=record.classification_version,
             )
-        comments = sorted(
-            classified_by_id.values(),
-            key=lambda comment: comment.published_at,
-            reverse=True,
-        )
-        comments.sort(
-            key=lambda comment: comment.priority or 0.0,
-            reverse=True,
-        )
-        unclassified_comments = [
-            comment
-            for comment in repository().list_unclassified_inbox_comments()
-            if comment.comment_id not in dry_run_results
-        ]
+        if view == "ignored":
+            comments = repository().list_inbox_comments("ignored")
+            unclassified_comments = []
+        else:
+            comments = sorted(
+                classified_by_id.values(),
+                key=lambda comment: comment.published_at,
+                reverse=True,
+            )
+            comments.sort(
+                key=lambda comment: comment.priority or 0.0,
+                reverse=True,
+            )
+            unclassified_comments = [
+                comment
+                for comment in repository().list_unclassified_inbox_comments()
+                if comment.comment_id not in dry_run_results
+            ]
         return render_template(
             "inbox.html",
             comments=comments,
             unclassified_comments=unclassified_comments,
+            view=view,
             classification_errors=app.extensions[
                 "production_classification_errors"
             ],
@@ -223,6 +231,12 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
 
     @app.post("/comments/<comment_id>/approve-reply")
     def approve_reply(comment_id: str):
+        edited_draft = request.form.get("draft_reply")
+        if edited_draft is not None:
+            if not repository().update_draft_reply(
+                comment_id, edited_draft.strip() or None
+            ):
+                abort(404)
         if not repository().approve_draft_reply(comment_id):
             abort(400)
         return redirect(url_for("comment_detail", comment_id=comment_id))

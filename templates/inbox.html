@@ -1,51 +1,76 @@
 {% extends "base.html" %}
-{% block title %}Wingman Inbox{% endblock %}
+{% block title %}{{ "Ignored" if view == "ignored" else "Inbox" }} · Wingman{% endblock %}
 {% block content %}
-  <div class="page-heading inbox-heading">
-    <div>
-      <h1>Inbox</h1>
-      <p>Important conversations, ranked by community value.</p>
-    </div>
-    <div class="inbox-batch-actions">
-      <form method="post" action="{{ url_for('classify_top_10') }}">
-        <button type="submit">Classify Top 10 Unclassified</button>
-      </form>
-      <form method="post" action="{{ url_for('classify_all_unclassified') }}">
-        <button class="primary" type="submit">Classify All Unclassified</button>
-      </form>
-    </div>
+  {% set all_comments = comments + unclassified_comments %}
+  <div class="inbox-layout">
+    <section class="inbox-list-panel">
+      <header class="inbox-toolbar">
+        <div>
+          <span class="eyebrow">Workspace</span>
+          <h1>{{ "Ignored" if view == "ignored" else "Inbox" }}</h1>
+          <p>
+            {% if view == "ignored" %}
+              Conversations moved out of your active queue.
+            {% else %}
+              {{ all_comments|length }} conversations waiting for you
+            {% endif %}
+          </p>
+        </div>
+        {% if view == "inbox" and unclassified_comments %}
+          <details class="more-menu">
+            <summary aria-label="Classification actions">•••</summary>
+            <div>
+              <form method="post" action="{{ url_for('classify_top_10') }}">
+                <button type="submit">Classify next 10</button>
+              </form>
+              <form method="post" action="{{ url_for('classify_all_unclassified') }}">
+                <button type="submit">Classify all</button>
+              </form>
+            </div>
+          </details>
+        {% endif %}
+      </header>
+
+      {% if classification_dry_run %}
+        <p class="dry-run-banner">Dry run · classifications reset on restart</p>
+      {% endif %}
+
+      {% if all_comments %}
+        <div class="conversation-list" role="list">
+          {% for comment in all_comments %}
+            {% include "_inbox_card.html" %}
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <span>✓</span>
+          <h2>{{ "Nothing ignored" if view == "ignored" else "You're all caught up" }}</h2>
+          <p>{{ "Ignored conversations will appear here." if view == "ignored" else "No conversations need your attention right now." }}</p>
+        </div>
+      {% endif %}
+    </section>
+
+    <section id="conversation-panel" class="conversation-panel" aria-live="polite">
+      {% if all_comments %}
+        {% with comment=all_comments[0],
+                reply_generation_error=None %}
+          {% include "_conversation_panel.html" %}
+        {% endwith %}
+      {% else %}
+        <div class="detail-empty">
+          <span class="brand-mark">W</span>
+          <h2>Choose a conversation</h2>
+          <p>The comments that matter most appear at the top.</p>
+        </div>
+      {% endif %}
+    </section>
   </div>
 
-  {% if classification_dry_run %}
-    <p class="dry-run-banner">
-      Classification dry run is active. Results are held in memory and reset
-      when Wingman restarts; SQLite is not changed.
-    </p>
-  {% endif %}
-
-  {% if comments %}
-    <section class="production-inbox">
-      {% for comment in comments %}
-        {% include "_inbox_card.html" %}
-      {% endfor %}
-    </section>
-  {% else %}
-    <p class="empty-state">No classified comments are waiting for a reply.</p>
-  {% endif %}
-
-  <details class="unclassified-section">
-    <summary>
-      Unclassified comments
-      <span class="status">{{ unclassified_comments|length }}</span>
-    </summary>
-    {% if unclassified_comments %}
-      <section class="production-inbox">
-        {% for comment in unclassified_comments %}
-          {% include "_inbox_card.html" %}
-        {% endfor %}
-      </section>
-    {% else %}
-      <p class="empty-state">No unclassified comments are waiting.</p>
-    {% endif %}
-  </details>
+  {% for comment in all_comments %}
+    <template id="detail-{{ comment.comment_id }}">
+      {% with reply_generation_error=None %}
+        {% include "_conversation_panel.html" %}
+      {% endwith %}
+    </template>
+  {% endfor %}
 {% endblock %}
