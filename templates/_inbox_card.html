@@ -27,6 +27,9 @@
       <strong>{{ comment.author_display_name }}</strong>
       <span class="priority priority-{{ priority_class }}">
         <span class="priority-dot"></span>{{ priority_label }}
+        {% if score is not none %}
+          <span class="priority-value">{{ "%.2f"|format(score) }}</span>
+        {% endif %}
       </span>
     </span>
     <span class="card-comment">{{ comment.text }}</span>

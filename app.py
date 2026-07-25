@@ -137,6 +137,9 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             classification_errors=app.extensions[
                 "production_classification_errors"
             ],
+            reply_generation_errors=app.extensions[
+                "reply_generation_errors"
+            ],
             classification_dry_run=app.config["CLASSIFICATION_DRY_RUN"],
         )
 
@@ -205,8 +208,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             ].get(comment_id),
         )
 
-    @app.post("/comments/<comment_id>/generate-reply")
-    def generate_reply(comment_id: str):
+    def generate_reply_for_comment(comment_id: str) -> None:
         comment = repository().get_comment(comment_id)
         if comment is None:
             abort(404)
@@ -218,7 +220,18 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         except Exception as error:
             errors[comment_id] = str(error)
             app.logger.exception("Reply generation failed for %s", comment_id)
+
+    @app.post("/comments/<comment_id>/generate-reply")
+    def generate_reply(comment_id: str):
+        generate_reply_for_comment(comment_id)
         return redirect(url_for("comment_detail", comment_id=comment_id))
+
+    @app.post("/inbox/generate-all")
+    def generate_all_replies():
+        for comment in repository().list_active_inbox_comments():
+            if not comment.draft_reply:
+                generate_reply_for_comment(comment.comment_id)
+        return redirect(url_for("inbox"))
 
     @app.post("/comments/<comment_id>/draft-reply")
     def save_draft_reply(comment_id: str):

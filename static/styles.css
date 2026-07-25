@@ -40,7 +40,7 @@ a {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 232px minmax(0, 1fr);
+  grid-template-columns: 210px minmax(0, 1fr);
   height: 100vh;
 }
 
@@ -196,7 +196,7 @@ main {
 
 .inbox-layout {
   display: grid;
-  grid-template-columns: minmax(340px, 42%) minmax(500px, 1fr);
+  grid-template-columns: minmax(440px, 46vw) minmax(440px, 1fr);
   height: 100vh;
 }
 
@@ -295,9 +295,10 @@ main {
   color: inherit;
   cursor: pointer;
   display: grid;
-  gap: 13px;
-  grid-template-columns: 36px minmax(0, 1fr);
-  padding: 20px 24px;
+  gap: 16px;
+  grid-template-columns: 44px minmax(0, 1fr);
+  min-height: 152px;
+  padding: 27px 28px;
   text-align: left;
   transition: background 120ms ease, box-shadow 120ms ease;
   width: 100%;
@@ -321,9 +322,9 @@ main {
   flex: 0 0 auto;
   font-size: 13px;
   font-weight: 700;
-  height: 36px;
+  height: 44px;
   justify-content: center;
-  width: 36px;
+  width: 44px;
 }
 
 .avatar-large {
@@ -333,7 +334,7 @@ main {
 
 .card-content {
   display: grid;
-  gap: 8px;
+  gap: 11px;
   min-width: 0;
 }
 
@@ -347,7 +348,7 @@ main {
 }
 
 .card-header strong {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 650;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -360,12 +361,12 @@ main {
   border-radius: 999px;
   display: inline-flex;
   flex: 0 0 auto;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   gap: 5px;
   letter-spacing: 0.03em;
   margin-left: 10px;
-  padding: 4px 7px;
+  padding: 5px 8px;
   text-transform: uppercase;
 }
 
@@ -376,6 +377,14 @@ main {
   width: 5px;
 }
 
+.priority-value {
+  border-left: 1px solid currentColor;
+  font-variant-numeric: tabular-nums;
+  margin-left: 1px;
+  opacity: 0.85;
+  padding-left: 6px;
+}
+
 .priority-critical { color: var(--critical); }
 .priority-high { color: var(--high); }
 .priority-medium { color: var(--medium); }
@@ -384,17 +393,17 @@ main {
 
 .card-comment {
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   color: #444541;
   display: -webkit-box;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 16px;
+  line-height: 1.55;
   overflow: hidden;
 }
 
 .card-footer {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   gap: 10px;
 }
 
@@ -483,6 +492,56 @@ main {
 
 .reply-workspace {
   margin-top: 36px;
+}
+
+.ranking-explanation {
+  align-items: flex-start;
+  background: #efefeb;
+  border: 1px solid #e2e2dc;
+  border-radius: 10px;
+  display: none;
+  gap: 14px;
+  margin-top: 24px;
+  padding: 18px 20px;
+}
+
+.developer-mode-on .ranking-explanation {
+  display: flex;
+}
+
+.ranking-icon {
+  align-items: center;
+  background: white;
+  border-radius: 7px;
+  color: #686963;
+  display: flex;
+  flex: 0 0 auto;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.ranking-explanation p {
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0 0 10px;
+}
+
+.ranking-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ranking-meta span {
+  background: white;
+  border: 1px solid #deded8;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 650;
+  padding: 4px 7px;
+  text-transform: uppercase;
 }
 
 .section-heading {

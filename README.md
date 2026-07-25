@@ -126,7 +126,9 @@ Then open `http://127.0.0.1:5000`. The two-panel inbox ranks unreplied
 conversations by priority and opens a comment beside the list without a page
 reload. Priority is presented as Critical, High, Medium, or Low; numerical
 scores and classification metadata stay hidden until **Developer mode** is
-enabled. The **Ignored** view keeps dismissed conversations available.
+enabled. Developer mode also reveals Wingman's plain-language ranking
+explanation between the comment and reply editor. The **Ignored** view keeps
+dismissed conversations available.
 
 Comment detail pages include a reply form that publishes directly beneath the
 top-level YouTube comment. Posting is explicit and immediate. Wingman updates
@@ -191,7 +193,9 @@ Choose a conversation, then select **Generate Draft**. Wingman makes one OpenAI
 request and smoothly replaces the empty state with an editable draft. Fred can
 edit it directly and choose **Approve**; approval saves the latest edit, copies
 it to the local final-reply field, and records an approval timestamp. It does
-not post the generated reply to YouTube.
+not post the generated reply to YouTube. For demo preparation, **Generate all
+drafts** in the inbox menu creates drafts for every active conversation that
+does not already have one.
 
 ## Tests
 
