@@ -43,6 +43,9 @@
       {% if comment.replied_at %}
         <div><dt>Replied at</dt><dd>{{ comment.replied_at }}</dd></div>
       {% endif %}
+      {% if comment.reply_approved_at %}
+        <div><dt>Approved locally</dt><dd>{{ comment.reply_approved_at }}</dd></div>
+      {% endif %}
     </dl>
 
     <div class="actions">
@@ -63,19 +66,34 @@
         </button>
       </form>
       {% if comment.status != 'replied' and not comment.has_creator_reply %}
-        <form class="reply-form" method="post"
-              action="{{ url_for('post_reply', comment_id=comment.comment_id) }}">
-          <label for="reply-text">Reply on YouTube</label>
-          <textarea id="reply-text"
-                    name="reply_text"
-                    rows="5"
-                    required>{{ reply_draft }}</textarea>
-          {% if reply_error %}
-            <p class="form-error">{{ reply_error }}</p>
-          {% endif %}
-          <button class="primary" type="submit">Post reply</button>
-          <small>This publishes immediately under the YouTube comment.</small>
+        <form method="post"
+              action="{{ url_for('generate_reply', comment_id=comment.comment_id) }}">
+          <button type="submit">
+            {{ "Regenerate Reply" if comment.draft_reply else "Generate Reply" }}
+          </button>
         </form>
+        <form class="reply-form" method="post"
+              action="{{ url_for('save_draft_reply', comment_id=comment.comment_id) }}">
+          <label for="draft-reply">Editable reply draft</label>
+          <textarea id="draft-reply"
+                    name="draft_reply"
+                    rows="5"
+                    required>{{ comment.draft_reply or "" }}</textarea>
+          {% if reply_generation_error %}
+            <p class="form-error">{{ reply_generation_error }}</p>
+          {% endif %}
+          <button type="submit">Save edited draft</button>
+          <small>Saving an edit clears any previous local approval.</small>
+        </form>
+        {% if comment.draft_reply and not comment.reply_approved_at %}
+          <form method="post"
+                action="{{ url_for('approve_reply', comment_id=comment.comment_id) }}">
+            <button class="primary" type="submit">Approve locally</button>
+          </form>
+        {% endif %}
+        {% if comment.reply_approved_at %}
+          <p class="approval-note">Approved locally. Nothing was posted to YouTube.</p>
+        {% endif %}
       {% endif %}
     </div>
   </article>

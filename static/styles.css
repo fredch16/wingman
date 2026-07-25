@@ -321,6 +321,53 @@ button:disabled {
   margin: 0;
 }
 
+.approval-note {
+  background: #e8f5eb;
+  border-radius: 5px;
+  color: #246333;
+  flex-basis: 100%;
+  margin: 0;
+  padding: 0.75rem;
+}
+
+.video-context-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.video-context-card {
+  background: white;
+  border: 1px solid #dfe2e7;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.video-context-card h2 {
+  margin-top: 0;
+}
+
+.video-context-card form {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.video-context-card label {
+  font-weight: 700;
+}
+
+.video-context-card textarea {
+  border: 1px solid #aeb5c1;
+  border-radius: 5px;
+  font: inherit;
+  line-height: 1.4;
+  padding: 0.7rem;
+  resize: vertical;
+}
+
+.video-context-card button {
+  justify-self: start;
+}
+
 .inbox-heading {
   align-items: flex-end;
   margin-bottom: 1.5rem;

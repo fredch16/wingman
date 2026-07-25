@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Video Context · Wingman{% endblock %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <h1>Video Context</h1>
+      <p>Add the context Fred wants reply generation to understand.</p>
+    </div>
+  </div>
+
+  <section class="video-context-list">
+    {% for video in videos %}
+      <article class="video-context-card">
+        <h2>{{ video.title }}</h2>
+        <p class="model-label">{{ video.video_id }}</p>
+        <form method="post"
+              action="{{ url_for('save_video_summary', video_id=video.video_id) }}">
+          <label for="summary-{{ video.video_id }}">Manual summary</label>
+          <textarea id="summary-{{ video.video_id }}"
+                    name="summary"
+                    rows="6"
+                    placeholder="What is this video about? Include details useful when replying to viewers.">{{ video.summary or "" }}</textarea>
+          <button class="primary" type="submit">Save context</button>
+        </form>
+      </article>
+    {% else %}
+      <p class="empty-state">No videos have been discovered yet.</p>
+    {% endfor %}
+  </section>
+{% endblock %}

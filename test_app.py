@@ -36,6 +36,15 @@ class FakeProductionClassifier:
         return self.classify(comment.text)
 
 
+class FakeReplyGenerator:
+    def __init__(self) -> None:
+        self.calls: list[object] = []
+
+    def generate_for_comment(self, comment: object) -> str:
+        self.calls.append(comment)
+        return "Generated reply draft."
+
+
 def fetched_comment(comment_id: str, author: str) -> FetchedComment:
     return FetchedComment(
         comment_id=comment_id,
@@ -126,6 +135,7 @@ class InboxRouteTests(unittest.TestCase):
 
         self.youtube = object()
         self.classifier = FakeProductionClassifier()
+        self.reply_generator = FakeReplyGenerator()
         app = create_app(
             {
                 "TESTING": True,
@@ -134,6 +144,7 @@ class InboxRouteTests(unittest.TestCase):
                 "YOUTUBE_REPLY_SERVICE": post_reply,
                 "CLASSIFICATION_SERVICE": self.classifier,
                 "CLASSIFICATION_DRY_RUN": False,
+                "REPLY_GENERATION_SERVICE": self.reply_generator,
             }
         )
         self.client = app.test_client()
@@ -320,54 +331,60 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn(b"Classify This", restarted_page.data)
         self.assertNotIn(b"Priority 0.88", restarted_page.data)
 
-    def test_posts_reply_to_youtube_then_updates_inbox(self) -> None:
+    def test_generates_edits_and_locally_approves_reply(self) -> None:
         detail = self.client.get("/comments/comment-new")
-        self.assertIn(b"Post reply", detail.data)
-        self.assertIn(b"publishes immediately", detail.data)
+        self.assertIn(b"Generate Reply", detail.data)
+        self.assertNotIn(b"Post reply", detail.data)
 
         response = self.client.post(
-            "/comments/comment-new/reply",
-            data={"reply_text": "  Thanks for the thoughtful question.  "},
+            "/comments/comment-new/generate-reply",
             follow_redirects=True,
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            self.reply_calls,
-            [
-                (
-                    self.youtube,
-                    "comment-new",
-                    "Thanks for the thoughtful question.",
-                )
-            ],
-        )
+        self.assertEqual(len(self.reply_generator.calls), 1)
         row = self.row("comment-new")
-        self.assertEqual(row["status"], "replied")
-        self.assertEqual(row["final_reply"], "Thanks for the thoughtful question.")
-        self.assertEqual(row["has_creator_reply"], 1)
-        self.assertEqual(row["creator_reply_id"], "youtube-reply-1")
-        self.assertNotIn(b"Post reply", response.data)
-        self.assertEqual(
-            self.client.post(
-                "/comments/comment-new/reply",
-                data={"reply_text": "Duplicate"},
-            ).status_code,
-            409,
-        )
-        self.assertEqual(len(self.reply_calls), 1)
+        self.assertEqual(row["draft_reply"], "Generated reply draft.")
+        self.assertIsNone(row["final_reply"])
+        self.assertIn(b"Generated reply draft.", response.data)
 
-    def test_empty_reply_does_not_update_inbox(self) -> None:
+        edited = self.client.post(
+            "/comments/comment-new/draft-reply",
+            data={"draft_reply": "Edited by Fred."},
+            follow_redirects=True,
+        )
+        self.assertEqual(edited.status_code, 200)
+        self.assertEqual(self.row("comment-new")["draft_reply"], "Edited by Fred.")
+
+        approved = self.client.post(
+            "/comments/comment-new/approve-reply",
+            follow_redirects=True,
+        )
+        self.assertEqual(approved.status_code, 200)
+        row = self.row("comment-new")
+        self.assertEqual(row["status"], "approved")
+        self.assertEqual(row["final_reply"], "Edited by Fred.")
+        self.assertIsNotNone(row["reply_approved_at"])
+        self.assertIn(b"Nothing was posted to YouTube", approved.data)
+        self.assertEqual(self.reply_calls, [])
+
+    def test_video_context_can_be_edited(self) -> None:
         response = self.client.post(
-            "/comments/comment-new/reply",
-            data={"reply_text": "   "},
+            "/videos/abcdefghijk/summary",
+            data={"summary": "A concise explanation of PID control."},
             follow_redirects=True,
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Reply text cannot be empty.", response.data)
-        self.assertEqual(self.reply_calls, [])
-        self.assertEqual(self.row("comment-new")["status"], "new")
+        self.assertIn(b"A concise explanation of PID control.", response.data)
+        connection = connect_database(self.database_path)
+        try:
+            summary = connection.execute(
+                "SELECT summary FROM videos WHERE video_id = 'abcdefghijk'"
+            ).fetchone()["summary"]
+        finally:
+            connection.close()
+        self.assertEqual(summary, "A concise explanation of PID control.")
 
 
 if __name__ == "__main__":

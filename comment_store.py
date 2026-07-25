@@ -43,6 +43,7 @@ INBOX_COLUMNS = {
     "creator_reply_id": "TEXT",
     "creator_replied_at": "TEXT",
     "reply_status_checked_at": "TEXT",
+    "reply_approved_at": "TEXT",
 }
 
 
@@ -100,6 +101,7 @@ def create_comments_table(connection: sqlite3.Connection) -> None:
             creator_reply_id TEXT,
             creator_replied_at TEXT,
             reply_status_checked_at TEXT
+            , reply_approved_at TEXT
         )
         """
     )

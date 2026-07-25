@@ -13,6 +13,7 @@ from video_catalog import (
     list_stored_videos,
     set_video_enabled,
     store_discovered_videos,
+    update_video_summary,
 )
 
 
@@ -111,6 +112,7 @@ class VideoCatalogTests(unittest.TestCase):
             row["name"] for row in self.connection.execute("PRAGMA table_info(videos)")
         }
         self.assertIn("comments_last_checked_at", columns)
+        self.assertIn("summary", columns)
 
     def test_uploads_playlist_pagination(self) -> None:
         youtube = discovery_client(
@@ -151,6 +153,28 @@ class VideoCatalogTests(unittest.TestCase):
         self.assertFalse(stored.is_enabled)
         self.assertEqual(stored.first_seen_at, "2026-07-25T10:00:00Z")
         self.assertEqual(stored.last_seen_at, "2026-07-25T11:00:00Z")
+
+    def test_manual_summary_survives_later_discovery(self) -> None:
+        video = stored_video("abcdefghijk", "Original title")
+        store_discovered_videos(self.connection, [video])
+        self.assertTrue(
+            update_video_summary(
+                self.connection,
+                video.video_id,
+                "Manual context for reply generation.",
+            )
+        )
+
+        store_discovered_videos(
+            self.connection,
+            [stored_video("abcdefghijk", "Updated title")],
+        )
+
+        stored = list_stored_videos(self.connection)[0]
+        self.assertEqual(stored.title, "Updated title")
+        self.assertEqual(
+            stored.summary, "Manual context for reply generation."
+        )
 
     @patch("fetch_comments.fetch_all_comments_for_video")
     def test_only_enabled_videos_are_synced(self, fetch: Mock) -> None:

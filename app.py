@@ -17,6 +17,8 @@ from comment_store import connect_database
 from fetch_comments import api_error_message, get_authenticated_youtube_client
 from inbox_repository import CommentRepository
 from production_classification import ClassificationRecord, classify_stored_comment
+from reply_service import ReplyGenerationService
+from video_catalog import list_stored_videos, update_video_summary
 from youtube_reply import post_comment_reply
 
 
@@ -47,6 +49,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     app.extensions["reply_drafts"] = {}
     app.extensions["production_classification_errors"] = {}
     app.extensions["production_classification_results"] = {}
+    app.extensions["reply_generation_errors"] = {}
 
     def classification_service() -> ClassificationService:
         if "classification_service" not in app.extensions:
@@ -63,6 +66,16 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         if configured_service is not None:
             return configured_service
         return post_comment_reply
+
+    def reply_generation_service() -> ReplyGenerationService:
+        if "reply_generation_service" not in app.extensions:
+            configured_service = app.config.get("REPLY_GENERATION_SERVICE")
+            app.extensions["reply_generation_service"] = (
+                configured_service
+                if configured_service is not None
+                else ReplyGenerationService(model=app.config["OPENAI_MODEL"])
+            )
+        return app.extensions["reply_generation_service"]
 
     @app.teardown_appcontext
     def close_database(_error: BaseException | None) -> None:
@@ -179,7 +192,54 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             reply_draft=app.extensions["reply_drafts"].get(
                 comment_id, comment.draft_reply or ""
             ),
+            reply_generation_error=app.extensions[
+                "reply_generation_errors"
+            ].get(comment_id),
         )
+
+    @app.post("/comments/<comment_id>/generate-reply")
+    def generate_reply(comment_id: str):
+        comment = repository().get_comment(comment_id)
+        if comment is None:
+            abort(404)
+        errors: dict[str, str] = app.extensions["reply_generation_errors"]
+        try:
+            draft = reply_generation_service().generate_for_comment(comment)
+            repository().update_draft_reply(comment_id, draft)
+            errors.pop(comment_id, None)
+        except Exception as error:
+            errors[comment_id] = str(error)
+            app.logger.exception("Reply generation failed for %s", comment_id)
+        return redirect(url_for("comment_detail", comment_id=comment_id))
+
+    @app.post("/comments/<comment_id>/draft-reply")
+    def save_draft_reply(comment_id: str):
+        if repository().get_comment(comment_id) is None:
+            abort(404)
+        draft = request.form.get("draft_reply", "").strip()
+        if not repository().update_draft_reply(comment_id, draft or None):
+            abort(404)
+        return redirect(url_for("comment_detail", comment_id=comment_id))
+
+    @app.post("/comments/<comment_id>/approve-reply")
+    def approve_reply(comment_id: str):
+        if not repository().approve_draft_reply(comment_id):
+            abort(400)
+        return redirect(url_for("comment_detail", comment_id=comment_id))
+
+    @app.get("/videos")
+    def video_contexts() -> str:
+        return render_template(
+            "video_contexts.html",
+            videos=list_stored_videos(repository().connection),
+        )
+
+    @app.post("/videos/<video_id>/summary")
+    def save_video_summary(video_id: str):
+        summary = request.form.get("summary", "")
+        if not update_video_summary(repository().connection, video_id, summary):
+            abort(404)
+        return redirect(url_for("video_contexts"))
 
     @app.post("/comments/<comment_id>/ignore")
     def toggle_ignored(comment_id: str):
