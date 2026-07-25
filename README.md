@@ -1,9 +1,11 @@
 # Wingman YouTube Comment Fetcher
 
 This MVP follows YouTube pagination to fetch every available top-level comment
-from one configured public YouTube video and prints them in the terminal.
-Replies are not fetched yet; the script only prints each thread's total reply
-count.
+from one configured public YouTube video, upserts them into SQLite, and prints
+them in the terminal. Each sync preserves when a comment was first seen,
+refreshes when it was last seen, and reports inserted, updated, and unchanged
+counts. Replies are not fetched yet; the script only prints each thread's total
+reply count.
 
 ## Setup and run
 
@@ -24,6 +26,7 @@ count.
    YOUTUBE_CLIENT_SECRETS_FILE=client_secret.json
    YOUTUBE_TOKEN_FILE=token.json
    YOUTUBE_VIDEO_ID=dQw4w9WgXcQ
+   DATABASE_PATH=comments.db
    ```
 
    Use only the video ID, not the full YouTube URL. Do not commit `.env`.
@@ -47,11 +50,12 @@ count.
 
 The script reports missing configuration, invalid or missing videos, disabled
 comments, quota/rate-limit failures, authorization errors, other API errors,
-network failures, and videos for which no comments are returned.
+network failures, and videos for which no comments are returned. `comments.db`
+is created automatically and is ignored by Git.
 
 ## Tests
 
-The pagination tests use mocked API responses and never contact YouTube:
+The pagination and SQLite persistence tests do not contact YouTube:
 
 ```bash
 python -m unittest -v

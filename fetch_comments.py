@@ -2,6 +2,7 @@
 
 import os
 import re
+import sqlite3
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,6 +15,8 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+
+from comment_store import connect_database, sync_comments
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
 
@@ -210,6 +213,9 @@ def main() -> int:
     try:
         youtube, video_id = get_authenticated_youtube_client()
         result = fetch_all_comments_for_video(youtube, video_id)
+        database_path = os.getenv("DATABASE_PATH", "comments.db").strip() or "comments.db"
+        with connect_database(database_path) as connection:
+            sync_summary = sync_comments(connection, result.comments)
     except ValueError as error:
         print(f"Configuration error: {error}", file=sys.stderr)
         return 1
@@ -229,6 +235,9 @@ def main() -> int:
     except PaginationError as error:
         print(f"Pagination error: {error}", file=sys.stderr)
         return 1
+    except sqlite3.Error as error:
+        print(f"SQLite error while saving comments: {error}", file=sys.stderr)
+        return 1
     except OSError as error:
         print(f"Network error while contacting YouTube: {error}", file=sys.stderr)
         return 1
@@ -237,6 +246,11 @@ def main() -> int:
     print(f"Video ID: {video_id}")
     print(f"Pages fetched: {result.pages_fetched}")
     print(f"Total unique comments: {len(result.comments)}\n")
+    print("Sync summary")
+    print(f"Fetched: {sync_summary.fetched}")
+    print(f"Newly inserted: {sync_summary.newly_inserted}")
+    print(f"Updated: {sync_summary.updated}")
+    print(f"Unchanged: {sync_summary.unchanged}\n")
 
     if not result.comments:
         print("No comments returned for this video.")

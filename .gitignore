@@ -3,6 +3,7 @@
 !.env.example
 *.json
 *.pem
+*.db
 __pycache__/
 *.py[cod]
 .venv/
