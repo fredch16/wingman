@@ -16,15 +16,20 @@
             {% endif %}
           </p>
         </div>
-        {% if view == "inbox" and unclassified_comments %}
+        {% if view == "inbox" and all_comments %}
           <details class="more-menu">
-            <summary aria-label="Classification actions">•••</summary>
+            <summary aria-label="Inbox actions">•••</summary>
             <div>
-              <form method="post" action="{{ url_for('classify_top_10') }}">
-                <button type="submit">Classify next 10</button>
-              </form>
-              <form method="post" action="{{ url_for('classify_all_unclassified') }}">
-                <button type="submit">Classify all</button>
+              {% if unclassified_comments %}
+                <form method="post" action="{{ url_for('classify_top_10') }}">
+                  <button type="submit">Classify next 10</button>
+                </form>
+                <form method="post" action="{{ url_for('classify_all_unclassified') }}">
+                  <button type="submit">Classify all</button>
+                </form>
+              {% endif %}
+              <form method="post" action="{{ url_for('generate_all_replies') }}">
+                <button type="submit">Generate all drafts</button>
               </form>
             </div>
           </details>
@@ -53,7 +58,7 @@
     <section id="conversation-panel" class="conversation-panel" aria-live="polite">
       {% if all_comments %}
         {% with comment=all_comments[0],
-                reply_generation_error=None %}
+                reply_generation_error=reply_generation_errors.get(all_comments[0].comment_id) %}
           {% include "_conversation_panel.html" %}
         {% endwith %}
       {% else %}
@@ -68,7 +73,7 @@
 
   {% for comment in all_comments %}
     <template id="detail-{{ comment.comment_id }}">
-      {% with reply_generation_error=None %}
+      {% with reply_generation_error=reply_generation_errors.get(comment.comment_id) %}
         {% include "_conversation_panel.html" %}
       {% endwith %}
     </template>

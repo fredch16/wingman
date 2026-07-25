@@ -373,6 +373,30 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn(b"Approved", approved.data)
         self.assertEqual(self.reply_calls, [])
 
+    def test_generates_all_missing_drafts_and_skips_them_on_repeat(self) -> None:
+        page = self.client.get("/")
+        self.assertIn(b"Generate all drafts", page.data)
+
+        first_run = self.client.post("/inbox/generate-all")
+        self.assertEqual(first_run.status_code, 302)
+        self.assertEqual(len(self.reply_generator.calls), 3)
+        self.assertEqual(
+            self.row("comment-new")["draft_reply"],
+            "Generated reply draft.",
+        )
+        self.assertEqual(
+            self.row("comment-low")["draft_reply"],
+            "Generated reply draft.",
+        )
+        self.assertEqual(
+            self.row("comment-unclassified")["draft_reply"],
+            "Generated reply draft.",
+        )
+
+        second_run = self.client.post("/inbox/generate-all")
+        self.assertEqual(second_run.status_code, 302)
+        self.assertEqual(len(self.reply_generator.calls), 3)
+
     def test_ignored_view_lists_ignored_conversations(self) -> None:
         response = self.client.get("/?view=ignored")
 

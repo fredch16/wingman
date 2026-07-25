@@ -24,6 +24,9 @@
     </div>
     <span class="priority priority-{{ priority_class }}">
       <span class="priority-dot"></span>{{ priority_label }}
+      {% if score is not none %}
+        <span class="priority-value">{{ "%.2f"|format(score) }}</span>
+      {% endif %}
     </span>
   </header>
 
@@ -43,6 +46,21 @@
          rel="noopener noreferrer">{{ comment.video_title }} ↗</a>
     </div>
   </section>
+
+  {% if comment.classified_at %}
+    <section class="ranking-explanation">
+      <div class="ranking-icon">✦</div>
+      <div>
+        <span class="eyebrow">Why Wingman ranked this</span>
+        <p>{{ comment.classification_reason }}</p>
+        <div class="ranking-meta">
+          <span>{{ comment.category|replace("_", " ")|title }}</span>
+          <span>{{ "Worth replying" if comment.reply_worthy else "Optional reply" }}</span>
+          {% if comment.needs_research %}<span>Research recommended</span>{% endif %}
+        </div>
+      </div>
+    </section>
+  {% endif %}
 
   <section class="reply-workspace">
     <div class="section-heading">
