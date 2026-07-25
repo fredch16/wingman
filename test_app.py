@@ -404,8 +404,52 @@ class InboxRouteTests(unittest.TestCase):
         self.assertEqual(row["draft_reply"], "Final edit from the approval screen.")
         self.assertEqual(row["final_reply"], "Final edit from the approval screen.")
         self.assertIsNotNone(row["reply_approved_at"])
-        self.assertIn(b"Approved", approved.data)
+        self.assertIn(b"Post to YouTube", approved.data)
         self.assertEqual(self.reply_calls, [])
+
+    def test_posts_approved_editor_text_to_youtube(self) -> None:
+        self.client.post("/comments/comment-new/generate-reply")
+        approved = self.client.post(
+            "/comments/comment-new/approve-reply",
+            data={"draft_reply": "Approved reply for YouTube."},
+            follow_redirects=True,
+        )
+        self.assertIn(b"Post to YouTube", approved.data)
+        self.assertIn(
+            b'formaction="/comments/comment-new/reply"',
+            approved.data,
+        )
+
+        posted = self.client.post(
+            "/comments/comment-new/reply",
+            data={"draft_reply": "Final text posted from the editor."},
+            follow_redirects=True,
+        )
+
+        self.assertEqual(posted.status_code, 200)
+        self.assertEqual(
+            self.reply_calls,
+            [
+                (
+                    self.youtube,
+                    "comment-new",
+                    "Final text posted from the editor.",
+                )
+            ],
+        )
+        row = self.row("comment-new")
+        self.assertEqual(row["status"], "replied")
+        self.assertEqual(row["final_reply"], "Final text posted from the editor.")
+        self.assertEqual(row["creator_reply_id"], "youtube-reply-1")
+        self.assertIn(b"Reply published", posted.data)
+
+    def test_async_forms_only_use_explicit_submit_button_overrides(self) -> None:
+        script = Path("static/app.js").read_text(encoding="utf-8")
+
+        self.assertIn('getAttribute("formaction")', script)
+        self.assertIn('getAttribute("formmethod")', script)
+        self.assertNotIn("submitter?.formAction", script)
+        self.assertNotIn("submitter?.formMethod", script)
 
     def test_reviews_edits_before_accepting_learned_preferences(self) -> None:
         self.client.post("/comments/comment-new/generate-reply")

@@ -61,8 +61,12 @@
     }
 
     try {
-      const action = submitter?.formAction || form.action;
-      const method = submitter?.formMethod || form.method;
+      const actionOverride = submitter?.getAttribute("formaction");
+      const methodOverride = submitter?.getAttribute("formmethod");
+      const action = actionOverride
+        ? new URL(actionOverride, document.baseURI).href
+        : form.action;
+      const method = methodOverride || form.method;
       const response = await fetch(action, {
         method,
         body: new FormData(form),

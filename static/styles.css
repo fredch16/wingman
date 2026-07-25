@@ -887,6 +887,42 @@ main {
   transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
+.reply-sent {
+  align-items: flex-start;
+  background: rgb(98 201 154 / 7%);
+  border: 1px solid rgb(98 201 154 / 20%);
+  border-radius: var(--radius-lg);
+  display: flex;
+  gap: 14px;
+  padding: 22px;
+}
+
+.reply-sent-icon {
+  align-items: center;
+  background: rgb(98 201 154 / 12%);
+  border: 1px solid rgb(98 201 154 / 22%);
+  border-radius: 50%;
+  color: var(--green);
+  display: flex;
+  flex: 0 0 auto;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.reply-sent strong {
+  color: var(--green);
+  font-size: 12px;
+}
+
+.reply-sent p {
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 7px 0 0;
+  white-space: pre-wrap;
+}
+
 .reply-editor:focus-within {
   border-color: #454852;
   box-shadow: 0 0 0 3px rgb(255 255 255 / 2%), var(--shadow);

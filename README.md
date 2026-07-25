@@ -193,10 +193,11 @@ manual summaries.
 Choose a conversation, then select **Generate Draft**. Wingman makes one OpenAI
 request and smoothly replaces the empty state with an editable draft. Fred can
 edit it directly and choose **Approve**; approval saves the latest edit, copies
-it to the local final-reply field, and records an approval timestamp. It does
-not post the generated reply to YouTube. For demo preparation, **Generate all
-drafts** in the inbox menu creates drafts for every active conversation that
-does not already have one.
+it to the local final-reply field, and records an approval timestamp without
+posting anything. The primary action then becomes **Post to YouTube**, which
+publishes the current editor text and shows a confirmation only after YouTube
+accepts it. For demo preparation, **Generate all drafts** in the inbox menu
+creates drafts for every active conversation that does not already have one.
 
 ## Learning from reply edits
 
