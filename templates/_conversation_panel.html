@@ -1,0 +1,132 @@
+{% set score = comment.priority|float if comment.priority is not none else none %}
+{% if score is none %}
+  {% set priority_label = "Unclassified" %}
+  {% set priority_class = "unclassified" %}
+{% elif score >= 0.9 %}
+  {% set priority_label = "Critical" %}
+  {% set priority_class = "critical" %}
+{% elif score >= 0.7 %}
+  {% set priority_label = "High" %}
+  {% set priority_class = "high" %}
+{% elif score >= 0.4 %}
+  {% set priority_label = "Medium" %}
+  {% set priority_class = "medium" %}
+{% else %}
+  {% set priority_label = "Low" %}
+  {% set priority_class = "low" %}
+{% endif %}
+<article class="conversation-shell" data-detail-id="{{ comment.comment_id }}">
+  <header class="conversation-header">
+    <a class="mobile-back" href="{{ url_for('inbox') }}">← Inbox</a>
+    <div>
+      <span class="eyebrow">Conversation</span>
+      <h2>{{ comment.author_display_name }}</h2>
+    </div>
+    <span class="priority priority-{{ priority_class }}">
+      <span class="priority-dot"></span>{{ priority_label }}
+    </span>
+  </header>
+
+  <section class="original-comment">
+    <div class="avatar avatar-large" aria-hidden="true">
+      {{ comment.author_display_name[:1]|upper }}
+    </div>
+    <div>
+      <div class="comment-byline">
+        <strong>{{ comment.author_display_name }}</strong>
+        <time datetime="{{ comment.published_at }}">{{ comment.published_at[:10] }}</time>
+      </div>
+      <p>{{ comment.text }}</p>
+      <a class="video-link"
+         href="https://www.youtube.com/watch?v={{ comment.video_id }}&lc={{ comment.comment_id }}"
+         target="_blank"
+         rel="noopener noreferrer">{{ comment.video_title }} ↗</a>
+    </div>
+  </section>
+
+  <section class="reply-workspace">
+    <div class="section-heading">
+      <div>
+        <span class="eyebrow">Your reply</span>
+        <h3>{{ "Ready to review" if comment.draft_reply else "Start a thoughtful reply" }}</h3>
+      </div>
+      {% if comment.draft_reply %}
+        <form class="async-form"
+              method="post"
+              action="{{ url_for('generate_reply', comment_id=comment.comment_id) }}">
+          <button class="button secondary" type="submit">Regenerate</button>
+        </form>
+      {% endif %}
+    </div>
+
+    {% if reply_generation_error %}
+      <p class="form-error">{{ reply_generation_error }}</p>
+    {% endif %}
+
+    {% if comment.draft_reply %}
+      <form class="reply-editor"
+            method="post"
+            action="{{ url_for('approve_reply', comment_id=comment.comment_id) }}">
+        <label class="sr-only" for="draft-{{ comment.comment_id }}">Editable reply draft</label>
+        <textarea id="draft-{{ comment.comment_id }}"
+                  name="draft_reply"
+                  rows="9"
+                  required>{{ comment.draft_reply }}</textarea>
+        <div class="editor-footer">
+          <span class="save-hint">Edit freely — approval saves your changes.</span>
+          <button class="button primary" type="submit">
+            {{ "Approved" if comment.reply_approved_at else "Approve" }}
+          </button>
+        </div>
+      </form>
+    {% else %}
+      <div class="draft-empty">
+        <span class="sparkle">✦</span>
+        <p>Wingman will draft a reply in your voice using this video’s context.</p>
+        <form class="async-form"
+              method="post"
+              action="{{ url_for('generate_reply', comment_id=comment.comment_id) }}">
+          <button class="button primary button-large" type="submit">Generate Draft</button>
+        </form>
+      </div>
+    {% endif %}
+  </section>
+
+  <footer class="conversation-actions">
+    <form class="async-form"
+          method="post"
+          action="{{ url_for('toggle_ignored', comment_id=comment.comment_id) }}">
+      <button class="button quiet" type="submit">
+        {{ "Move to inbox" if comment.is_ignored else "Ignore conversation" }}
+      </button>
+    </form>
+  </footer>
+
+  <details class="developer-panel">
+    <summary>AI diagnostics</summary>
+    <div class="developer-content">
+      {% include "_classification_debug_fields.html" %}
+      <dl>
+        <div><dt>Priority score</dt><dd>{{ "%.2f"|format(comment.priority|float) if comment.priority is not none else "—" }}</dd></div>
+        <div><dt>Category</dt><dd>{{ comment.category or "—" }}</dd></div>
+        <div><dt>Status</dt><dd>{{ comment.status }}</dd></div>
+        <div><dt>Reply approved</dt><dd>{{ comment.reply_approved_at or "No" }}</dd></div>
+        <div><dt>Reply checked</dt><dd>{{ comment.reply_status_checked_at or "—" }}</dd></div>
+        <div><dt>Creator reply</dt><dd>{{ "Yes" if comment.has_creator_reply else "No" }}</dd></div>
+      </dl>
+      {% if not comment.classified_at %}
+        <form class="async-form"
+              method="post"
+              action="{{ url_for('classify_comment', comment_id=comment.comment_id) }}">
+          <button class="button secondary" type="submit">Classify comment</button>
+        </form>
+      {% else %}
+        <form class="async-form"
+              method="post"
+              action="{{ url_for('classify_comment', comment_id=comment.comment_id) }}">
+          <button class="button secondary" type="submit">Reclassify</button>
+        </form>
+      {% endif %}
+    </div>
+  </details>
+</article>

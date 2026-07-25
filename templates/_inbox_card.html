@@ -1,49 +1,45 @@
-<article class="inbox-card">
-  <div class="inbox-card-main">
-    <div class="inbox-card-badges">
-      {% if comment.classified_at %}
-        <span class="category-badge category-{{ comment.category }}">
-          {{ comment.category }}
-        </span>
-        <span class="priority-score">
-          Priority {{ "%.2f"|format(comment.priority|float) }}
-        </span>
-      {% else %}
-        <span class="status">Unclassified</span>
-      {% endif %}
-    </div>
-    <p class="comment-text">{{ comment.text }}</p>
-    <div class="inbox-card-context">
-      <span>{{ comment.video_title }}</span>
-      <time datetime="{{ comment.published_at }}">{{ comment.published_at }}</time>
-    </div>
+{% set score = comment.priority|float if comment.priority is not none else none %}
+{% if score is none %}
+  {% set priority_label = "Unclassified" %}
+  {% set priority_class = "unclassified" %}
+{% elif score >= 0.9 %}
+  {% set priority_label = "Critical" %}
+  {% set priority_class = "critical" %}
+{% elif score >= 0.7 %}
+  {% set priority_label = "High" %}
+  {% set priority_class = "high" %}
+{% elif score >= 0.4 %}
+  {% set priority_label = "Medium" %}
+  {% set priority_class = "medium" %}
+{% else %}
+  {% set priority_label = "Low" %}
+  {% set priority_class = "low" %}
+{% endif %}
+<button class="conversation-card"
+        type="button"
+        data-comment-id="{{ comment.comment_id }}"
+        aria-controls="conversation-panel">
+  <span class="avatar" aria-hidden="true">
+    {{ comment.author_display_name[:1]|upper }}
+  </span>
+  <span class="card-content">
+    <span class="card-header">
+      <strong>{{ comment.author_display_name }}</strong>
+      <span class="priority priority-{{ priority_class }}">
+        <span class="priority-dot"></span>{{ priority_label }}
+      </span>
+    </span>
+    <span class="card-comment">{{ comment.text }}</span>
+    <span class="card-footer">
+      <span class="video-name">{{ comment.video_title }}</span>
+      <span class="reply-state">
+        {% if comment.reply_approved_at %}Approved
+        {% elif comment.draft_reply %}Draft ready
+        {% else %}Needs reply{% endif %}
+      </span>
+    </span>
     {% if classification_errors.get(comment.comment_id) %}
-      <p class="classification-error">
-        Classification failed: {{ classification_errors[comment.comment_id] }}
-      </p>
+      <span class="inline-error">Classification failed</span>
     {% endif %}
-    <div class="actions inbox-card-actions">
-      <form method="post"
-            action="{{ url_for('generate_reply', comment_id=comment.comment_id) }}">
-        <button type="submit">Generate Reply</button>
-      </form>
-      <form method="post"
-            action="{{ url_for('classify_comment', comment_id=comment.comment_id) }}">
-        <button class="primary" type="submit">
-          {{ "Reclassify" if comment.classified_at else "Classify This" }}
-        </button>
-      </form>
-    </div>
-  </div>
-
-  {% if comment.classified_at %}
-    <aside class="classification-debug classification-debug-desktop">
-      <h3>Developer details</h3>
-      {% include "_classification_debug_fields.html" %}
-    </aside>
-    <details class="classification-debug classification-debug-mobile">
-      <summary>Developer details</summary>
-      {% include "_classification_debug_fields.html" %}
-    </details>
-  {% endif %}
-</article>
+  </span>
+</button>
