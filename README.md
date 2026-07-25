@@ -168,10 +168,9 @@ and model metadata live in a separate developer panel, while the primary card
 stays focused on the comment and its rank. **Generate Reply** is intentionally
 a disabled placeholder.
 
-Classification is temporarily configured as a dry run by default. OpenAI calls
-still run, but their production-inbox results stay in Flask process memory and
-reset when the app restarts; SQLite remains unchanged. Set
-`WINGMAN_CLASSIFICATION_DRY_RUN=false` when persistent classification is wanted.
+Classification results persist to SQLite by default. Set
+`WINGMAN_CLASSIFICATION_DRY_RUN=true` only when temporary, process-local results
+are useful for testing; dry-run results reset when the app restarts.
 
 ## Reply generation
 
