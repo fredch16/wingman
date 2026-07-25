@@ -6,6 +6,7 @@ import unittest
 from comment_store import sync_comments
 from fetch_comments import Comment as FetchedComment
 from inbox_repository import CommentRepository
+from reply_detection import store_creator_channel_id
 from video_catalog import Video, store_discovered_videos
 
 
@@ -136,6 +137,28 @@ class CommentRepositoryTests(unittest.TestCase):
         self.assertNotIn("comment-1", active_ids)
         self.assertIsNotNone(detected)
         self.assertTrue(detected.has_creator_reply)
+
+    def test_creator_authored_comments_leave_inbox(self) -> None:
+        store_creator_channel_id(self.connection, "creator-channel")
+        self.connection.execute(
+            """
+            UPDATE comments
+            SET author_display_name = '@CharbonnierLabs'
+            WHERE comment_id = 'comment-1'
+            """
+        )
+        self.connection.execute(
+            """
+            UPDATE comments
+            SET author_channel_id = 'creator-channel'
+            WHERE comment_id = 'comment-2'
+            """
+        )
+
+        self.assertEqual(
+            self.repository.list_active_inbox_comments(),
+            [],
+        )
 
 
 if __name__ == "__main__":

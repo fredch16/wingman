@@ -94,6 +94,10 @@ replies are excluded from the active inbox, and repeat runs do not recheck
 completed rows. The backfill summary reports checked, replied, and unreplied
 totals.
 
+Top-level comments authored by the authenticated creator channel are excluded
+from the inbox. `@CharbonnierLabs` is also excluded as a fallback for older
+comments without channel IDs.
+
 Top-level comment fetches and creator-reply backlog checks have independent
 last-checked timestamps and a one-hour freshness window. A recently synced
 video skips comment fetching without preventing a due backlog check.

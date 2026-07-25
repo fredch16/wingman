@@ -5,7 +5,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from comment_store import create_comments_table
+from reply_detection import CREATOR_CHANNEL_SETTING, create_settings_table
 from video_catalog import create_videos_table
+
+CREATOR_HANDLE = "@charbonnierlabs"
 
 
 @dataclass(frozen=True)
@@ -44,6 +47,7 @@ class CommentRepository:
         self.connection = connection
         create_comments_table(connection)
         create_videos_table(connection)
+        create_settings_table(connection)
 
     def list_active_inbox_comments(self) -> list[Comment]:
         return self.list_inbox_comments("all")
@@ -93,8 +97,16 @@ class CommentRepository:
             FROM comments
             LEFT JOIN videos ON videos.video_id = comments.video_id
             WHERE {filters[filter_name]}
+              AND LOWER(comments.author_display_name) != ?
+              AND NOT (
+                  comments.author_channel_id IS NOT NULL
+                  AND comments.author_channel_id = (
+                      SELECT value FROM settings WHERE key = ?
+                  )
+              )
             ORDER BY comments.published_at DESC, comments.comment_id
-            """
+            """,
+            (CREATOR_HANDLE, CREATOR_CHANNEL_SETTING),
         ).fetchall()
         return [self._comment_from_row(row) for row in rows]
 
