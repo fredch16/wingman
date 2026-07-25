@@ -18,11 +18,14 @@ class FakeClassificationService:
         self.calls: list[str] = []
 
     def classify(
-        self, comment_text: str, prompt: str | None = None
+        self,
+        comment_text: str,
+        prompt: str | None = None,
+        video_title: str | None = None,
     ) -> CommentClassification:
         self.calls.append(comment_text)
         return CommentClassification(
-            category="test_category",
+            category="generic_praise",
             priority=0.75,
             reply_worthy=True,
             needs_research=False,
@@ -77,7 +80,7 @@ class ClassificationPlaygroundRouteTests(unittest.TestCase):
         rendered_text = html.unescape(response.data.decode())
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data.count(b'class="playground-card"'), 10)
+        self.assertEqual(response.data.count(b'class="playground-card"'), 12)
         for comment in PLAYGROUND_COMMENTS:
             self.assertIn(comment.scenario, rendered_text)
             self.assertIn(comment.text, rendered_text)
@@ -99,6 +102,8 @@ class ClassificationPlaygroundRouteTests(unittest.TestCase):
                 "spam",
                 "first",
                 "shared-experience",
+                "specific-appreciation",
+                "humorous-engagement",
             },
         )
         expected_by_id = {
@@ -111,6 +116,14 @@ class ClassificationPlaygroundRouteTests(unittest.TestCase):
         self.assertIn(
             "needs_research false", expected_by_id["content-idea"]
         )
+        self.assertIn(
+            "specific_appreciation", expected_by_id["specific-appreciation"]
+        )
+        self.assertIn("0.75-0.90", expected_by_id["specific-appreciation"])
+        self.assertIn(
+            "humorous_engagement", expected_by_id["humorous-engagement"]
+        )
+        self.assertIn("0.40-0.60", expected_by_id["humorous-engagement"])
 
     def test_classify_one_displays_result(self) -> None:
         comment = PLAYGROUND_COMMENTS[0]
@@ -122,20 +135,23 @@ class ClassificationPlaygroundRouteTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.service.calls, [comment.text])
-        self.assertIn(b"test_category", response.data)
+        self.assertIn(b"generic_praise", response.data)
         self.assertIn(b"0.75", response.data)
         self.assertIn(b"A deterministic test classification.", response.data)
         self.assertIn(b"Previous result", response.data)
         self.assertIn(b"New result", response.data)
 
-    def test_classify_all_classifies_ten_without_writing_database(self) -> None:
+    def test_classify_all_classifies_regressions_without_writing_database(self) -> None:
         response = self.client.post(
             "/classification-playground/classify-all", follow_redirects=True
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(self.service.calls), 20)
-        self.assertEqual(response.data.count(b"test_category"), 20)
+        self.assertEqual(len(self.service.calls), 24)
+        self.assertEqual(
+            response.data.count(b"A deterministic test classification."),
+            24,
+        )
 
         connection = sqlite3.connect(self.database_path)
         try:
@@ -155,6 +171,33 @@ class ClassificationPlaygroundRouteTests(unittest.TestCase):
             "/classification-playground/classify/not-a-comment"
         )
         self.assertEqual(response.status_code, 404)
+
+    def test_new_regression_expectations_accept_target_results(self) -> None:
+        by_id = {
+            comment.comment_id: comment for comment in PLAYGROUND_COMMENTS
+        }
+        self.assertTrue(
+            by_id["specific-appreciation"].is_broadly_consistent(
+                CommentClassification(
+                    category="specific_appreciation",
+                    priority=0.82,
+                    reply_worthy=True,
+                    needs_research=False,
+                    reason="Specific praise deserves attention.",
+                )
+            )
+        )
+        self.assertTrue(
+            by_id["humorous-engagement"].is_broadly_consistent(
+                CommentClassification(
+                    category="humorous_engagement",
+                    priority=0.5,
+                    reply_worthy=True,
+                    needs_research=False,
+                    reason="Relevant humour strengthens the community.",
+                )
+            )
+        )
 
 
 if __name__ == "__main__":

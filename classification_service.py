@@ -2,7 +2,7 @@
 
 import logging
 import os
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 from openai import OpenAI
 from pydantic import BaseModel, Field
@@ -20,10 +20,22 @@ LOGGER.propagate = False
 
 class ClassifiableComment(Protocol):
     text: str
+    video_title: str
 
 
 class CommentClassification(BaseModel):
-    category: str
+    category: Literal[
+        "community_connection",
+        "technical_question",
+        "constructive_correction",
+        "content_idea",
+        "meaningful_discussion",
+        "specific_appreciation",
+        "humorous_engagement",
+        "generic_praise",
+        "spam",
+        "low_value",
+    ]
     priority: float = Field(ge=0.0, le=1.0)
     reply_worthy: bool
     needs_research: bool
@@ -46,15 +58,20 @@ class ClassificationService:
         self,
         comment_text: str,
         prompt: str = CLASSIFICATION_PROMPT,
+        video_title: str | None = None,
     ) -> CommentClassification:
         LOGGER.info("Classification prompt:\n%s", prompt)
         LOGGER.info("Comment to classify:\n%s", comment_text)
+        LOGGER.info("Video context:\n%s", video_title or "Not provided")
+        user_input = f"Comment:\n{comment_text}"
+        if video_title:
+            user_input += f"\n\nVideo:\n{video_title}"
 
         response = self.client.responses.parse(
             model=self.model,
             input=[
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": comment_text},
+                {"role": "user", "content": user_input},
             ],
             text_format=CommentClassification,
         )
@@ -75,4 +92,4 @@ class ClassificationService:
         self, comment: ClassifiableComment
     ) -> CommentClassification:
         """Classify a stored comment through the same prompt and API path."""
-        return self.classify(comment.text)
+        return self.classify(comment.text, video_title=comment.video_title)

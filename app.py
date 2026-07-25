@@ -276,7 +276,10 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         if preserve_current_as_previous and comment_id in results:
             previous_results[comment_id] = results[comment_id]
         try:
-            results[comment_id] = classification_service().classify(comment.text)
+            results[comment_id] = classification_service().classify(
+                comment.text,
+                video_title=comment.video_title,
+            )
             errors.pop(comment_id, None)
         except Exception as error:
             results.pop(comment_id, None)
@@ -302,6 +305,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                     classification_service().classify(
                         comment.text,
                         prompt=PREVIOUS_CLASSIFICATION_PROMPT,
+                        video_title=comment.video_title,
                     )
                 )
                 previous_errors.pop(comment.comment_id, None)

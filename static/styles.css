@@ -220,6 +220,28 @@ button:disabled {
   text-transform: uppercase;
 }
 
+.playground-video {
+  color: #687080;
+  font-size: 0.88rem;
+}
+
+.consistency {
+  border-radius: 5px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.5rem;
+}
+
+.consistency.consistent {
+  background: #e8f5eb;
+  color: #246333;
+}
+
+.consistency.inconsistent {
+  background: #fff0f0;
+  color: #9c2626;
+}
+
 .classification-result {
   background: #f6f8fc;
   border-radius: 6px;
@@ -357,6 +379,16 @@ button:disabled {
 .category-badge {
   background: #e7edf9;
   color: #274578;
+}
+
+.category-specific_appreciation {
+  background: #f1e9ff;
+  color: #5f3196;
+}
+
+.category-humorous_engagement {
+  background: #fff2d9;
+  color: #7a5213;
 }
 
 .priority-score {

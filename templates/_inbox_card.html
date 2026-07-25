@@ -2,7 +2,9 @@
   <div class="inbox-card-main">
     <div class="inbox-card-badges">
       {% if comment.classified_at %}
-        <span class="category-badge">{{ comment.category }}</span>
+        <span class="category-badge category-{{ comment.category }}">
+          {{ comment.category }}
+        </span>
         <span class="priority-score">
           Priority {{ "%.2f"|format(comment.priority|float) }}
         </span>

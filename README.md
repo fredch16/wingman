@@ -141,13 +141,18 @@ to grant the `youtube.force-ssl` permission and refresh the ignored local token.
 Add `OPENAI_API_KEY` and, optionally, `OPENAI_MODEL` to `.env`, then start the
 Flask UI and open `http://127.0.0.1:5000/classification-playground`.
 
-The playground contains ten fixed comments covering common creator-inbox
+The playground contains twelve fixed comments covering common creator-inbox
 scenarios. Use **Classify** for one example or **Classify All** for the complete
 set. **Classify All** runs both the previous and current prompts so their
 structured results can be compared side by side. It logs each prompt, raw
 response, and parsed JSON to the terminal. Playground results are held in
 process memory only: they are never written to the comments database and reset
 when the Flask process restarts.
+
+Classifier `production-v2` adds explicit `specific_appreciation` and
+`humorous_engagement` categories and includes video-title context in both
+playground and production requests. Existing stored classifications retain their
+original version until they are explicitly reclassified.
 
 ## Production classification inbox
 

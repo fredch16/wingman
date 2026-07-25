@@ -4,7 +4,7 @@
   <div class="page-heading">
     <div>
       <h1>Classification Playground</h1>
-      <p>Ten fixed examples for tuning the classifier. Nothing here is saved to the inbox.</p>
+      <p>Twelve fixed examples for tuning the classifier. Nothing here is saved to the inbox.</p>
     </div>
     <form method="post" action="{{ url_for('classify_all') }}">
       <button class="primary" type="submit">Classify All</button>
@@ -23,6 +23,7 @@
           </form>
         </div>
         <p class="comment-text">{{ comment.text }}</p>
+        <p class="playground-video">Video: {{ comment.video_title }}</p>
         <div class="expected-intent">
           <strong>Expected intent</strong>
           <span>{{ comment.expected_intent }}</span>
@@ -47,6 +48,9 @@
             {% if results.get(comment.comment_id) %}
               {% set result = results[comment.comment_id] %}
               {% include "_classification_result.html" %}
+              <p class="consistency {{ 'consistent' if comment.is_broadly_consistent(result) else 'inconsistent' }}">
+                Broadly consistent: {{ "Yes" if comment.is_broadly_consistent(result) else "No" }}
+              </p>
             {% elif errors.get(comment.comment_id) %}
               <p class="classification-error">
                 Classification failed: {{ errors[comment.comment_id] }}

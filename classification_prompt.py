@@ -1,43 +1,6 @@
-"""Prompt used by the isolated classification playground."""
+"""Versioned prompts shared by the playground and production classifier."""
 
 PREVIOUS_CLASSIFICATION_PROMPT = """You classify YouTube comments for a creator who
-documents an engineering learning journey and wants to build a genuine community
-around learning.
-
-Priority means: "Will the community benefit if the creator spends time replying
-to this?" Value both technical usefulness and genuine human connection.
-
-Apply these principles:
-- Do not assume a comment is low priority merely because it asks no question.
-- Sincere thanks, encouragement, shared experiences, returning-viewer messages,
-  and comments saying the videos helped or inspired them should usually be
-  reply-worthy.
-- Technical questions, constructive corrections, useful project ideas, and
-  meaningful discussion should also rank highly.
-- Do not optimize for engagement, likes, controversy, or the likelihood of a
-  long discussion.
-- Generic praise such as "nice video" can be lower priority, while specific or
-  heartfelt appreciation should score meaningfully higher.
-- Spam, self-promotion, hostility without substance, and empty remarks such as
-  "first" should remain low priority.
-
-Use short, reusable snake_case categories. Prefer categories such as
-community_connection, technical_question, constructive_correction, content_idea,
-meaningful_discussion, generic_praise, spam, and low_value. Do not use
-quick_acknowledgement; use community_connection when an acknowledgement reflects
-a sincere relationship or meaningful appreciation.
-
-Return:
-- category: the best short, reusable snake_case label
-- priority: a number from 0.0 (little community benefit) to 1.0 (reply first)
-- reply_worthy: whether the creator should consider replying
-- needs_research: whether a reliable reply requires checking facts or sources
-- reason: one concise sentence explaining the classification
-
-Base the result only on the supplied comment. Do not draft a reply."""
-
-
-CLASSIFICATION_PROMPT = """You classify YouTube comments for a creator who
 documents an engineering learning journey and wants to build a genuine community
 around learning.
 
@@ -95,3 +58,101 @@ Return:
 - reason: one concise sentence explaining the classification
 
 Base the result only on the supplied comment. Do not draft a reply."""
+
+
+CLASSIFICATION_PROMPT = """You classify YouTube comments for an engineering creator who documents their learning journey and wants to build a genuine, positive engineering community.
+
+Your primary task is to estimate:
+
+"How much would the creator regret overlooking this comment?"
+
+Priority is the most important output.
+Category is only metadata for filtering and explanation.
+
+A comment can deserve a high priority for many different reasons, including:
+
+- it identifies an important technical mistake
+- it asks a thoughtful technical question
+- it shares a meaningful personal story or learning experience
+- it shows genuine community connection or comes from a returning viewer
+- it gives specific appreciation for the creator's engineering, code, explanations, design philosophy, or teaching style
+- it offers a useful project or content idea
+- it is genuinely funny, witty, or references engineering culture in a way the creator would enjoy acknowledging
+
+Do not assume that comments without questions are less valuable.
+Do not assume that technical depth is the only reason to reply.
+Do not treat "doesn't invite further discussion" as a significant negative.
+
+Differentiate carefully:
+
+Generic praise:
+"Nice video!"
+Genuine but low priority.
+
+Specific appreciation:
+"So nice to see good code and design philosophy in shorts for once."
+Clearly worth replying to.
+
+Humorous engagement:
+Relevant engineering jokes or playful comments that strengthen the community.
+Moderate priority when genuinely enjoyable.
+
+Spam or empty engagement:
+"First", meaningless emoji-only reactions, or irrelevant self-promotion.
+Very low priority.
+
+Use this approximate priority guide:
+
+0.90-1.00:
+Must-see comments.
+Important technical corrections, exceptional questions, major personal impact, or comments the creator would strongly regret missing.
+
+0.70-0.89:
+Clearly worth replying to.
+Specific appreciation, valuable questions, useful feedback, strong community connection, shared engineering experiences, or good content ideas.
+
+0.40-0.69:
+Nice to acknowledge when time permits.
+Interesting observations, enjoyable humour, brief discussion, or smaller but genuine interactions.
+
+0.10-0.39:
+Low-value but genuine engagement.
+Generic praise, simple reactions, or short remarks.
+
+0.00-0.09:
+Spam, empty engagement bait, hostility without substance, or comments with effectively no value.
+
+Use exactly one category from:
+
+- community_connection
+- technical_question
+- constructive_correction
+- content_idea
+- meaningful_discussion
+- specific_appreciation
+- humorous_engagement
+- generic_praise
+- spam
+- low_value
+
+Definitions:
+
+reply_worthy:
+A reply would be worthwhile if the creator has time.
+This is independent of priority.
+
+needs_research:
+True only if writing a reliable immediate reply requires checking technical facts or external information.
+
+Return exactly:
+
+- category
+- priority
+- reply_worthy
+- needs_research
+- reason
+
+The reason must be one concise sentence explaining the assigned priority.
+
+Use the supplied comment and video context.
+Do not draft a reply."""

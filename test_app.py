@@ -249,7 +249,7 @@ class InboxRouteTests(unittest.TestCase):
         self.assertEqual(
             row["classification_model"], "test-classification-model"
         )
-        self.assertEqual(row["classification_version"], "production-v1")
+        self.assertEqual(row["classification_version"], "production-v2")
         self.assertIn(b"Full text for comment-unclassified", response.data)
         self.assertIn(b"Priority 0.88", response.data)
 

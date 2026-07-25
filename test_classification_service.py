@@ -23,18 +23,17 @@ class FakeResponse:
 class ClassificationServiceTests(unittest.TestCase):
     def test_prompt_balances_technical_and_community_value(self) -> None:
         self.assertIn(
-            "Will the community benefit if the creator spends time replying",
+            "How much would the creator regret overlooking this comment?",
             CLASSIFICATION_PROMPT,
         )
+        self.assertIn("specific_appreciation", CLASSIFICATION_PROMPT)
+        self.assertIn("humorous_engagement", CLASSIFICATION_PROMPT)
         self.assertIn("community_connection", CLASSIFICATION_PROMPT)
-        self.assertIn("technical questions", CLASSIFICATION_PROMPT)
-        self.assertIn("meaningful personal impact", CLASSIFICATION_PROMPT)
-        self.assertIn("Do not optimize\nfor engagement", CLASSIFICATION_PROMPT)
-        self.assertIn("Do not use\nquick_acknowledgement", CLASSIFICATION_PROMPT)
         self.assertIn("0.90-1.00", CLASSIFICATION_PROMPT)
         self.assertIn("0.00-0.09", CLASSIFICATION_PROMPT)
-        self.assertIn("primary output", CLASSIFICATION_PROMPT)
-        self.assertIn("immediate response", CLASSIFICATION_PROMPT)
+        self.assertIn("Priority is the most important output", CLASSIFICATION_PROMPT)
+        self.assertIn("reliable immediate reply", CLASSIFICATION_PROMPT)
+        self.assertIn("Use the supplied comment and video context", CLASSIFICATION_PROMPT)
 
     def test_classify_uses_responses_parse_and_returns_structured_result(self) -> None:
         expected = CommentClassification(
@@ -49,14 +48,23 @@ class ClassificationServiceTests(unittest.TestCase):
         service = ClassificationService(client=client, model="test-model")
 
         with self.assertLogs("wingman.classification", level="INFO") as logs:
-            result = service.classify("How does derivative filtering work?")
+            result = service.classify(
+                "How does derivative filtering work?",
+                video_title="PID Explained",
+            )
 
         self.assertEqual(result, expected)
         parse.assert_called_once_with(
             model="test-model",
             input=[
                 {"role": "system", "content": CLASSIFICATION_PROMPT},
-                {"role": "user", "content": "How does derivative filtering work?"},
+                {
+                    "role": "user",
+                    "content": (
+                        "Comment:\nHow does derivative filtering work?"
+                        "\n\nVideo:\nPID Explained"
+                    ),
+                },
             ],
             text_format=CommentClassification,
         )
@@ -88,6 +96,7 @@ class ClassificationServiceTests(unittest.TestCase):
         @dataclass
         class StoredComment:
             text: str
+            video_title: str
 
         expected = CommentClassification(
             category="technical_question",
@@ -100,12 +109,17 @@ class ClassificationServiceTests(unittest.TestCase):
         client = SimpleNamespace(responses=SimpleNamespace(parse=parse))
         service = ClassificationService(client=client, model="test-model")
 
-        result = service.classify_comment(StoredComment("Stored text"))
+        result = service.classify_comment(
+            StoredComment("Stored text", "Stored video")
+        )
 
         self.assertEqual(result, expected)
         self.assertEqual(
             parse.call_args.kwargs["input"][1],
-            {"role": "user", "content": "Stored text"},
+            {
+                "role": "user",
+                "content": "Comment:\nStored text\n\nVideo:\nStored video",
+            },
         )
 
     def test_missing_parsed_output_is_an_error(self) -> None:
