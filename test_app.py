@@ -466,6 +466,20 @@ class InboxRouteTests(unittest.TestCase):
             response.data,
         )
 
+    def test_legacy_draft_explains_that_regeneration_enables_learning(self) -> None:
+        connection = connect_database(self.database_path)
+        try:
+            CommentRepository(connection).update_draft_reply(
+                "comment-new", "Draft created before learning existed."
+            )
+        finally:
+            connection.close()
+
+        response = self.client.get("/comments/comment-new")
+
+        self.assertIn(b"Regenerate to Enable Learning", response.data)
+        self.assertIn(b"This draft predates learning", response.data)
+
     def test_rejects_preference_review_without_updating_profile(self) -> None:
         self.client.post("/comments/comment-new/generate-reply")
         self.client.post(
