@@ -1,4 +1,4 @@
-"""Fetch every top-level comment from one YouTube video."""
+"""Fetch every top-level comment from configured YouTube videos."""
 
 import os
 import re
@@ -16,7 +16,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from comment_store import connect_database, sync_comments
+from comment_store import SyncSummary, connect_database, sync_comments
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
 
@@ -41,6 +41,14 @@ class Comment:
 class FetchResult:
     comments: list[Comment]
     pages_fetched: int
+
+
+@dataclass(frozen=True)
+class VideoSyncResult:
+    video_id: str
+    fetch_result: FetchResult | None = None
+    sync_summary: SyncSummary | None = None
+    error: str | None = None
 
 
 class PaginationError(RuntimeError):
@@ -111,17 +119,49 @@ def youtube_credentials(client_secrets_file: str, token_file: str) -> Credential
     return credentials
 
 
-def get_authenticated_youtube_client() -> tuple[Any, str]:
-    """Build an OAuth-authenticated YouTube client and return its video ID."""
+def get_authenticated_youtube_client() -> Any:
+    """Build an OAuth-authenticated YouTube client."""
     client_secrets_file = required_env("YOUTUBE_CLIENT_SECRETS_FILE")
     token_file = required_env("YOUTUBE_TOKEN_FILE")
-    video_id = required_env("YOUTUBE_VIDEO_ID")
-    if not re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id):
-        raise ValueError(
-            "YOUTUBE_VIDEO_ID must be an 11-character video ID, not a URL."
-        )
     credentials = youtube_credentials(client_secrets_file, token_file)
-    return build("youtube", "v3", credentials=credentials), video_id
+    return build("youtube", "v3", credentials=credentials)
+
+
+def configured_video_ids() -> list[str]:
+    """Read, validate, and deduplicate configured video IDs."""
+    configured = os.getenv("YOUTUBE_VIDEO_IDS", "").strip()
+    if configured:
+        raw_values = configured.split(",")
+    else:
+        legacy_keys = [
+            key
+            for key in os.environ
+            if re.fullmatch(r"YOUTUBE_VIDEO_ID(?:_\d+)?", key)
+        ]
+        legacy_keys.sort(
+            key=lambda key: (
+                0 if key == "YOUTUBE_VIDEO_ID" else int(key.rsplit("_", 1)[1])
+            )
+        )
+        raw_values = [
+            value
+            for key in legacy_keys
+            for value in os.environ[key].split(",")
+        ]
+
+    video_ids = list(dict.fromkeys(value.strip() for value in raw_values if value.strip()))
+    if not video_ids:
+        raise ValueError("Missing required environment variable: YOUTUBE_VIDEO_IDS")
+    invalid_ids = [
+        video_id
+        for video_id in video_ids
+        if not re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id)
+    ]
+    if invalid_ids:
+        raise ValueError(
+            "Every configured YouTube video ID must be 11 characters, not a URL."
+        )
+    return video_ids
 
 
 def fetch_comment_page(
@@ -208,14 +248,86 @@ def print_comments(comments: list[Comment]) -> None:
         print("-" * 50)
 
 
+def page_error_message(error: PageFetchError) -> str:
+    if isinstance(error.cause, HttpError):
+        return f"Page {error.page_number} failed: {api_error_message(error.cause)}"
+    return f"Page {error.page_number} failed: {error.cause}"
+
+
+def sync_videos(
+    youtube: Any,
+    video_ids: list[str],
+    connection: sqlite3.Connection,
+) -> list[VideoSyncResult]:
+    """Fetch and persist each configured video without aborting later videos."""
+    results = []
+    for video_id in video_ids:
+        print(f"Video: {video_id}")
+        try:
+            fetch_result = fetch_all_comments_for_video(youtube, video_id)
+            sync_summary = sync_comments(connection, fetch_result.comments)
+            results.append(
+                VideoSyncResult(
+                    video_id=video_id,
+                    fetch_result=fetch_result,
+                    sync_summary=sync_summary,
+                )
+            )
+        except PageFetchError as error:
+            results.append(VideoSyncResult(video_id, error=page_error_message(error)))
+        except PaginationError as error:
+            results.append(VideoSyncResult(video_id, error=f"Pagination error: {error}"))
+    return results
+
+
+def print_sync_results(results: list[VideoSyncResult]) -> None:
+    """Print per-video details followed by an aggregate summary."""
+    for result in results:
+        print(f"\nVideo summary: {result.video_id}")
+        if result.error:
+            print(f"Status: Failed")
+            print(f"Error: {result.error}")
+            continue
+
+        assert result.fetch_result is not None
+        assert result.sync_summary is not None
+        print("Status: Completed")
+        print(f"Pages fetched: {result.fetch_result.pages_fetched}")
+        print(f"Fetched: {result.sync_summary.fetched}")
+        print(f"Newly inserted: {result.sync_summary.newly_inserted}")
+        print(f"Updated: {result.sync_summary.updated}")
+        print(f"Unchanged: {result.sync_summary.unchanged}")
+        if not result.fetch_result.comments:
+            print("No comments returned for this video.")
+
+    successful = [result for result in results if not result.error]
+    summaries = [
+        result.sync_summary for result in successful if result.sync_summary is not None
+    ]
+    print("\nOverall summary")
+    print(f"Videos configured: {len(results)}")
+    print(f"Videos completed: {len(successful)}")
+    print(f"Videos failed: {len(results) - len(successful)}")
+    print(f"Fetched: {sum(summary.fetched for summary in summaries)}")
+    print(f"Newly inserted: {sum(summary.newly_inserted for summary in summaries)}")
+    print(f"Updated: {sum(summary.updated for summary in summaries)}")
+    print(f"Unchanged: {sum(summary.unchanged for summary in summaries)}\n")
+
+    for result in successful:
+        assert result.fetch_result is not None
+        if result.fetch_result.comments:
+            print(f"Comments for video {result.video_id}")
+            print_comments(result.fetch_result.comments)
+
+
 def main() -> int:
     load_dotenv()
     try:
-        youtube, video_id = get_authenticated_youtube_client()
-        result = fetch_all_comments_for_video(youtube, video_id)
+        video_ids = configured_video_ids()
+        youtube = get_authenticated_youtube_client()
         database_path = os.getenv("DATABASE_PATH", "comments.db").strip() or "comments.db"
         with connect_database(database_path) as connection:
-            sync_summary = sync_comments(connection, result.comments)
+            results = sync_videos(youtube, video_ids, connection)
     except ValueError as error:
         print(f"Configuration error: {error}", file=sys.stderr)
         return 1
@@ -225,16 +337,6 @@ def main() -> int:
     except TransportError as error:
         print(f"Network error while authenticating with Google: {error}", file=sys.stderr)
         return 1
-    except PageFetchError as error:
-        if isinstance(error.cause, HttpError):
-            detail = api_error_message(error.cause)
-        else:
-            detail = str(error.cause)
-        print(f"Page {error.page_number} failed: {detail}", file=sys.stderr)
-        return 1
-    except PaginationError as error:
-        print(f"Pagination error: {error}", file=sys.stderr)
-        return 1
     except sqlite3.Error as error:
         print(f"SQLite error while saving comments: {error}", file=sys.stderr)
         return 1
@@ -242,22 +344,9 @@ def main() -> int:
         print(f"Network error while contacting YouTube: {error}", file=sys.stderr)
         return 1
 
-    print("Finished")
-    print(f"Video ID: {video_id}")
-    print(f"Pages fetched: {result.pages_fetched}")
-    print(f"Total unique comments: {len(result.comments)}\n")
-    print("Sync summary")
-    print(f"Fetched: {sync_summary.fetched}")
-    print(f"Newly inserted: {sync_summary.newly_inserted}")
-    print(f"Updated: {sync_summary.updated}")
-    print(f"Unchanged: {sync_summary.unchanged}\n")
-
-    if not result.comments:
-        print("No comments returned for this video.")
-        return 0
-
-    print_comments(result.comments)
-    return 0
+    print("\nFinished")
+    print_sync_results(results)
+    return 1 if all(result.error for result in results) else 0
 
 
 if __name__ == "__main__":

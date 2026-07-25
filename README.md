@@ -1,8 +1,8 @@
 # Wingman YouTube Comment Fetcher
 
 This MVP follows YouTube pagination to fetch every available top-level comment
-from one configured public YouTube video, upserts them into SQLite, and prints
-them in the terminal. Each sync preserves when a comment was first seen,
+from multiple configured public YouTube videos, upserts them into SQLite, and
+prints them in the terminal. Each sync preserves when a comment was first seen,
 refreshes when it was last seen, and reports inserted, updated, and unchanged
 counts. Replies are not fetched yet; the script only prints each thread's total
 reply count.
@@ -20,16 +20,17 @@ reply count.
    cp .env.example .env
    ```
 
-5. Open `.env` and add the OAuth file paths and one public YouTube video ID:
+5. Open `.env` and add the OAuth file paths and a comma-separated list of
+   public YouTube video IDs:
 
    ```dotenv
    YOUTUBE_CLIENT_SECRETS_FILE=client_secret.json
    YOUTUBE_TOKEN_FILE=token.json
-   YOUTUBE_VIDEO_ID=dQw4w9WgXcQ
+   YOUTUBE_VIDEO_IDS=dQw4w9WgXcQ,aqz-KE-bpKQ
    DATABASE_PATH=comments.db
    ```
 
-   Use only the video ID, not the full YouTube URL. Do not commit `.env`.
+   Use only video IDs, not full YouTube URLs. Do not commit `.env`.
 
 6. Create a virtual environment and install dependencies:
 
@@ -48,10 +49,10 @@ reply count.
    On the first run, approve the read-only YouTube permission in the browser.
    The resulting OAuth token is saved to `token.json` for later runs.
 
-The script reports missing configuration, invalid or missing videos, disabled
-comments, quota/rate-limit failures, authorization errors, other API errors,
-network failures, and videos for which no comments are returned. `comments.db`
-is created automatically and is ignored by Git.
+The script reports a result for each configured video and an overall summary.
+A video with disabled comments, no comments, or another video-specific API
+failure does not prevent later videos from syncing. `comments.db` is created
+automatically and is ignored by Git.
 
 ## Tests
 
