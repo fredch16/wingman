@@ -119,6 +119,7 @@ class CommentStoreTests(unittest.TestCase):
                    draft_reply, final_reply, needs_research, is_ignored,
                    replied_at, has_creator_reply, creator_reply_id,
                    creator_replied_at, reply_status_checked_at
+                   , reply_approved_at
             FROM comments WHERE comment_id = 'legacy'
             """
         ).fetchone()
@@ -139,6 +140,7 @@ class CommentStoreTests(unittest.TestCase):
         self.assertIsNone(row["creator_reply_id"])
         self.assertIsNone(row["creator_replied_at"])
         self.assertIsNone(row["reply_status_checked_at"])
+        self.assertIsNone(row["reply_approved_at"])
         connection.close()
 
     def test_duplicate_ids_are_upserted_once(self) -> None:

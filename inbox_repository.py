@@ -18,6 +18,9 @@ class Comment:
     comment_id: str
     video_id: str
     video_title: str
+    video_summary: str | None
+    thread_id: str
+    total_reply_count: int
     author_display_name: str
     text: str
     published_at: str
@@ -38,6 +41,7 @@ class Comment:
     creator_reply_id: str | None
     creator_replied_at: str | None
     reply_status_checked_at: str | None
+    reply_approved_at: str | None
 
 
 def utc_now() -> str:
@@ -132,6 +136,9 @@ class CommentRepository:
                 comments.comment_id,
                 comments.video_id,
                 COALESCE(videos.title, comments.video_id) AS video_title,
+                videos.summary AS video_summary,
+                comments.thread_id,
+                comments.total_reply_count,
                 comments.author_display_name,
                 comments.text,
                 comments.published_at,
@@ -152,6 +159,7 @@ class CommentRepository:
                 comments.creator_reply_id,
                 comments.creator_replied_at,
                 comments.reply_status_checked_at
+                , comments.reply_approved_at
             FROM comments
             LEFT JOIN videos ON videos.video_id = comments.video_id
             WHERE {filters[filter_name]}
@@ -175,6 +183,9 @@ class CommentRepository:
                 comments.comment_id,
                 comments.video_id,
                 COALESCE(videos.title, comments.video_id) AS video_title,
+                videos.summary AS video_summary,
+                comments.thread_id,
+                comments.total_reply_count,
                 comments.author_display_name,
                 comments.text,
                 comments.published_at,
@@ -195,6 +206,7 @@ class CommentRepository:
                 comments.creator_reply_id,
                 comments.creator_replied_at,
                 comments.reply_status_checked_at
+                , comments.reply_approved_at
             FROM comments
             LEFT JOIN videos ON videos.video_id = comments.video_id
             WHERE comments.comment_id = ?
@@ -269,7 +281,32 @@ class CommentRepository:
     def update_draft_reply(
         self, comment_id: str, draft_reply: str | None
     ) -> bool:
-        return self._update(comment_id, "draft_reply = ?", (draft_reply,))
+        return self._update(
+            comment_id,
+            """
+            draft_reply = ?,
+            final_reply = NULL,
+            reply_approved_at = NULL,
+            status = CASE WHEN status = 'approved' THEN 'new' ELSE status END
+            """,
+            (draft_reply,),
+        )
+
+    def approve_draft_reply(
+        self, comment_id: str, approved_at: str | None = None
+    ) -> bool:
+        comment = self.get_comment(comment_id)
+        if comment is None or not comment.draft_reply:
+            return False
+        return self._update(
+            comment_id,
+            """
+            final_reply = draft_reply,
+            reply_approved_at = ?,
+            status = 'approved'
+            """,
+            (approved_at or utc_now(),),
+        )
 
     def save_classification(
         self,
@@ -324,6 +361,9 @@ class CommentRepository:
             comment_id=row["comment_id"],
             video_id=row["video_id"],
             video_title=row["video_title"],
+            video_summary=row["video_summary"],
+            thread_id=row["thread_id"],
+            total_reply_count=row["total_reply_count"],
             author_display_name=row["author_display_name"],
             text=row["text"],
             published_at=row["published_at"],
@@ -350,6 +390,7 @@ class CommentRepository:
             creator_reply_id=row["creator_reply_id"],
             creator_replied_at=row["creator_replied_at"],
             reply_status_checked_at=row["reply_status_checked_at"],
+            reply_approved_at=row["reply_approved_at"],
         )
 
     @staticmethod
@@ -359,6 +400,9 @@ class CommentRepository:
                 comments.comment_id,
                 comments.video_id,
                 COALESCE(videos.title, comments.video_id) AS video_title,
+                videos.summary AS video_summary,
+                comments.thread_id,
+                comments.total_reply_count,
                 comments.author_display_name,
                 comments.text,
                 comments.published_at,
@@ -379,6 +423,7 @@ class CommentRepository:
                 comments.creator_reply_id,
                 comments.creator_replied_at,
                 comments.reply_status_checked_at
+                , comments.reply_approved_at
             FROM comments
             LEFT JOIN videos ON videos.video_id = comments.video_id
         """

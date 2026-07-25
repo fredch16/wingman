@@ -40,6 +40,7 @@ class StoredVideo:
     first_seen_at: str
     last_seen_at: str
     comments_last_checked_at: str | None
+    summary: str | None
 
 
 class PlaylistPaginationError(RuntimeError):
@@ -130,6 +131,7 @@ def create_videos_table(connection: sqlite3.Connection) -> None:
             first_seen_at TEXT NOT NULL,
             last_seen_at TEXT NOT NULL,
             comments_last_checked_at TEXT
+            , summary TEXT
         )
         """
     )
@@ -140,6 +142,8 @@ def create_videos_table(connection: sqlite3.Connection) -> None:
         connection.execute(
             "ALTER TABLE videos ADD COLUMN comments_last_checked_at TEXT"
         )
+    if "summary" not in existing_columns:
+        connection.execute("ALTER TABLE videos ADD COLUMN summary TEXT")
 
 
 def store_discovered_videos(
@@ -208,6 +212,7 @@ def list_stored_videos(connection: sqlite3.Connection) -> list[StoredVideo]:
         """
         SELECT video_id, title, published_at, thumbnail_url, is_enabled,
                first_seen_at, last_seen_at, comments_last_checked_at
+               , summary
         FROM videos
         ORDER BY published_at DESC, video_id
         """
@@ -222,6 +227,7 @@ def list_stored_videos(connection: sqlite3.Connection) -> list[StoredVideo]:
             first_seen_at=row["first_seen_at"],
             last_seen_at=row["last_seen_at"],
             comments_last_checked_at=row["comments_last_checked_at"],
+            summary=row["summary"],
         )
         for row in rows
     ]
@@ -241,6 +247,19 @@ def set_video_enabled(
         cursor = connection.execute(
             "UPDATE videos SET is_enabled = ? WHERE video_id = ?",
             (int(is_enabled), video_id),
+        )
+    return cursor.rowcount > 0
+
+
+def update_video_summary(
+    connection: sqlite3.Connection, video_id: str, summary: str | None
+) -> bool:
+    create_videos_table(connection)
+    normalized_summary = summary.strip() if summary else None
+    with connection:
+        cursor = connection.execute(
+            "UPDATE videos SET summary = ? WHERE video_id = ?",
+            (normalized_summary or None, video_id),
         )
     return cursor.rowcount > 0
 

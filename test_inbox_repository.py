@@ -107,6 +107,31 @@ class CommentRepositoryTests(unittest.TestCase):
             row["reply_status_checked_at"], "2026-07-25T15:00:00Z"
         )
 
+    def test_edits_and_approves_reply_draft_locally(self) -> None:
+        self.assertTrue(
+            self.repository.update_draft_reply("comment-1", "Editable draft")
+        )
+        self.assertTrue(
+            self.repository.approve_draft_reply(
+                "comment-1", "2026-07-25T16:00:00Z"
+            )
+        )
+
+        approved = self.repository.get_comment("comment-1")
+        assert approved is not None
+        self.assertEqual(approved.status, "approved")
+        self.assertEqual(approved.final_reply, "Editable draft")
+        self.assertEqual(
+            approved.reply_approved_at, "2026-07-25T16:00:00Z"
+        )
+
+        self.repository.update_draft_reply("comment-1", "Revised draft")
+        revised = self.repository.get_comment("comment-1")
+        assert revised is not None
+        self.assertEqual(revised.status, "new")
+        self.assertIsNone(revised.final_reply)
+        self.assertIsNone(revised.reply_approved_at)
+
     def test_ignored_comments_leave_active_inbox(self) -> None:
         self.assertTrue(self.repository.mark_ignored("comment-1"))
 

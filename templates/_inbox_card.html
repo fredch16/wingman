@@ -23,9 +23,10 @@
       </p>
     {% endif %}
     <div class="actions inbox-card-actions">
-      <button type="button" disabled title="Reply generation is not implemented yet">
-        Generate Reply
-      </button>
+      <form method="post"
+            action="{{ url_for('generate_reply', comment_id=comment.comment_id) }}">
+        <button type="submit">Generate Reply</button>
+      </form>
       <form method="post"
             action="{{ url_for('classify_comment', comment_id=comment.comment_id) }}">
         <button class="primary" type="submit">

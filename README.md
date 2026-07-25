@@ -173,6 +173,27 @@ still run, but their production-inbox results stay in Flask process memory and
 reset when the app restarts; SQLite remains unchanged. Set
 `WINGMAN_CLASSIFICATION_DRY_RUN=false` when persistent classification is wanted.
 
+## Reply generation
+
+Reply generation uses three context layers:
+
+1. The shared task prompt in `reply_prompt.py`.
+2. Fred's editable voice profile in `creator.md`.
+3. The comment's stored video title and manually maintained video summary.
+
+Edit `creator.md` directly whenever Fred's voice, preferences, or examples
+change. Set `CREATOR_CONTEXT_FILE` in `.env` only if the profile lives elsewhere.
+
+Open **Video Context** in the Flask navigation to add or edit a summary for each
+discovered video. Discovery updates video metadata without overwriting these
+manual summaries.
+
+From an inbox card, choose **Generate Reply**. Wingman makes one OpenAI request,
+saves one local draft, and opens the comment detail page. Fred can edit and save
+the draft, then choose **Approve locally**. Approval copies the edited text to
+the local final-reply field and records an approval timestamp. It does not post
+the generated reply to YouTube.
+
 ## Tests
 
 The uploads pagination, comment pagination, creator-reply detection,
