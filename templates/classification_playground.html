@@ -23,6 +23,10 @@
           </form>
         </div>
         <p class="comment-text">{{ comment.text }}</p>
+        <div class="expected-intent">
+          <strong>Expected intent</strong>
+          <span>{{ comment.expected_intent }}</span>
+        </div>
 
         {% if results.get(comment.comment_id) %}
           {% set result = results[comment.comment_id] %}

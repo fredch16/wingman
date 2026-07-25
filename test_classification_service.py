@@ -17,6 +17,17 @@ class FakeResponse:
 
 
 class ClassificationServiceTests(unittest.TestCase):
+    def test_prompt_balances_technical_and_community_value(self) -> None:
+        self.assertIn(
+            "Will the community benefit if the creator spends time replying",
+            CLASSIFICATION_PROMPT,
+        )
+        self.assertIn("community_connection", CLASSIFICATION_PROMPT)
+        self.assertIn("Technical questions", CLASSIFICATION_PROMPT)
+        self.assertIn("heartfelt appreciation", CLASSIFICATION_PROMPT)
+        self.assertIn("Do not optimize for engagement", CLASSIFICATION_PROMPT)
+        self.assertIn("Do not use\nquick_acknowledgement", CLASSIFICATION_PROMPT)
+
     def test_classify_uses_responses_parse_and_returns_structured_result(self) -> None:
         expected = CommentClassification(
             category="technical_question",

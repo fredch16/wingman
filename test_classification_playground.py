@@ -1,5 +1,6 @@
 """Route tests for the isolated classification playground."""
 
+import html
 import sqlite3
 import tempfile
 import unittest
@@ -71,13 +72,33 @@ class ClassificationPlaygroundRouteTests(unittest.TestCase):
 
     def test_page_contains_all_hardcoded_scenarios(self) -> None:
         response = self.client.get("/classification-playground")
+        rendered_text = html.unescape(response.data.decode())
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data.count(b'class="playground-card"'), 10)
         for comment in PLAYGROUND_COMMENTS:
-            self.assertIn(comment.scenario.encode(), response.data)
-            self.assertIn(comment.text.encode(), response.data)
+            self.assertIn(comment.scenario, rendered_text)
+            self.assertIn(comment.text, rendered_text)
+            self.assertIn(comment.expected_intent, rendered_text)
+        self.assertIn(b"Expected intent", response.data)
+        self.assertNotIn(b"Quick acknowledgement", response.data)
         self.assertEqual(self.service.calls, [])
+
+        self.assertEqual(
+            {comment.comment_id for comment in PLAYGROUND_COMMENTS},
+            {
+                "generic-praise",
+                "heartfelt-thanks",
+                "inspired-engineer",
+                "returning-viewer",
+                "technical-correction",
+                "technical-question",
+                "content-idea",
+                "spam",
+                "first",
+                "shared-experience",
+            },
+        )
 
     def test_classify_one_displays_result(self) -> None:
         comment = PLAYGROUND_COMMENTS[0]

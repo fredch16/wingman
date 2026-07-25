@@ -200,6 +200,21 @@ button.primary {
   font-weight: 700;
 }
 
+.expected-intent {
+  background: #fff8df;
+  border-left: 4px solid #d3a72f;
+  display: grid;
+  gap: 0.3rem;
+  line-height: 1.45;
+  padding: 0.75rem;
+}
+
+.expected-intent strong {
+  color: #70560d;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
 .classification-result {
   background: #f6f8fc;
   border-radius: 6px;
