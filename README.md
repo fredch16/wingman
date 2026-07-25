@@ -202,10 +202,11 @@ does not already have one.
 
 Newly generated replies preserve an untouched copy of the AI draft. After
 editing the reply, **Learn from Change** becomes available beside **Approve**.
-Wingman compares the original and edited text in one structured OpenAI request
-and proposes no more than two durable writing preferences. The proposal remains
-temporary until it is reviewed: edit the lines if needed, then choose
-**Accept** or **Reject**.
+Wingman sends the viewer comment, video title and summary, classification
+context, untouched AI draft, and edited reply in one structured OpenAI request.
+It identifies the type of meaningful change and proposes no more than two
+durable writing rules. The proposal remains temporary until it is reviewed:
+edit the lines if needed, then choose **Accept** or **Reject**.
 
 Acceptance appends unique bullets to the bottom of the configured creator
 profile under `## Learned Preferences`. It never rewrites earlier sections.

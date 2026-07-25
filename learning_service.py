@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from openai import OpenAI
 from pydantic import BaseModel, Field
@@ -19,8 +19,25 @@ LOGGER = logging.getLogger("wingman.preference_learning")
 LEARNED_PREFERENCES_HEADING = "## Learned Preferences"
 
 
+ChangeType = Literal[
+    "acknowledgement",
+    "length",
+    "tone",
+    "structure",
+    "technical_depth",
+    "humour",
+    "uncertainty",
+    "other",
+]
+
+
+class ExtractedPreference(BaseModel):
+    change_type: ChangeType
+    preference: str
+
+
 class ExtractedPreferences(BaseModel):
-    preferences: list[str] = Field(max_length=2)
+    changes: list[ExtractedPreference] = Field(max_length=2)
 
 
 @dataclass(frozen=True)
@@ -29,6 +46,9 @@ class PreferenceComparison:
     edited_reply: str
     comment_text: str
     video_title: str
+    video_summary: str | None = None
+    category: str | None = None
+    classification_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -53,14 +73,20 @@ class PreferenceLearningService:
 
     def extract_preferences(
         self, comparison: PreferenceComparison
-    ) -> list[str]:
+    ) -> list[ExtractedPreference]:
         prompt_input = [
             {"role": "system", "content": PREFERENCE_LEARNING_PROMPT},
             {
                 "role": "user",
                 "content": (
                     f"Video:\n{comparison.video_title}\n\n"
+                    f"Video context:\n"
+                    f"{comparison.video_summary or 'Not provided'}\n\n"
                     f"Viewer comment:\n{comparison.comment_text}\n\n"
+                    f"Comment category:\n"
+                    f"{comparison.category or 'Not classified'}\n\n"
+                    f"Why the comment matters:\n"
+                    f"{comparison.classification_reason or 'Not provided'}\n\n"
                     f"Original AI draft:\n{comparison.original_draft}\n\n"
                     f"Creator's edited reply:\n{comparison.edited_reply}"
                 ),
@@ -79,17 +105,31 @@ class PreferenceLearningService:
         parsed = response.output_parsed
         if parsed is None:
             raise ValueError("OpenAI returned no parsed preferences.")
-        preferences = clean_preferences(parsed.preferences)
-        LOGGER.info("Parsed learned preferences: %s", preferences)
-        return preferences[:2]
+        changes = [
+            ExtractedPreference(
+                change_type=change.change_type,
+                preference=preference,
+            )
+            for change in parsed.changes
+            if (preference := clean_preference(change.preference))
+        ]
+        LOGGER.info(
+            "Parsed learned preference changes: %s",
+            [change.model_dump() for change in changes],
+        )
+        return changes[:2]
+
+
+def clean_preference(value: str) -> str:
+    preference = re.sub(r"^\s*[-*]\s*", "", value).strip()
+    return re.sub(r"\s+", " ", preference)
 
 
 def clean_preferences(values: list[str] | tuple[str, ...]) -> list[str]:
     """Normalize review input while preserving human-readable prose."""
     cleaned: list[str] = []
     for value in values:
-        preference = re.sub(r"^\s*[-*]\s*", "", value).strip()
-        preference = re.sub(r"\s+", " ", preference)
+        preference = clean_preference(value)
         if preference and preference not in cleaned:
             cleaned.append(preference)
     return cleaned

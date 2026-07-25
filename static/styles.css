@@ -999,6 +999,24 @@ main {
   font-weight: 650;
 }
 
+.change-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.change-types span {
+  background: rgb(121 168 255 / 8%);
+  border: 1px solid rgb(121 168 255 / 18%);
+  border-radius: 999px;
+  color: var(--blue);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  padding: 4px 7px;
+  text-transform: uppercase;
+}
+
 .learning-review textarea {
   background: var(--panel);
   border: 1px solid var(--border-bright);

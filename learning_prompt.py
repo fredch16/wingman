@@ -14,5 +14,8 @@ before explaining, preferring shorter answers, admitting uncertainty, matching
 humour with humour, or avoiding explanations the commenter does not need.
 
 Return an empty list when the edit does not reveal a useful durable preference.
-Write each preference as one concise sentence beginning with "Fred". Do not
+For each useful preference, identify the primary type of change from the
+provided enum and write the rule as one concise sentence beginning with "Fred".
+Use the comment, video context, and classification context to distinguish a
+durable preference from an edit that was only necessary for this reply. Do not
 rewrite the reply and do not provide commentary outside the structured result."""
