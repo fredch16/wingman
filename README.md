@@ -101,6 +101,10 @@ video skips comment fetching without preventing a due backlog check.
 recheck previously unreplied comments but never recheck confirmed creator
 replies.
 
+Backlog runs print the pending count, current comment, API stage, and detection
+result as they progress. Each successful comment is committed immediately, so
+an interrupted run resumes from the remaining unchecked comments.
+
 Existing databases are migrated automatically when the inbox is opened or
 comments are synced. Existing comments default to `new`; ignored and replied
 comments are omitted from the active inbox.

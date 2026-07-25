@@ -1,7 +1,9 @@
 """Tests for creator reply detection and one-shot persistence."""
 
+import io
 import sqlite3
 import unittest
+from contextlib import redirect_stdout
 from datetime import datetime, timezone
 from unittest.mock import Mock
 
@@ -105,12 +107,14 @@ class ReplyDetectionTests(unittest.TestCase):
         sync_comments(self.connection, [comment(total_reply_count=0)])
         youtube = Mock()
 
-        summary = backfill_reply_status(
-            youtube,
-            self.connection,
-            CREATOR_CHANNEL_ID,
-            checked_at="2026-07-25T12:00:00Z",
-        )
+        output = io.StringIO()
+        with redirect_stdout(output):
+            summary = backfill_reply_status(
+                youtube,
+                self.connection,
+                CREATOR_CHANNEL_ID,
+                checked_at="2026-07-25T12:00:00Z",
+            )
 
         self.assertEqual((summary.checked, summary.replied, summary.unreplied), (1, 0, 1))
         self.assertEqual(self.stored_row()["has_creator_reply"], 0)
@@ -119,6 +123,8 @@ class ReplyDetectionTests(unittest.TestCase):
             "2026-07-25T12:00:00Z",
         )
         youtube.commentThreads.assert_not_called()
+        self.assertIn("Reply backlog: 1 comments pending", output.getvalue())
+        self.assertIn("No replies; no API call needed", output.getvalue())
 
     def test_detects_embedded_creator_reply(self) -> None:
         sync_comments(self.connection, [comment(total_reply_count=1)])

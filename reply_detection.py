@@ -174,11 +174,21 @@ def creator_reply_from_comments(
     return None
 
 
-def fetch_all_replies(youtube: Any, parent_comment_id: str) -> list[dict[str, Any]]:
+def fetch_all_replies(
+    youtube: Any,
+    parent_comment_id: str,
+    verbose: bool = False,
+) -> list[dict[str, Any]]:
     replies: list[dict[str, Any]] = []
     page_token: str | None = None
     seen_tokens: set[str] = set()
+    page_number = 1
     while True:
+        if verbose:
+            print(
+                f"    Fetching full replies page {page_number}...",
+                flush=True,
+            )
         response = (
             youtube.comments()
             .list(
@@ -198,17 +208,21 @@ def fetch_all_replies(youtube: Any, parent_comment_id: str) -> list[dict[str, An
             raise RuntimeError("Repeated reply nextPageToken detected.")
         seen_tokens.add(next_page_token)
         page_token = next_page_token
+        page_number += 1
 
 
 def detect_creator_reply(
     youtube: Any,
     target: ReplyCheckTarget,
     creator_channel_id: str,
+    verbose: bool = False,
 ) -> CreatorReply | None:
     """Inspect embedded replies, loading the complete reply list when needed."""
     if target.total_reply_count == 0:
         return None
 
+    if verbose:
+        print("    Fetching comment thread replies...", flush=True)
     response = (
         youtube.commentThreads()
         .list(
@@ -234,7 +248,17 @@ def detect_creator_reply(
         "totalReplyCount", target.total_reply_count
     )
     if len(embedded_replies) < total_reply_count:
-        complete_replies = fetch_all_replies(youtube, target.comment_id)
+        if verbose:
+            print(
+                "    Embedded replies are incomplete; "
+                "requesting the full reply list.",
+                flush=True,
+            )
+        complete_replies = fetch_all_replies(
+            youtube,
+            target.comment_id,
+            verbose=verbose,
+        )
         return creator_reply_from_comments(complete_replies, creator_channel_id)
     return None
 
@@ -287,10 +311,27 @@ def backfill_reply_status(
     replied = 0
     unreplied = 0
     failed = 0
-    for target in targets:
+    api_checks = sum(target.total_reply_count > 0 for target in targets)
+    print(
+        f"Reply backlog: {len(targets)} comments pending "
+        f"({api_checks} require API checks).",
+        flush=True,
+    )
+    if not targets:
+        print("Reply backlog is already up to date.", flush=True)
+
+    for index, target in enumerate(targets, start=1):
+        print(
+            f"[{index}/{len(targets)}] {target.comment_id} "
+            f"({target.total_reply_count} replies)",
+            flush=True,
+        )
         try:
             creator_reply = detect_creator_reply(
-                youtube, target, creator_channel_id
+                youtube,
+                target,
+                creator_channel_id,
+                verbose=True,
             )
             persist_reply_check(
                 connection,
@@ -300,11 +341,22 @@ def backfill_reply_status(
             )
             if creator_reply:
                 replied += 1
+                print(
+                    f"    Creator reply found: {creator_reply.reply_id}",
+                    flush=True,
+                )
             else:
                 unreplied += 1
+                if target.total_reply_count == 0:
+                    print("    No replies; no API call needed.", flush=True)
+                else:
+                    print("    No creator reply found.", flush=True)
         except Exception as error:
             failed += 1
-            print(f"Reply check failed for {target.comment_id}: {error}")
+            print(
+                f"    Reply check failed: {error}",
+                flush=True,
+            )
 
     summary = ReplyCheckSummary(
         checked=replied + unreplied,

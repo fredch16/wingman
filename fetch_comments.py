@@ -20,6 +20,7 @@ from googleapiclient.errors import HttpError
 from comment_store import SyncSummary, connect_database, sync_comments
 from reply_detection import (
     ReplyCheckSummary,
+    backlog_checked_recently,
     backfill_reply_status,
     fetch_authenticated_creator_channel_id,
     store_creator_channel_id,
@@ -440,6 +441,16 @@ def main(argv: list[str] | None = None) -> int:
                     return 1
                 status = "enabled" if is_enabled else "disabled"
                 print(f"Video {video_id} is now {status}.")
+                return 0
+
+            if (
+                args.backfill_replies
+                and not args.refresh
+                and backlog_checked_recently(connection)
+            ):
+                print_reply_check_summary(
+                    ReplyCheckSummary(0, 0, 0, 0, skipped=True)
+                )
                 return 0
 
             youtube = get_authenticated_youtube_client()
