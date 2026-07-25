@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ comment.author_display_name }} · Wingman{% endblock %}
+{% block content %}
+  <a class="back-link" href="{{ url_for('inbox') }}">← Back to inbox</a>
+  <article class="comment-detail">
+    <div class="comment-heading">
+      <h1>{{ comment.author_display_name }}</h1>
+      <span class="status">{{ comment.status|replace('_', ' ')|title }}</span>
+    </div>
+    <p class="comment-text">{{ comment.text }}</p>
+    <dl class="metadata">
+      <div><dt>Video</dt><dd>{{ comment.video_title }}</dd></div>
+      <div><dt>Video ID</dt><dd>{{ comment.video_id }}</dd></div>
+      <div><dt>Published</dt><dd>{{ comment.published_at }}</dd></div>
+      <div><dt>Priority</dt><dd>{{ comment.priority or '-' }}</dd></div>
+      <div><dt>Category</dt><dd>{{ comment.category or '-' }}</dd></div>
+      <div>
+        <dt>Needs research</dt>
+        <dd>{{ 'Yes' if comment.needs_research else 'No' }}</dd>
+      </div>
+      {% if comment.classification_reason %}
+        <div>
+          <dt>Classification reason</dt>
+          <dd>{{ comment.classification_reason }}</dd>
+        </div>
+      {% endif %}
+      {% if comment.draft_reply %}
+        <div><dt>Draft reply</dt><dd>{{ comment.draft_reply }}</dd></div>
+      {% endif %}
+      {% if comment.final_reply %}
+        <div><dt>Final reply</dt><dd>{{ comment.final_reply }}</dd></div>
+      {% endif %}
+      {% if comment.replied_at %}
+        <div><dt>Replied at</dt><dd>{{ comment.replied_at }}</dd></div>
+      {% endif %}
+    </dl>
+
+    <div class="actions">
+      <form method="post"
+            action="{{ url_for('toggle_ignored', comment_id=comment.comment_id) }}">
+        <button type="submit">
+          {{ 'Unignore' if comment.is_ignored else 'Ignore' }}
+        </button>
+      </form>
+      <form method="post"
+            action="{{ url_for('toggle_research', comment_id=comment.comment_id) }}">
+        <button type="submit">
+          {{ 'Unmark research' if comment.needs_research else 'Needs research' }}
+        </button>
+      </form>
+      {% if comment.status != 'replied' %}
+        <form method="post"
+              action="{{ url_for('mark_replied', comment_id=comment.comment_id) }}">
+          <button class="primary" type="submit">Mark replied</button>
+        </form>
+      {% endif %}
+    </div>
+  </article>
+{% endblock %}

@@ -1,0 +1,152 @@
+:root {
+  color: #202124;
+  background: #f6f7f9;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+.site-header {
+  background: #202124;
+  padding: 1rem max(1rem, calc((100% - 900px) / 2));
+}
+
+.site-header a {
+  color: white;
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+main {
+  margin: 0 auto;
+  max-width: 900px;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.filters a,
+.back-link {
+  color: #3157a4;
+  text-decoration: none;
+}
+
+.filters a {
+  background: white;
+  border: 1px solid #d7dbe2;
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+}
+
+.filters a.active {
+  background: #3157a4;
+  border-color: #3157a4;
+  color: white;
+}
+
+.comment-list {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.comment-card,
+.comment-detail {
+  background: white;
+  border: 1px solid #dfe2e7;
+  border-radius: 8px;
+  color: inherit;
+  padding: 1rem;
+  text-decoration: none;
+}
+
+.comment-card:hover {
+  border-color: #3157a4;
+}
+
+.comment-heading {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.comment-heading h1 {
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.status {
+  background: #e7edf9;
+  border-radius: 4px;
+  color: #274578;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.45rem;
+  text-transform: uppercase;
+}
+
+.metadata {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 0 0;
+}
+
+.metadata div {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: 8rem 1fr;
+}
+
+.metadata dt {
+  color: #687080;
+}
+
+.metadata dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.comment-text {
+  font-size: 1.1rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1.5rem;
+}
+
+button {
+  background: white;
+  border: 1px solid #aeb5c1;
+  border-radius: 5px;
+  cursor: pointer;
+  padding: 0.6rem 0.85rem;
+}
+
+button.primary {
+  background: #3157a4;
+  border-color: #3157a4;
+  color: white;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 1rem;
+}
+
+.empty-state {
+  color: #687080;
+  text-align: center;
+}

@@ -84,6 +84,18 @@ Existing databases are migrated automatically when the inbox is opened or
 comments are synced. Existing comments default to `new`; ignored and replied
 comments are omitted from the active inbox.
 
+## Minimal inbox UI
+
+Start the local Flask UI:
+
+```bash
+python app.py
+```
+
+Then open `http://127.0.0.1:5000`. The UI lists active inbox comments, provides
+new, research, ignored, and replied filters, and supports local ignore,
+research, and replied state changes. It does not generate or post replies.
+
 ## Tests
 
 The uploads pagination, comment pagination, enabled-state, inbox repository,

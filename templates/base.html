@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Wingman Inbox{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  </head>
+  <body>
+    <header class="site-header">
+      <a href="{{ url_for('inbox') }}">Wingman Inbox</a>
+    </header>
+    <main>{% block content %}{% endblock %}</main>
+  </body>
+</html>

@@ -42,7 +42,51 @@ class CommentRepository:
         create_videos_table(connection)
 
     def list_active_inbox_comments(self) -> list[Comment]:
+        return self.list_inbox_comments("all")
+
+    def list_inbox_comments(self, filter_name: str = "all") -> list[Comment]:
+        filters = {
+            "all": "comments.is_ignored = 0 AND comments.status != 'replied'",
+            "new": (
+                "comments.is_ignored = 0 AND comments.status = 'new'"
+            ),
+            "needs_research": (
+                "comments.is_ignored = 0 AND comments.status != 'replied' "
+                "AND comments.needs_research = 1"
+            ),
+            "ignored": "comments.is_ignored = 1",
+            "replied": "comments.status = 'replied'",
+        }
+        if filter_name not in filters:
+            raise ValueError(f"Unknown inbox filter: {filter_name}")
         rows = self.connection.execute(
+            f"""
+            SELECT
+                comments.comment_id,
+                comments.video_id,
+                COALESCE(videos.title, comments.video_id) AS video_title,
+                comments.author_display_name,
+                comments.text,
+                comments.published_at,
+                comments.status,
+                comments.priority,
+                comments.category,
+                comments.classification_reason,
+                comments.draft_reply,
+                comments.final_reply,
+                comments.needs_research,
+                comments.is_ignored,
+                comments.replied_at
+            FROM comments
+            LEFT JOIN videos ON videos.video_id = comments.video_id
+            WHERE {filters[filter_name]}
+            ORDER BY comments.published_at DESC, comments.comment_id
+            """
+        ).fetchall()
+        return [self._comment_from_row(row) for row in rows]
+
+    def get_comment(self, comment_id: str) -> Comment | None:
+        row = self.connection.execute(
             """
             SELECT
                 comments.comment_id,
@@ -62,36 +106,23 @@ class CommentRepository:
                 comments.replied_at
             FROM comments
             LEFT JOIN videos ON videos.video_id = comments.video_id
-            WHERE comments.is_ignored = 0
-              AND comments.status != 'replied'
-            ORDER BY comments.published_at DESC, comments.comment_id
-            """
-        ).fetchall()
-        return [
-            Comment(
-                comment_id=row["comment_id"],
-                video_id=row["video_id"],
-                video_title=row["video_title"],
-                author_display_name=row["author_display_name"],
-                text=row["text"],
-                published_at=row["published_at"],
-                status=row["status"],
-                priority=row["priority"],
-                category=row["category"],
-                classification_reason=row["classification_reason"],
-                draft_reply=row["draft_reply"],
-                final_reply=row["final_reply"],
-                needs_research=bool(row["needs_research"]),
-                is_ignored=bool(row["is_ignored"]),
-                replied_at=row["replied_at"],
-            )
-            for row in rows
-        ]
+            WHERE comments.comment_id = ?
+            """,
+            (comment_id,),
+        ).fetchone()
+        return self._comment_from_row(row) if row else None
 
     def mark_ignored(self, comment_id: str) -> bool:
         return self._update(
             comment_id,
             "is_ignored = 1, status = 'ignored'",
+            (),
+        )
+
+    def unignore(self, comment_id: str) -> bool:
+        return self._update(
+            comment_id,
+            "is_ignored = 0, status = 'new'",
             (),
         )
 
@@ -136,3 +167,23 @@ class CommentRepository:
                 (*values, comment_id),
             )
         return cursor.rowcount > 0
+
+    @staticmethod
+    def _comment_from_row(row: sqlite3.Row) -> Comment:
+        return Comment(
+            comment_id=row["comment_id"],
+            video_id=row["video_id"],
+            video_title=row["video_title"],
+            author_display_name=row["author_display_name"],
+            text=row["text"],
+            published_at=row["published_at"],
+            status=row["status"],
+            priority=row["priority"],
+            category=row["category"],
+            classification_reason=row["classification_reason"],
+            draft_reply=row["draft_reply"],
+            final_reply=row["final_reply"],
+            needs_research=bool(row["needs_research"]),
+            is_ignored=bool(row["is_ignored"]),
+            replied_at=row["replied_at"],
+        )

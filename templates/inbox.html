@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Wingman Inbox{% endblock %}
+{% block content %}
+  <nav class="filters" aria-label="Inbox filters">
+    {% for key, label in [
+      ("all", "All"),
+      ("new", "New"),
+      ("needs_research", "Needs research"),
+      ("ignored", "Ignored"),
+      ("replied", "Replied")
+    ] %}
+      <a class="{{ 'active' if selected_filter == key else '' }}"
+         href="{{ url_for('inbox', filter=key) }}">{{ label }}</a>
+    {% endfor %}
+  </nav>
+
+  {% if comments %}
+    <section class="comment-list">
+      {% for comment in comments %}
+        <a class="comment-card"
+           href="{{ url_for('comment_detail', comment_id=comment.comment_id) }}">
+          <div class="comment-heading">
+            <strong>{{ comment.author_display_name }}</strong>
+            <span class="status">{{ comment.status|replace('_', ' ')|title }}</span>
+          </div>
+          <p>{{ comment.text }}</p>
+          <dl class="metadata">
+            <div><dt>Video</dt><dd>{{ comment.video_title }}</dd></div>
+            <div><dt>Published</dt><dd>{{ comment.published_at }}</dd></div>
+            <div><dt>Priority</dt><dd>{{ comment.priority or '-' }}</dd></div>
+            <div><dt>Category</dt><dd>{{ comment.category or '-' }}</dd></div>
+            <div>
+              <dt>Needs research</dt>
+              <dd>{{ 'Yes' if comment.needs_research else 'No' }}</dd>
+            </div>
+          </dl>
+        </a>
+      {% endfor %}
+    </section>
+  {% else %}
+    <p class="empty-state">No comments match this filter.</p>
+  {% endif %}
+{% endblock %}
