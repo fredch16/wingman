@@ -18,6 +18,7 @@ from comment_store import connect_database
 from fetch_comments import api_error_message, get_authenticated_youtube_client
 from inbox_repository import CommentRepository
 from learning_service import (
+    ExtractedPreference,
     PreferenceComparison,
     PreferenceLearningService,
     append_learned_preferences,
@@ -294,7 +295,9 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         original_draft = (comment.original_draft_reply or "").strip()
         errors: dict[str, str] = app.extensions["learning_errors"]
         messages: dict[str, str] = app.extensions["learning_messages"]
-        proposals: dict[str, list[str]] = app.extensions["learning_proposals"]
+        proposals: dict[str, list[ExtractedPreference]] = app.extensions[
+            "learning_proposals"
+        ]
         if not original_draft or edited_reply == original_draft:
             errors[comment_id] = (
                 "Make a meaningful edit to the generated draft before learning."
@@ -309,6 +312,9 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                     edited_reply=edited_reply,
                     comment_text=comment.text,
                     video_title=comment.video_title,
+                    video_summary=comment.video_summary,
+                    category=comment.category,
+                    classification_reason=comment.classification_reason,
                 )
             )
             proposals[comment_id] = preferences
@@ -325,7 +331,9 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     def accept_learned_preferences(comment_id: str):
         if repository().get_comment(comment_id) is None:
             abort(404)
-        proposals: dict[str, list[str]] = app.extensions["learning_proposals"]
+        proposals: dict[str, list[ExtractedPreference]] = app.extensions[
+            "learning_proposals"
+        ]
         if comment_id not in proposals:
             abort(409)
         preferences = parse_review_preferences(

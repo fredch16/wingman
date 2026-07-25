@@ -8,6 +8,7 @@ from unittest.mock import Mock
 
 from learning_prompt import PREFERENCE_LEARNING_PROMPT
 from learning_service import (
+    ExtractedPreference,
     ExtractedPreferences,
     PreferenceComparison,
     PreferenceLearningService,
@@ -17,9 +18,15 @@ from learning_service import (
 
 class FakeResponse:
     output_parsed = ExtractedPreferences(
-        preferences=[
-            "Fred prefers shorter replies.",
-            "Fred acknowledges the idea before explaining.",
+        changes=[
+            ExtractedPreference(
+                change_type="length",
+                preference="Fred prefers shorter replies.",
+            ),
+            ExtractedPreference(
+                change_type="acknowledgement",
+                preference="Fred acknowledges the idea before explaining.",
+            ),
         ]
     )
 
@@ -39,14 +46,23 @@ class PreferenceLearningServiceTests(unittest.TestCase):
                 edited_reply="Good idea. Short answer.",
                 comment_text="Could that work?",
                 video_title="PID Explained",
+                video_summary="A 60 second explanation of PID control.",
+                category="technical_question",
+                classification_reason="A useful technical question.",
             )
         )
 
         self.assertEqual(
             preferences,
             [
-                "Fred prefers shorter replies.",
-                "Fred acknowledges the idea before explaining.",
+                ExtractedPreference(
+                    change_type="length",
+                    preference="Fred prefers shorter replies.",
+                ),
+                ExtractedPreference(
+                    change_type="acknowledgement",
+                    preference="Fred acknowledges the idea before explaining.",
+                ),
             ],
         )
         request = parse.call_args.kwargs
@@ -58,6 +74,11 @@ class PreferenceLearningServiceTests(unittest.TestCase):
         )
         self.assertIn("Original AI draft", request["input"][1]["content"])
         self.assertIn("Creator's edited reply", request["input"][1]["content"])
+        self.assertIn(
+            "A 60 second explanation of PID control",
+            request["input"][1]["content"],
+        )
+        self.assertIn("technical_question", request["input"][1]["content"])
 
     def test_appends_only_unique_preferences_under_new_section(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

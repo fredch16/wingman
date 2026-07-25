@@ -152,10 +152,15 @@
           <label for="preferences-{{ comment.comment_id }}">
             Edit before accepting, one preference per line
           </label>
+          <div class="change-types">
+            {% for change in learning_proposal %}
+              <span>{{ change.change_type|replace("_", " ") }}</span>
+            {% endfor %}
+          </div>
           <textarea id="preferences-{{ comment.comment_id }}"
                     name="preferences"
                     rows="{{ [learning_proposal|length + 1, 3]|max }}"
-                    required>{{ learning_proposal|join("\n") }}</textarea>
+                    required>{{ learning_proposal|map(attribute="preference")|join("\n") }}</textarea>
           <div class="learning-review-actions">
             <button class="button primary" type="submit">Accept</button>
             <button class="button"

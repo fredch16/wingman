@@ -10,6 +10,7 @@ from classification_service import CommentClassification
 from comment_store import connect_database, sync_comments
 from fetch_comments import Comment as FetchedComment
 from inbox_repository import CommentRepository
+from learning_service import ExtractedPreference
 from video_catalog import Video, store_discovered_videos
 from youtube_reply import PostedReply
 
@@ -49,11 +50,19 @@ class FakePreferenceLearner:
     def __init__(self) -> None:
         self.calls: list[object] = []
 
-    def extract_preferences(self, comparison: object) -> list[str]:
+    def extract_preferences(
+        self, comparison: object
+    ) -> list[ExtractedPreference]:
         self.calls.append(comparison)
         return [
-            "Fred prefers shorter replies.",
-            "Fred acknowledges ideas before explaining.",
+            ExtractedPreference(
+                change_type="length",
+                preference="Fred prefers shorter replies.",
+            ),
+            ExtractedPreference(
+                change_type="acknowledgement",
+                preference="Fred acknowledges ideas before explaining.",
+            ),
         ]
 
 
@@ -419,8 +428,16 @@ class InboxRouteTests(unittest.TestCase):
             comparison.edited_reply,
             "Good idea. I would keep this reply short.",
         )
+        self.assertEqual(comparison.video_title, "PID Explained in 60 Seconds")
+        self.assertEqual(comparison.category, "community_connection")
+        self.assertEqual(
+            comparison.classification_reason,
+            "Meaningful personal impact.",
+        )
         self.assertIn(b"Review the writing preferences", review.data)
         self.assertIn(b"Fred prefers shorter replies.", review.data)
+        self.assertIn(b"length", review.data)
+        self.assertIn(b"acknowledgement", review.data)
         self.assertNotIn(
             "Learned Preferences",
             self.creator_profile_path.read_text(encoding="utf-8"),
