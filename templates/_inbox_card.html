@@ -34,8 +34,16 @@
     </span>
     <span class="card-comment">{{ comment.text }}</span>
     <span class="card-footer">
-      <span class="video-name">{{ comment.video_title }}</span>
-      <span class="reply-state">
+      <span class="card-context">
+        {% if comment.category %}
+          <span class="category-chip category-{{ comment.category }}">
+            {{ comment.category|replace("_", " ") }}
+          </span>
+        {% endif %}
+        <span class="video-name">{{ comment.video_title }}</span>
+      </span>
+      <span class="reply-state {% if comment.reply_approved_at %}reply-approved{% elif comment.draft_reply %}reply-draft{% else %}reply-needed{% endif %}">
+        <span class="reply-state-dot"></span>
         {% if comment.reply_approved_at %}Approved
         {% elif comment.draft_reply %}Draft ready
         {% else %}Needs reply{% endif %}
