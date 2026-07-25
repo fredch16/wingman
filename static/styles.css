@@ -155,6 +155,11 @@ button.primary {
   color: white;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .back-link {
   display: inline-block;
   margin-bottom: 1rem;
@@ -294,6 +299,125 @@ button.primary {
   margin: 0;
 }
 
+.inbox-heading {
+  align-items: flex-end;
+  margin-bottom: 1.5rem;
+}
+
+.inbox-batch-actions,
+.inbox-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.production-inbox {
+  display: grid;
+  gap: 1rem;
+}
+
+.inbox-card {
+  background: white;
+  border: 1px solid #dfe2e7;
+  border-radius: 8px;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 2fr) minmax(15rem, 1fr);
+  padding: 1rem;
+}
+
+.inbox-card-main {
+  min-width: 0;
+}
+
+.inbox-card-badges,
+.inbox-card-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.category-badge,
+.priority-score {
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.3rem 0.55rem;
+}
+
+.category-badge {
+  background: #e7edf9;
+  color: #274578;
+}
+
+.priority-score {
+  background: #e8f5eb;
+  color: #246333;
+}
+
+.inbox-card-context {
+  color: #687080;
+  font-size: 0.88rem;
+  justify-content: space-between;
+}
+
+.classification-debug {
+  border-left: 1px solid #dfe2e7;
+  padding-left: 1rem;
+}
+
+.classification-debug summary {
+  color: #687080;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.classification-debug h3 {
+  color: #687080;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.classification-debug-mobile {
+  display: none;
+}
+
+.classification-debug dl {
+  display: grid;
+  gap: 0.55rem;
+  margin-bottom: 0;
+}
+
+.classification-debug dl div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.classification-debug dt {
+  color: #687080;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.classification-debug dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.unclassified-section {
+  border-top: 1px solid #dfe2e7;
+  margin-top: 2rem;
+  padding-top: 1rem;
+}
+
+.unclassified-section > summary {
+  cursor: pointer;
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
 @media (max-width: 600px) {
   .page-heading {
     align-items: flex-start;
@@ -302,5 +426,24 @@ button.primary {
 
   .result-comparison {
     grid-template-columns: 1fr;
+  }
+
+  .inbox-card {
+    grid-template-columns: 1fr;
+  }
+
+  .classification-debug {
+    border-left: 0;
+    border-top: 1px solid #dfe2e7;
+    padding-left: 0;
+    padding-top: 0.75rem;
+  }
+
+  .classification-debug-desktop {
+    display: none;
+  }
+
+  .classification-debug-mobile {
+    display: block;
   }
 }

@@ -1,0 +1,46 @@
+<article class="inbox-card">
+  <div class="inbox-card-main">
+    <div class="inbox-card-badges">
+      {% if comment.classified_at %}
+        <span class="category-badge">{{ comment.category }}</span>
+        <span class="priority-score">
+          Priority {{ "%.2f"|format(comment.priority|float) }}
+        </span>
+      {% else %}
+        <span class="status">Unclassified</span>
+      {% endif %}
+    </div>
+    <p class="comment-text">{{ comment.text }}</p>
+    <div class="inbox-card-context">
+      <span>{{ comment.video_title }}</span>
+      <time datetime="{{ comment.published_at }}">{{ comment.published_at }}</time>
+    </div>
+    {% if classification_errors.get(comment.comment_id) %}
+      <p class="classification-error">
+        Classification failed: {{ classification_errors[comment.comment_id] }}
+      </p>
+    {% endif %}
+    <div class="actions inbox-card-actions">
+      <button type="button" disabled title="Reply generation is not implemented yet">
+        Generate Reply
+      </button>
+      <form method="post"
+            action="{{ url_for('classify_comment', comment_id=comment.comment_id) }}">
+        <button class="primary" type="submit">
+          {{ "Reclassify" if comment.classified_at else "Classify This" }}
+        </button>
+      </form>
+    </div>
+  </div>
+
+  {% if comment.classified_at %}
+    <aside class="classification-debug classification-debug-desktop">
+      <h3>Developer details</h3>
+      {% include "_classification_debug_fields.html" %}
+    </aside>
+    <details class="classification-debug classification-debug-mobile">
+      <summary>Developer details</summary>
+      {% include "_classification_debug_fields.html" %}
+    </details>
+  {% endif %}
+</article>

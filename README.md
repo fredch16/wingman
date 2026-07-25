@@ -122,10 +122,11 @@ Start the local Flask UI:
 python app.py
 ```
 
-Then open `http://127.0.0.1:5000`. The UI lists active inbox comments, provides
-new, research, ignored, and replied filters, and supports local ignore,
-research, and replied state changes. Comment details include a direct
-**Open on YouTube** link. The UI does not generate replies automatically.
+Then open `http://127.0.0.1:5000`. The UI ranks classified, unreplied comments
+and keeps unclassified comments in a separate section with explicit
+classification actions. Comment details still support local workflow changes
+and include a direct **Open on YouTube** link. The UI does not generate replies
+automatically.
 
 Comment detail pages include a reply form that publishes directly beneath the
 top-level YouTube comment. Posting is explicit and immediate. Wingman updates
@@ -147,6 +148,20 @@ structured results can be compared side by side. It logs each prompt, raw
 response, and parsed JSON to the terminal. Playground results are held in
 process memory only: they are never written to the comments database and reset
 when the Flask process restarts.
+
+## Production classification inbox
+
+The main inbox displays classified, unreplied comments in descending priority,
+then newest-first order. Use **Classify This**, **Classify Top 10 Unclassified**,
+or **Classify All Unclassified** to run classification explicitly; opening the
+page never calls OpenAI. The production workflow reuses the same structured
+classifier and prompt as the playground.
+
+Each completed classification stores its category, priority, reply-worthiness,
+research flag, reason, timestamp, model, and prompt version in SQLite. Reasoning
+and model metadata live in a separate developer panel, while the primary card
+stays focused on the comment and its rank. **Generate Reply** is intentionally
+a disabled placeholder.
 
 ## Tests
 

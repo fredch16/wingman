@@ -2,7 +2,7 @@
 
 import logging
 import os
-from typing import Any
+from typing import Any, Protocol
 
 from openai import OpenAI
 from pydantic import BaseModel, Field
@@ -16,6 +16,10 @@ if not LOGGER.handlers:
     LOGGER.addHandler(handler)
 LOGGER.setLevel(logging.INFO)
 LOGGER.propagate = False
+
+
+class ClassifiableComment(Protocol):
+    text: str
 
 
 class CommentClassification(BaseModel):
@@ -66,3 +70,9 @@ class ClassificationService:
             "Parsed JSON:\n%s", classification.model_dump_json(indent=2)
         )
         return classification
+
+    def classify_comment(
+        self, comment: ClassifiableComment
+    ) -> CommentClassification:
+        """Classify a stored comment through the same prompt and API path."""
+        return self.classify(comment.text)

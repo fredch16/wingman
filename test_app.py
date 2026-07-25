@@ -6,11 +6,34 @@ import unittest
 from pathlib import Path
 
 from app import create_app
+from classification_service import CommentClassification
 from comment_store import connect_database, sync_comments
 from fetch_comments import Comment as FetchedComment
 from inbox_repository import CommentRepository
 from video_catalog import Video, store_discovered_videos
 from youtube_reply import PostedReply
+
+
+class FakeProductionClassifier:
+    model = "test-classification-model"
+
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    def classify(
+        self, comment_text: str, prompt: str | None = None
+    ) -> CommentClassification:
+        self.calls.append(comment_text)
+        return CommentClassification(
+            category="technical_question",
+            priority=0.88,
+            reply_worthy=True,
+            needs_research=False,
+            reason="A useful production comment.",
+        )
+
+    def classify_comment(self, comment: object) -> CommentClassification:
+        return self.classify(comment.text)
 
 
 def fetched_comment(comment_id: str, author: str) -> FetchedComment:
@@ -53,6 +76,8 @@ class InboxRouteTests(unittest.TestCase):
                 connection,
                 [
                     fetched_comment("comment-new", "New Author"),
+                    fetched_comment("comment-low", "Low Priority Author"),
+                    fetched_comment("comment-unclassified", "Unclassified Author"),
                     fetched_comment("comment-ignored", "Ignored Author"),
                     fetched_comment("comment-replied", "Replied Author"),
                 ],
@@ -63,6 +88,28 @@ class InboxRouteTests(unittest.TestCase):
                 "comment-replied",
                 "Already answered",
                 "2026-07-25T12:00:00Z",
+            )
+            repository.save_classification(
+                "comment-new",
+                category="community_connection",
+                priority=0.95,
+                reply_worthy=True,
+                needs_research=False,
+                reason="Meaningful personal impact.",
+                classification_model="old-model",
+                classification_version="production-v1",
+                classified_at="2026-07-25T12:01:00Z",
+            )
+            repository.save_classification(
+                "comment-low",
+                category="generic_praise",
+                priority=0.25,
+                reply_worthy=True,
+                needs_research=False,
+                reason="Genuine but lower priority.",
+                classification_model="old-model",
+                classification_version="production-v1",
+                classified_at="2026-07-25T12:00:00Z",
             )
         finally:
             connection.close()
@@ -78,12 +125,14 @@ class InboxRouteTests(unittest.TestCase):
             )
 
         self.youtube = object()
+        self.classifier = FakeProductionClassifier()
         app = create_app(
             {
                 "TESTING": True,
                 "DATABASE": self.database_path,
                 "YOUTUBE_CLIENT": self.youtube,
                 "YOUTUBE_REPLY_SERVICE": post_reply,
+                "CLASSIFICATION_SERVICE": self.classifier,
             }
         )
         self.client = app.test_client()
@@ -102,29 +151,38 @@ class InboxRouteTests(unittest.TestCase):
         finally:
             connection.close()
 
-    def test_inbox_lists_active_comments_and_fields(self) -> None:
+    def test_inbox_lists_ranked_classified_comments_and_debug_fields(self) -> None:
         response = self.client.get("/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"New Author", response.data)
         self.assertIn(b"Full text for comment-new", response.data)
+        self.assertIn(b"Full text for comment-low", response.data)
         self.assertIn(b"PID Explained in 60 Seconds", response.data)
         self.assertIn(b"2026-07-25T10:00:00Z", response.data)
-        self.assertIn(b"Priority", response.data)
-        self.assertIn(b"Category", response.data)
+        self.assertIn(b"Priority 0.95", response.data)
+        self.assertIn(b"community_connection", response.data)
+        self.assertIn(b"Meaningful personal impact.", response.data)
+        self.assertIn(b"old-model", response.data)
+        self.assertIn(b"production-v1", response.data)
+        self.assertIn(b"Generate Reply", response.data)
+        self.assertIn(b"Reclassify", response.data)
+        self.assertLess(
+            response.data.index(b"Full text for comment-new"),
+            response.data.index(b"Full text for comment-low"),
+        )
         self.assertIn(b"Needs research", response.data)
         self.assertNotIn(b"Ignored Author", response.data)
         self.assertNotIn(b"Replied Author", response.data)
+        self.assertEqual(self.classifier.calls, [])
 
-    def test_filters_show_matching_comments(self) -> None:
-        ignored = self.client.get("/?filter=ignored")
-        replied = self.client.get("/?filter=replied")
-        new = self.client.get("/?filter=new")
+    def test_unclassified_comments_have_manual_and_batch_actions(self) -> None:
+        response = self.client.get("/")
 
-        self.assertIn(b"Ignored Author", ignored.data)
-        self.assertNotIn(b"New Author", ignored.data)
-        self.assertIn(b"Replied Author", replied.data)
-        self.assertIn(b"New Author", new.data)
+        self.assertIn(b"Unclassified comments", response.data)
+        self.assertIn(b"Full text for comment-unclassified", response.data)
+        self.assertIn(b"Classify This", response.data)
+        self.assertIn(b"Classify Top 10 Unclassified", response.data)
+        self.assertIn(b"Classify All Unclassified", response.data)
 
     def test_comment_detail_and_missing_comment(self) -> None:
         response = self.client.get("/comments/comment-new")
@@ -152,8 +210,6 @@ class InboxRouteTests(unittest.TestCase):
     def test_research_action_toggles_state_and_filter(self) -> None:
         self.client.post("/comments/comment-new/research")
         self.assertEqual(self.row("comment-new")["needs_research"], 1)
-        filtered = self.client.get("/?filter=needs_research")
-        self.assertIn(b"New Author", filtered.data)
 
         self.client.post("/comments/comment-new/research")
         self.assertEqual(self.row("comment-new")["needs_research"], 0)
@@ -165,9 +221,67 @@ class InboxRouteTests(unittest.TestCase):
         row = self.row("comment-new")
         self.assertEqual(row["status"], "replied")
         self.assertIsNotNone(row["replied_at"])
-        self.assertIn(
-            b"New Author", self.client.get("/?filter=replied").data
+        self.assertNotIn(
+            b"Full text for comment-new", self.client.get("/").data
         )
+
+    def test_classifies_and_persists_real_comment(self) -> None:
+        response = self.client.post(
+            "/comments/comment-unclassified/classify",
+            follow_redirects=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            self.classifier.calls,
+            ["Full text for comment-unclassified"],
+        )
+        row = self.row("comment-unclassified")
+        self.assertEqual(row["category"], "technical_question")
+        self.assertEqual(float(row["priority"]), 0.88)
+        self.assertEqual(row["reply_worthy"], 1)
+        self.assertEqual(row["needs_research"], 0)
+        self.assertEqual(
+            row["classification_reason"], "A useful production comment."
+        )
+        self.assertIsNotNone(row["classified_at"])
+        self.assertEqual(
+            row["classification_model"], "test-classification-model"
+        )
+        self.assertEqual(row["classification_version"], "production-v1")
+        self.assertIn(b"Full text for comment-unclassified", response.data)
+        self.assertIn(b"Priority 0.88", response.data)
+
+    def test_reclassifies_existing_comment(self) -> None:
+        response = self.client.post(
+            "/comments/comment-new/classify",
+            follow_redirects=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(float(self.row("comment-new")["priority"]), 0.88)
+        self.assertIn(b"Reclassify", response.data)
+
+    def test_batch_actions_limit_top_ten_then_classify_the_rest(self) -> None:
+        connection = connect_database(self.database_path)
+        try:
+            sync_comments(
+                connection,
+                [
+                    fetched_comment(f"batch-{index:02d}", f"Batch Author {index}")
+                    for index in range(11)
+                ],
+            )
+        finally:
+            connection.close()
+
+        top_ten = self.client.post("/inbox/classify-top-10")
+        self.assertEqual(top_ten.status_code, 302)
+        self.assertEqual(len(self.classifier.calls), 10)
+
+        classify_rest = self.client.post("/inbox/classify-all")
+        self.assertEqual(classify_rest.status_code, 302)
+        self.assertEqual(len(self.classifier.calls), 12)
 
     def test_posts_reply_to_youtube_then_updates_inbox(self) -> None:
         detail = self.client.get("/comments/comment-new")

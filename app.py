@@ -15,9 +15,8 @@ from classification_service import ClassificationService, CommentClassification
 from comment_store import connect_database
 from fetch_comments import api_error_message, get_authenticated_youtube_client
 from inbox_repository import CommentRepository
+from production_classification import classify_stored_comment
 from youtube_reply import post_comment_reply
-
-INBOX_FILTERS = {"all", "new", "needs_research", "ignored", "replied"}
 
 
 def create_app(test_config: dict[str, Any] | None = None) -> Flask:
@@ -41,6 +40,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     app.extensions["previous_classification_errors"] = {}
     app.extensions["reply_errors"] = {}
     app.extensions["reply_drafts"] = {}
+    app.extensions["production_classification_errors"] = {}
 
     def classification_service() -> ClassificationService:
         if "classification_service" not in app.extensions:
@@ -66,14 +66,57 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
 
     @app.get("/")
     def inbox() -> str:
-        selected_filter = request.args.get("filter", "all")
-        if selected_filter not in INBOX_FILTERS:
-            abort(400)
         return render_template(
             "inbox.html",
-            comments=repository().list_inbox_comments(selected_filter),
-            selected_filter=selected_filter,
+            comments=repository().list_classified_inbox_comments(),
+            unclassified_comments=repository().list_unclassified_inbox_comments(),
+            classification_errors=app.extensions[
+                "production_classification_errors"
+            ],
         )
+
+    def classify_production_comment(comment_id: str) -> None:
+        comment = repository().get_comment(comment_id)
+        if comment is None:
+            abort(404)
+        if (
+            comment.status == "replied"
+            or comment.has_creator_reply
+            or comment.is_ignored
+        ):
+            abort(409)
+        errors: dict[str, str] = app.extensions[
+            "production_classification_errors"
+        ]
+        try:
+            classify_stored_comment(
+                repository(),
+                classification_service(),
+                comment_id,
+            )
+            errors.pop(comment_id, None)
+        except Exception as error:
+            errors[comment_id] = str(error)
+            app.logger.exception(
+                "Production classification failed for %s", comment_id
+            )
+
+    @app.post("/comments/<comment_id>/classify")
+    def classify_comment(comment_id: str):
+        classify_production_comment(comment_id)
+        return redirect(url_for("inbox"))
+
+    @app.post("/inbox/classify-top-10")
+    def classify_top_10():
+        for comment in repository().list_unclassified_inbox_comments(limit=10):
+            classify_production_comment(comment.comment_id)
+        return redirect(url_for("inbox"))
+
+    @app.post("/inbox/classify-all")
+    def classify_all_unclassified():
+        for comment in repository().list_unclassified_inbox_comments():
+            classify_production_comment(comment.comment_id)
+        return redirect(url_for("inbox"))
 
     @app.get("/comments/<comment_id>")
     def comment_detail(comment_id: str) -> str:

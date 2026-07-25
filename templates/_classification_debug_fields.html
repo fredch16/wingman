@@ -1,0 +1,14 @@
+<dl>
+  <div><dt>Reason</dt><dd>{{ comment.classification_reason }}</dd></div>
+  <div>
+    <dt>Reply worthy</dt>
+    <dd>{{ "Yes" if comment.reply_worthy else "No" }}</dd>
+  </div>
+  <div>
+    <dt>Needs research</dt>
+    <dd>{{ "Yes" if comment.needs_research else "No" }}</dd>
+  </div>
+  <div><dt>Model</dt><dd>{{ comment.classification_model }}</dd></div>
+  <div><dt>Version</dt><dd>{{ comment.classification_version }}</dd></div>
+  <div><dt>Classified</dt><dd>{{ comment.classified_at }}</dd></div>
+</dl>

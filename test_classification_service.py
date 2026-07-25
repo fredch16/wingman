@@ -1,6 +1,7 @@
 """Focused tests for structured OpenAI classification."""
 
 import unittest
+from dataclasses import dataclass
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -81,6 +82,30 @@ class ClassificationServiceTests(unittest.TestCase):
         self.assertEqual(
             parse.call_args.kwargs["input"][0],
             {"role": "system", "content": PREVIOUS_CLASSIFICATION_PROMPT},
+        )
+
+    def test_classify_comment_reuses_the_same_classifier(self) -> None:
+        @dataclass
+        class StoredComment:
+            text: str
+
+        expected = CommentClassification(
+            category="technical_question",
+            priority=0.8,
+            reply_worthy=True,
+            needs_research=False,
+            reason="Useful question.",
+        )
+        parse = Mock(return_value=FakeResponse(expected))
+        client = SimpleNamespace(responses=SimpleNamespace(parse=parse))
+        service = ClassificationService(client=client, model="test-model")
+
+        result = service.classify_comment(StoredComment("Stored text"))
+
+        self.assertEqual(result, expected)
+        self.assertEqual(
+            parse.call_args.kwargs["input"][1],
+            {"role": "user", "content": "Stored text"},
         )
 
     def test_missing_parsed_output_is_an_error(self) -> None:

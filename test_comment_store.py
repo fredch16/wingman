@@ -114,6 +114,8 @@ class CommentStoreTests(unittest.TestCase):
         row = connection.execute(
             """
             SELECT status, priority, category, classification_reason,
+                   reply_worthy, classified_at, classification_model,
+                   classification_version,
                    draft_reply, final_reply, needs_research, is_ignored,
                    replied_at, has_creator_reply, creator_reply_id,
                    creator_replied_at, reply_status_checked_at
@@ -124,6 +126,10 @@ class CommentStoreTests(unittest.TestCase):
         self.assertIsNone(row["priority"])
         self.assertIsNone(row["category"])
         self.assertIsNone(row["classification_reason"])
+        self.assertIsNone(row["reply_worthy"])
+        self.assertIsNone(row["classified_at"])
+        self.assertIsNone(row["classification_model"])
+        self.assertIsNone(row["classification_version"])
         self.assertIsNone(row["draft_reply"])
         self.assertIsNone(row["final_reply"])
         self.assertEqual(row["needs_research"], 0)

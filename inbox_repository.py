@@ -22,9 +22,13 @@ class Comment:
     text: str
     published_at: str
     status: str
-    priority: str | None
+    priority: float | None
     category: str | None
     classification_reason: str | None
+    reply_worthy: bool | None
+    classified_at: str | None
+    classification_model: str | None
+    classification_version: str | None
     draft_reply: str | None
     final_reply: str | None
     needs_research: bool
@@ -51,6 +55,56 @@ class CommentRepository:
 
     def list_active_inbox_comments(self) -> list[Comment]:
         return self.list_inbox_comments("all")
+
+    def list_classified_inbox_comments(self) -> list[Comment]:
+        return self._list_production_comments(classified=True)
+
+    def list_unclassified_inbox_comments(
+        self, limit: int | None = None
+    ) -> list[Comment]:
+        return self._list_production_comments(classified=False, limit=limit)
+
+    def _list_production_comments(
+        self, classified: bool, limit: int | None = None
+    ) -> list[Comment]:
+        classification_filter = (
+            "comments.classified_at IS NOT NULL"
+            if classified
+            else "comments.classified_at IS NULL"
+        )
+        order_by = (
+            "CAST(comments.priority AS REAL) DESC, "
+            "comments.published_at DESC, comments.comment_id"
+            if classified
+            else "comments.published_at DESC, comments.comment_id"
+        )
+        limit_clause = " LIMIT ?" if limit is not None else ""
+        parameters: list[object] = [
+            CREATOR_HANDLE,
+            CREATOR_CHANNEL_SETTING,
+        ]
+        if limit is not None:
+            parameters.append(limit)
+        rows = self.connection.execute(
+            f"""
+            {self._comment_select()}
+            WHERE comments.is_ignored = 0
+              AND comments.status != 'replied'
+              AND comments.has_creator_reply = 0
+              AND {classification_filter}
+              AND LOWER(comments.author_display_name) != ?
+              AND NOT (
+                  comments.author_channel_id IS NOT NULL
+                  AND comments.author_channel_id = (
+                      SELECT value FROM settings WHERE key = ?
+                  )
+              )
+            ORDER BY {order_by}
+            {limit_clause}
+            """,
+            parameters,
+        ).fetchall()
+        return [self._comment_from_row(row) for row in rows]
 
     def list_inbox_comments(self, filter_name: str = "all") -> list[Comment]:
         filters = {
@@ -85,6 +139,10 @@ class CommentRepository:
                 comments.priority,
                 comments.category,
                 comments.classification_reason,
+                comments.reply_worthy,
+                comments.classified_at,
+                comments.classification_model,
+                comments.classification_version,
                 comments.draft_reply,
                 comments.final_reply,
                 comments.needs_research,
@@ -124,6 +182,10 @@ class CommentRepository:
                 comments.priority,
                 comments.category,
                 comments.classification_reason,
+                comments.reply_worthy,
+                comments.classified_at,
+                comments.classification_model,
+                comments.classification_version,
                 comments.draft_reply,
                 comments.final_reply,
                 comments.needs_research,
@@ -198,7 +260,7 @@ class CommentRepository:
             (final_reply, timestamp, reply_id, timestamp, timestamp),
         )
 
-    def update_priority(self, comment_id: str, priority: str | None) -> bool:
+    def update_priority(self, comment_id: str, priority: float | None) -> bool:
         return self._update(comment_id, "priority = ?", (priority,))
 
     def update_category(self, comment_id: str, category: str | None) -> bool:
@@ -208,6 +270,43 @@ class CommentRepository:
         self, comment_id: str, draft_reply: str | None
     ) -> bool:
         return self._update(comment_id, "draft_reply = ?", (draft_reply,))
+
+    def save_classification(
+        self,
+        comment_id: str,
+        *,
+        category: str,
+        priority: float,
+        reply_worthy: bool,
+        needs_research: bool,
+        reason: str,
+        classification_model: str,
+        classification_version: str,
+        classified_at: str | None = None,
+    ) -> bool:
+        return self._update(
+            comment_id,
+            """
+            category = ?,
+            priority = ?,
+            reply_worthy = ?,
+            needs_research = ?,
+            classification_reason = ?,
+            classified_at = ?,
+            classification_model = ?,
+            classification_version = ?
+            """,
+            (
+                category,
+                priority,
+                int(reply_worthy),
+                int(needs_research),
+                reason,
+                classified_at or utc_now(),
+                classification_model,
+                classification_version,
+            ),
+        )
 
     def _update(
         self, comment_id: str, assignments: str, values: tuple[object, ...]
@@ -229,9 +328,19 @@ class CommentRepository:
             text=row["text"],
             published_at=row["published_at"],
             status=row["status"],
-            priority=row["priority"],
+            priority=(
+                float(row["priority"]) if row["priority"] is not None else None
+            ),
             category=row["category"],
             classification_reason=row["classification_reason"],
+            reply_worthy=(
+                bool(row["reply_worthy"])
+                if row["reply_worthy"] is not None
+                else None
+            ),
+            classified_at=row["classified_at"],
+            classification_model=row["classification_model"],
+            classification_version=row["classification_version"],
             draft_reply=row["draft_reply"],
             final_reply=row["final_reply"],
             needs_research=bool(row["needs_research"]),
@@ -242,3 +351,34 @@ class CommentRepository:
             creator_replied_at=row["creator_replied_at"],
             reply_status_checked_at=row["reply_status_checked_at"],
         )
+
+    @staticmethod
+    def _comment_select() -> str:
+        return """
+            SELECT
+                comments.comment_id,
+                comments.video_id,
+                COALESCE(videos.title, comments.video_id) AS video_title,
+                comments.author_display_name,
+                comments.text,
+                comments.published_at,
+                comments.status,
+                comments.priority,
+                comments.category,
+                comments.classification_reason,
+                comments.reply_worthy,
+                comments.classified_at,
+                comments.classification_model,
+                comments.classification_version,
+                comments.draft_reply,
+                comments.final_reply,
+                comments.needs_research,
+                comments.is_ignored,
+                comments.replied_at,
+                comments.has_creator_reply,
+                comments.creator_reply_id,
+                comments.creator_replied_at,
+                comments.reply_status_checked_at
+            FROM comments
+            LEFT JOIN videos ON videos.video_id = comments.video_id
+        """

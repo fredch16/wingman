@@ -62,7 +62,7 @@ class CommentRepositoryTests(unittest.TestCase):
 
     def test_updates_inbox_fields(self) -> None:
         self.assertTrue(self.repository.mark_needs_research("comment-1"))
-        self.assertTrue(self.repository.update_priority("comment-1", "high"))
+        self.assertTrue(self.repository.update_priority("comment-1", 0.75))
         self.assertTrue(self.repository.update_category("comment-1", "technical"))
         self.assertTrue(
             self.repository.update_draft_reply("comment-1", "Draft response")
@@ -75,7 +75,7 @@ class CommentRepositoryTests(unittest.TestCase):
             """
         ).fetchone()
         self.assertEqual(row["needs_research"], 1)
-        self.assertEqual(row["priority"], "high")
+        self.assertEqual(float(row["priority"]), 0.75)
         self.assertEqual(row["category"], "technical")
         self.assertEqual(row["draft_reply"], "Draft response")
 
@@ -186,6 +186,50 @@ class CommentRepositoryTests(unittest.TestCase):
         self.assertEqual(
             self.repository.list_active_inbox_comments(),
             [],
+        )
+
+    def test_saves_and_ranks_production_classifications(self) -> None:
+        self.repository.save_classification(
+            "comment-1",
+            category="technical_question",
+            priority=0.72,
+            reply_worthy=True,
+            needs_research=False,
+            reason="Useful question.",
+            classification_model="test-model",
+            classification_version="production-v1",
+            classified_at="2026-07-25T12:00:00Z",
+        )
+        self.repository.save_classification(
+            "comment-2",
+            category="community_connection",
+            priority=0.94,
+            reply_worthy=True,
+            needs_research=False,
+            reason="Meaningful personal impact.",
+            classification_model="test-model",
+            classification_version="production-v1",
+            classified_at="2026-07-25T12:01:00Z",
+        )
+
+        classified = self.repository.list_classified_inbox_comments()
+
+        self.assertEqual(
+            [comment.comment_id for comment in classified],
+            ["comment-2", "comment-1"],
+        )
+        self.assertEqual(classified[0].priority, 0.94)
+        self.assertTrue(classified[0].reply_worthy)
+        self.assertEqual(
+            classified[0].classification_reason,
+            "Meaningful personal impact.",
+        )
+        self.assertEqual(classified[0].classification_model, "test-model")
+        self.assertEqual(
+            classified[0].classification_version, "production-v1"
+        )
+        self.assertEqual(
+            self.repository.list_unclassified_inbox_comments(), []
         )
 
 
