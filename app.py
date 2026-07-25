@@ -10,6 +10,7 @@ from google.auth.exceptions import GoogleAuthError
 from googleapiclient.errors import HttpError
 
 from classification_playground import PLAYGROUND_COMMENTS, get_playground_comment
+from classification_prompt import PREVIOUS_CLASSIFICATION_PROMPT
 from classification_service import ClassificationService, CommentClassification
 from comment_store import connect_database
 from fetch_comments import api_error_message, get_authenticated_youtube_client
@@ -36,6 +37,8 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
 
     app.extensions["classification_results"] = {}
     app.extensions["classification_errors"] = {}
+    app.extensions["previous_classification_results"] = {}
+    app.extensions["previous_classification_errors"] = {}
     app.extensions["reply_errors"] = {}
     app.extensions["reply_drafts"] = {}
 
@@ -159,10 +162,15 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             comments=PLAYGROUND_COMMENTS,
             results=app.extensions["classification_results"],
             errors=app.extensions["classification_errors"],
+            previous_results=app.extensions["previous_classification_results"],
+            previous_errors=app.extensions["previous_classification_errors"],
             model=app.config["OPENAI_MODEL"],
         )
 
-    def classify_playground_comment(comment_id: str) -> None:
+    def classify_playground_comment(
+        comment_id: str,
+        preserve_current_as_previous: bool = True,
+    ) -> None:
         comment = get_playground_comment(comment_id)
         if comment is None:
             abort(404)
@@ -170,6 +178,11 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             "classification_results"
         ]
         errors: dict[str, str] = app.extensions["classification_errors"]
+        previous_results: dict[str, CommentClassification] = app.extensions[
+            "previous_classification_results"
+        ]
+        if preserve_current_as_previous and comment_id in results:
+            previous_results[comment_id] = results[comment_id]
         try:
             results[comment_id] = classification_service().classify(comment.text)
             errors.pop(comment_id, None)
@@ -185,8 +198,32 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
 
     @app.post("/classification-playground/classify-all")
     def classify_all():
+        previous_results: dict[str, CommentClassification] = app.extensions[
+            "previous_classification_results"
+        ]
+        previous_errors: dict[str, str] = app.extensions[
+            "previous_classification_errors"
+        ]
         for comment in PLAYGROUND_COMMENTS:
-            classify_playground_comment(comment.comment_id)
+            try:
+                previous_results[comment.comment_id] = (
+                    classification_service().classify(
+                        comment.text,
+                        prompt=PREVIOUS_CLASSIFICATION_PROMPT,
+                    )
+                )
+                previous_errors.pop(comment.comment_id, None)
+            except Exception as error:
+                previous_results.pop(comment.comment_id, None)
+                previous_errors[comment.comment_id] = str(error)
+                app.logger.exception(
+                    "Previous-prompt classification failed for %s",
+                    comment.comment_id,
+                )
+            classify_playground_comment(
+                comment.comment_id,
+                preserve_current_as_previous=False,
+            )
         return redirect(url_for("classification_playground"))
 
     return app

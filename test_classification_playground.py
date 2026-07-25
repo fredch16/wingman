@@ -17,7 +17,9 @@ class FakeClassificationService:
     def __init__(self) -> None:
         self.calls: list[str] = []
 
-    def classify(self, comment_text: str) -> CommentClassification:
+    def classify(
+        self, comment_text: str, prompt: str | None = None
+    ) -> CommentClassification:
         self.calls.append(comment_text)
         return CommentClassification(
             category="test_category",
@@ -99,6 +101,16 @@ class ClassificationPlaygroundRouteTests(unittest.TestCase):
                 "shared-experience",
             },
         )
+        expected_by_id = {
+            comment.comment_id: comment.expected_intent
+            for comment in PLAYGROUND_COMMENTS
+        }
+        self.assertIn("0.20-0.40", expected_by_id["generic-praise"])
+        self.assertIn("reply-worthy", expected_by_id["generic-praise"])
+        self.assertIn("0.90-1.00", expected_by_id["technical-correction"])
+        self.assertIn(
+            "needs_research false", expected_by_id["content-idea"]
+        )
 
     def test_classify_one_displays_result(self) -> None:
         comment = PLAYGROUND_COMMENTS[0]
@@ -113,6 +125,8 @@ class ClassificationPlaygroundRouteTests(unittest.TestCase):
         self.assertIn(b"test_category", response.data)
         self.assertIn(b"0.75", response.data)
         self.assertIn(b"A deterministic test classification.", response.data)
+        self.assertIn(b"Previous result", response.data)
+        self.assertIn(b"New result", response.data)
 
     def test_classify_all_classifies_ten_without_writing_database(self) -> None:
         response = self.client.post(
@@ -120,8 +134,8 @@ class ClassificationPlaygroundRouteTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(self.service.calls), 10)
-        self.assertEqual(response.data.count(b"test_category"), 10)
+        self.assertEqual(len(self.service.calls), 20)
+        self.assertEqual(response.data.count(b"test_category"), 20)
 
         connection = sqlite3.connect(self.database_path)
         try:

@@ -142,10 +142,11 @@ Flask UI and open `http://127.0.0.1:5000/classification-playground`.
 
 The playground contains ten fixed comments covering common creator-inbox
 scenarios. Use **Classify** for one example or **Classify All** for the complete
-set. It calls the OpenAI Responses API with structured output and logs the
-prompt, raw response, and parsed JSON to the terminal. Playground results are
-held in process memory only: they are never written to the comments database
-and reset when the Flask process restarts.
+set. **Classify All** runs both the previous and current prompts so their
+structured results can be compared side by side. It logs each prompt, raw
+response, and parsed JSON to the terminal. Playground results are held in
+process memory only: they are never written to the comments database and reset
+when the Flask process restarts.
 
 ## Tests
 

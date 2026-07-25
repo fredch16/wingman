@@ -4,7 +4,10 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from classification_prompt import CLASSIFICATION_PROMPT
+from classification_prompt import (
+    CLASSIFICATION_PROMPT,
+    PREVIOUS_CLASSIFICATION_PROMPT,
+)
 from classification_service import ClassificationService, CommentClassification
 
 
@@ -12,7 +15,7 @@ class FakeResponse:
     def __init__(self, classification: CommentClassification | None) -> None:
         self.output_parsed = classification
 
-    def model_dump_json(self, indent: int) -> str:
+    def model_dump_json(self, indent: int, warnings: bool = True) -> str:
         return '{"id": "response-test"}'
 
 
@@ -23,10 +26,14 @@ class ClassificationServiceTests(unittest.TestCase):
             CLASSIFICATION_PROMPT,
         )
         self.assertIn("community_connection", CLASSIFICATION_PROMPT)
-        self.assertIn("Technical questions", CLASSIFICATION_PROMPT)
-        self.assertIn("heartfelt appreciation", CLASSIFICATION_PROMPT)
-        self.assertIn("Do not optimize for engagement", CLASSIFICATION_PROMPT)
+        self.assertIn("technical questions", CLASSIFICATION_PROMPT)
+        self.assertIn("meaningful personal impact", CLASSIFICATION_PROMPT)
+        self.assertIn("Do not optimize\nfor engagement", CLASSIFICATION_PROMPT)
         self.assertIn("Do not use\nquick_acknowledgement", CLASSIFICATION_PROMPT)
+        self.assertIn("0.90-1.00", CLASSIFICATION_PROMPT)
+        self.assertIn("0.00-0.09", CLASSIFICATION_PROMPT)
+        self.assertIn("primary output", CLASSIFICATION_PROMPT)
+        self.assertIn("immediate response", CLASSIFICATION_PROMPT)
 
     def test_classify_uses_responses_parse_and_returns_structured_result(self) -> None:
         expected = CommentClassification(
@@ -56,6 +63,25 @@ class ClassificationServiceTests(unittest.TestCase):
         self.assertIn("Classification prompt", output)
         self.assertIn("Raw response", output)
         self.assertIn("Parsed JSON", output)
+
+    def test_classify_can_compare_with_previous_prompt(self) -> None:
+        expected = CommentClassification(
+            category="generic_praise",
+            priority=0.3,
+            reply_worthy=True,
+            needs_research=False,
+            reason="Genuine but low priority.",
+        )
+        parse = Mock(return_value=FakeResponse(expected))
+        client = SimpleNamespace(responses=SimpleNamespace(parse=parse))
+        service = ClassificationService(client=client, model="test-model")
+
+        service.classify("Nice video!", prompt=PREVIOUS_CLASSIFICATION_PROMPT)
+
+        self.assertEqual(
+            parse.call_args.kwargs["input"][0],
+            {"role": "system", "content": PREVIOUS_CLASSIFICATION_PROMPT},
+        )
 
     def test_missing_parsed_output_is_an_error(self) -> None:
         client = SimpleNamespace(

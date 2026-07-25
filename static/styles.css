@@ -224,6 +224,18 @@ button.primary {
   padding: 0.85rem;
 }
 
+.result-comparison {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 1rem;
+}
+
+.result-comparison h3 {
+  font-size: 0.9rem;
+  margin: 0;
+}
+
 .classification-result div {
   display: grid;
   gap: 0.5rem;
@@ -286,5 +298,9 @@ button.primary {
   .page-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .result-comparison {
+    grid-template-columns: 1fr;
   }
 }

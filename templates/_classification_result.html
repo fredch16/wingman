@@ -1,0 +1,13 @@
+<dl class="classification-result">
+  <div><dt>Priority</dt><dd>{{ "%.2f"|format(result.priority) }}</dd></div>
+  <div><dt>Category</dt><dd>{{ result.category }}</dd></div>
+  <div>
+    <dt>Reply worthy</dt>
+    <dd>{{ "Yes" if result.reply_worthy else "No" }}</dd>
+  </div>
+  <div>
+    <dt>Needs research</dt>
+    <dd>{{ "Yes" if result.needs_research else "No" }}</dd>
+  </div>
+  <div><dt>Reason</dt><dd>{{ result.reason }}</dd></div>
+</dl>

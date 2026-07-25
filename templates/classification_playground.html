@@ -28,28 +28,34 @@
           <span>{{ comment.expected_intent }}</span>
         </div>
 
-        {% if results.get(comment.comment_id) %}
-          {% set result = results[comment.comment_id] %}
-          <dl class="classification-result">
-            <div><dt>Category</dt><dd>{{ result.category }}</dd></div>
-            <div><dt>Priority</dt><dd>{{ "%.2f"|format(result.priority) }}</dd></div>
-            <div>
-              <dt>Reply worthy</dt>
-              <dd>{{ "Yes" if result.reply_worthy else "No" }}</dd>
-            </div>
-            <div>
-              <dt>Needs research</dt>
-              <dd>{{ "Yes" if result.needs_research else "No" }}</dd>
-            </div>
-            <div><dt>Reason</dt><dd>{{ result.reason }}</dd></div>
-          </dl>
-        {% elif errors.get(comment.comment_id) %}
-          <p class="classification-error">
-            Classification failed: {{ errors[comment.comment_id] }}
-          </p>
-        {% else %}
-          <p class="unclassified">Not classified yet.</p>
-        {% endif %}
+        <div class="result-comparison">
+          <section>
+            <h3>Previous result</h3>
+            {% if previous_results.get(comment.comment_id) %}
+              {% set result = previous_results[comment.comment_id] %}
+              {% include "_classification_result.html" %}
+            {% elif previous_errors.get(comment.comment_id) %}
+              <p class="classification-error">
+                Classification failed: {{ previous_errors[comment.comment_id] }}
+              </p>
+            {% else %}
+              <p class="unclassified">No previous result yet.</p>
+            {% endif %}
+          </section>
+          <section>
+            <h3>New result</h3>
+            {% if results.get(comment.comment_id) %}
+              {% set result = results[comment.comment_id] %}
+              {% include "_classification_result.html" %}
+            {% elif errors.get(comment.comment_id) %}
+              <p class="classification-error">
+                Classification failed: {{ errors[comment.comment_id] }}
+              </p>
+            {% else %}
+              <p class="unclassified">Not classified yet.</p>
+            {% endif %}
+          </section>
+        </div>
       </article>
     {% endfor %}
   </section>

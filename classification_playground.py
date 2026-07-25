@@ -16,69 +16,70 @@ PLAYGROUND_COMMENTS = (
         "generic-praise",
         "Generic praise",
         "Nice video!",
-        "Lower priority than specific appreciation; generic_praise and usually "
-        "not essential to reply.",
+        "generic_praise; approximately 0.20-0.40, low priority but potentially "
+        "reply-worthy, with needs_research false.",
     ),
     PlaygroundComment(
         "heartfelt-thanks",
         "Heartfelt thanks",
         "I've struggled with control theory for months, and your explanation "
         "was the first one that made it click. Thank you for taking the time.",
-        "High-value community_connection; reply-worthy despite containing no "
-        "question.",
+        "community_connection; approximately 0.90-1.00, reply-worthy, with "
+        "needs_research false.",
     ),
     PlaygroundComment(
         "inspired-engineer",
         "Inspired to start engineering",
         "Your robot series inspired me to apply for an engineering course. I "
         "start next month and just wanted you to know these videos mattered.",
-        "High-priority community_connection because the creator's work inspired "
-        "a meaningful learning step.",
+        "community_connection; approximately 0.90-1.00 for meaningful personal "
+        "impact, reply-worthy, with needs_research false.",
     ),
     PlaygroundComment(
         "returning-viewer",
         "Returning viewer",
         "I've been here since the first balancing-robot video. It has been great "
         "watching both the project and your explanations improve each week.",
-        "Reply-worthy community_connection that recognizes an ongoing viewer "
-        "relationship.",
+        "community_connection; approximately 0.70-0.89, reply-worthy, with "
+        "needs_research false.",
     ),
     PlaygroundComment(
         "technical-correction",
         "Technical correction",
         "At 4:12 the diagram labels the derivative gain as Ki, but it should be "
         "Kd. The explanation itself sounds correct.",
-        "High-priority constructive_correction that helps the creator and future "
-        "learners; no research should be needed.",
+        "constructive_correction; approximately 0.90-1.00 because video accuracy "
+        "is affected, reply-worthy, with needs_research false.",
     ),
     PlaygroundComment(
         "technical-question",
         "Technical question",
         "If the derivative term reacts to the rate of change, how do you stop "
         "sensor noise from making the controller unstable?",
-        "High-priority technical_question that is useful to answer and normally "
-        "does not require outside research.",
+        "technical_question; approximately 0.80-0.95, reply-worthy, with "
+        "needs_research false.",
     ),
     PlaygroundComment(
         "content-idea",
         "Content idea",
         "Could you make a follow-up comparing a PID controller with model "
         "predictive control on the same robot?",
-        "Reply-worthy content_idea with strong usefulness to the learning "
-        "community.",
+        "content_idea; approximately 0.70-0.89, reply-worthy, and needs_research "
+        "false because only the immediate acknowledgement is assessed.",
     ),
     PlaygroundComment(
         "spam",
         "Spam",
         "Amazing upload! Promote it on my channel and buy followers at "
         "best-growth.example.",
-        "Very low priority spam; not reply-worthy.",
+        "spam; approximately 0.00-0.09, not reply-worthy, with needs_research false.",
     ),
     PlaygroundComment(
         "first",
         "Empty first comment",
         "First.",
-        "Very low priority low_value remark; not reply-worthy.",
+        "low_value; approximately 0.00-0.09, not reply-worthy, with needs_research "
+        "false.",
     ),
     PlaygroundComment(
         "shared-experience",
@@ -86,8 +87,8 @@ PLAYGROUND_COMMENTS = (
         "We used a similar controller on our student rover and learned the hard "
         "way that wheel slip made the encoder data misleading. Your filtering "
         "section would have saved us a week.",
-        "High-value community_connection or meaningful_discussion: a specific "
-        "shared learning experience worth acknowledging.",
+        "community_connection or meaningful_discussion; approximately 0.75-0.90, "
+        "reply-worthy, with needs_research false.",
     ),
 )
 

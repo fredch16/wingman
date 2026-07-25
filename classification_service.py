@@ -38,19 +38,26 @@ class ClassificationService:
         self.client = client or OpenAI(api_key=api_key)
         self.model = model or os.getenv("OPENAI_MODEL", "").strip() or "gpt-5.6-sol"
 
-    def classify(self, comment_text: str) -> CommentClassification:
-        LOGGER.info("Classification prompt:\n%s", CLASSIFICATION_PROMPT)
+    def classify(
+        self,
+        comment_text: str,
+        prompt: str = CLASSIFICATION_PROMPT,
+    ) -> CommentClassification:
+        LOGGER.info("Classification prompt:\n%s", prompt)
         LOGGER.info("Comment to classify:\n%s", comment_text)
 
         response = self.client.responses.parse(
             model=self.model,
             input=[
-                {"role": "system", "content": CLASSIFICATION_PROMPT},
+                {"role": "system", "content": prompt},
                 {"role": "user", "content": comment_text},
             ],
             text_format=CommentClassification,
         )
-        LOGGER.info("Raw response:\n%s", response.model_dump_json(indent=2))
+        LOGGER.info(
+            "Raw response:\n%s",
+            response.model_dump_json(indent=2, warnings=False),
+        )
 
         classification = response.output_parsed
         if classification is None:
