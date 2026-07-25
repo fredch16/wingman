@@ -29,7 +29,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         DATABASE=os.getenv("DATABASE_PATH", "comments.db").strip() or "comments.db",
         OPENAI_MODEL=os.getenv("OPENAI_MODEL", "").strip() or "gpt-5.6-sol",
         CLASSIFICATION_DRY_RUN=(
-            os.getenv("WINGMAN_CLASSIFICATION_DRY_RUN", "true").strip().lower()
+            os.getenv("WINGMAN_CLASSIFICATION_DRY_RUN", "false").strip().lower()
             not in {"0", "false", "no", "off"}
         ),
     )
