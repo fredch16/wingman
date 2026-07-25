@@ -1,6 +1,5 @@
 """Focused tests for YouTube comment pagination."""
 
-import os
 import sqlite3
 import unittest
 from typing import Any
@@ -12,7 +11,6 @@ from fetch_comments import (
     FetchResult,
     PageFetchError,
     PaginationError,
-    configured_video_ids,
     fetch_all_comments_for_video,
     sync_videos,
 )
@@ -149,16 +147,6 @@ class MultipleVideoTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.connection.close()
-
-    def test_comma_separated_video_ids_are_deduplicated(self) -> None:
-        with patch.dict(
-            os.environ,
-            {"YOUTUBE_VIDEO_IDS": "abcdefghijk, lmnopqrstuv,abcdefghijk"},
-            clear=True,
-        ):
-            self.assertEqual(
-                configured_video_ids(), ["abcdefghijk", "lmnopqrstuv"]
-            )
 
     @patch("fetch_comments.fetch_all_comments_for_video")
     def test_multiple_videos_are_synced_separately(self, fetch: Mock) -> None:

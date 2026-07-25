@@ -1,5 +1,6 @@
 """Fetch every top-level comment from configured YouTube videos."""
 
+import argparse
 import os
 import re
 import sqlite3
@@ -17,6 +18,15 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from comment_store import SyncSummary, connect_database, sync_comments
+from video_catalog import (
+    PlaylistPaginationError,
+    VideoStoreSummary,
+    enabled_video_ids,
+    fetch_all_upload_videos,
+    list_stored_videos,
+    set_video_enabled,
+    store_discovered_videos,
+)
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
 
@@ -127,41 +137,10 @@ def get_authenticated_youtube_client() -> Any:
     return build("youtube", "v3", credentials=credentials)
 
 
-def configured_video_ids() -> list[str]:
-    """Read, validate, and deduplicate configured video IDs."""
-    configured = os.getenv("YOUTUBE_VIDEO_IDS", "").strip()
-    if configured:
-        raw_values = configured.split(",")
-    else:
-        legacy_keys = [
-            key
-            for key in os.environ
-            if re.fullmatch(r"YOUTUBE_VIDEO_ID(?:_\d+)?", key)
-        ]
-        legacy_keys.sort(
-            key=lambda key: (
-                0 if key == "YOUTUBE_VIDEO_ID" else int(key.rsplit("_", 1)[1])
-            )
-        )
-        raw_values = [
-            value
-            for key in legacy_keys
-            for value in os.environ[key].split(",")
-        ]
-
-    video_ids = list(dict.fromkeys(value.strip() for value in raw_values if value.strip()))
-    if not video_ids:
-        raise ValueError("Missing required environment variable: YOUTUBE_VIDEO_IDS")
-    invalid_ids = [
-        video_id
-        for video_id in video_ids
-        if not re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id)
-    ]
-    if invalid_ids:
-        raise ValueError(
-            "Every configured YouTube video ID must be 11 characters, not a URL."
-        )
-    return video_ids
+def validate_video_id(video_id: str) -> str:
+    if not re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id):
+        raise ValueError("YouTube video ID must be 11 characters, not a URL.")
+    return video_id
 
 
 def fetch_comment_page(
@@ -320,13 +299,110 @@ def print_sync_results(results: list[VideoSyncResult]) -> None:
             print_comments(result.fetch_result.comments)
 
 
-def main() -> int:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Discover channel uploads and sync top-level YouTube comments."
+    )
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument(
+        "--discover-only",
+        action="store_true",
+        help="discover and store uploads without syncing comments",
+    )
+    modes.add_argument(
+        "--sync-enabled",
+        action="store_true",
+        help="sync comments for all enabled stored videos without discovery",
+    )
+    modes.add_argument(
+        "--video-id",
+        metavar="VIDEO_ID",
+        help="sync comments for one specified video",
+    )
+    modes.add_argument(
+        "--enable-video",
+        metavar="VIDEO_ID",
+        help="enable a stored video",
+    )
+    modes.add_argument(
+        "--disable-video",
+        metavar="VIDEO_ID",
+        help="disable a stored video",
+    )
+    modes.add_argument(
+        "--list-videos",
+        action="store_true",
+        help="list stored videos and their enabled status",
+    )
+    return parser.parse_args(argv)
+
+
+def print_discovery_summary(
+    pages_fetched: int, summary: VideoStoreSummary
+) -> None:
+    print("Discovery summary")
+    print(f"Pages fetched: {pages_fetched}")
+    print(f"Discovered: {summary.discovered}")
+    print(f"Newly inserted: {summary.newly_inserted}")
+    print(f"Updated: {summary.updated}")
+    print(f"Unchanged: {summary.unchanged}\n")
+
+
+def print_video_list(connection: sqlite3.Connection) -> None:
+    videos = list_stored_videos(connection)
+    if not videos:
+        print("No videos stored. Run discovery first.")
+        return
+    for video in videos:
+        status = "enabled" if video.is_enabled else "disabled"
+        print(f"[{status}] {video.video_id} | {video.title}")
+        print(f"Published: {video.published_at or 'Unknown'}")
+
+
+def main(argv: list[str] | None = None) -> int:
     load_dotenv()
+    args = parse_args(argv)
     try:
-        video_ids = configured_video_ids()
-        youtube = get_authenticated_youtube_client()
         database_path = os.getenv("DATABASE_PATH", "comments.db").strip() or "comments.db"
         with connect_database(database_path) as connection:
+            if args.list_videos:
+                print_video_list(connection)
+                return 0
+
+            state_change = args.enable_video or args.disable_video
+            if state_change:
+                video_id = validate_video_id(state_change)
+                is_enabled = bool(args.enable_video)
+                if not set_video_enabled(connection, video_id, is_enabled):
+                    print(
+                        f"Video {video_id} is not stored. Run discovery first.",
+                        file=sys.stderr,
+                    )
+                    return 1
+                status = "enabled" if is_enabled else "disabled"
+                print(f"Video {video_id} is now {status}.")
+                return 0
+
+            youtube = get_authenticated_youtube_client()
+            if args.video_id:
+                video_ids = [validate_video_id(args.video_id)]
+            elif args.sync_enabled:
+                video_ids = enabled_video_ids(connection)
+            else:
+                discovery = fetch_all_upload_videos(youtube)
+                discovery_summary = store_discovered_videos(
+                    connection, discovery.videos
+                )
+                print_discovery_summary(
+                    discovery.pages_fetched, discovery_summary
+                )
+                if args.discover_only:
+                    return 0
+                video_ids = enabled_video_ids(connection)
+
+            if not video_ids:
+                print("No enabled videos to sync.")
+                return 0
             results = sync_videos(youtube, video_ids, connection)
     except ValueError as error:
         print(f"Configuration error: {error}", file=sys.stderr)
@@ -336,6 +412,12 @@ def main() -> int:
         return 1
     except TransportError as error:
         print(f"Network error while authenticating with Google: {error}", file=sys.stderr)
+        return 1
+    except HttpError as error:
+        print(f"YouTube API failure: {api_error_message(error)}", file=sys.stderr)
+        return 1
+    except PlaylistPaginationError as error:
+        print(f"Uploads playlist pagination error: {error}", file=sys.stderr)
         return 1
     except sqlite3.Error as error:
         print(f"SQLite error while saving comments: {error}", file=sys.stderr)

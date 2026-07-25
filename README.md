@@ -1,11 +1,10 @@
 # Wingman YouTube Comment Fetcher
 
-This MVP follows YouTube pagination to fetch every available top-level comment
-from multiple configured public YouTube videos, upserts them into SQLite, and
-prints them in the terminal. Each sync preserves when a comment was first seen,
-refreshes when it was last seen, and reports inserted, updated, and unchanged
-counts. Replies are not fetched yet; the script only prints each thread's total
-reply count.
+This MVP discovers every video in the authenticated channel's uploads playlist,
+stores the video catalog in SQLite, and syncs every top-level comment for
+enabled videos. Uploads and comments are fully paginated. Each sync preserves
+first-seen timestamps, refreshes last-seen timestamps, and reports inserted,
+updated, and unchanged counts. Replies are not fetched yet.
 
 ## Setup and run
 
@@ -20,17 +19,15 @@ reply count.
    cp .env.example .env
    ```
 
-5. Open `.env` and add the OAuth file paths and a comma-separated list of
-   public YouTube video IDs:
+5. Open `.env` and add the OAuth file paths and SQLite database path:
 
    ```dotenv
    YOUTUBE_CLIENT_SECRETS_FILE=client_secret.json
    YOUTUBE_TOKEN_FILE=token.json
-   YOUTUBE_VIDEO_IDS=dQw4w9WgXcQ,aqz-KE-bpKQ
    DATABASE_PATH=comments.db
    ```
 
-   Use only video IDs, not full YouTube URLs. Do not commit `.env`.
+   Do not commit `.env`.
 
 6. Create a virtual environment and install dependencies:
 
@@ -40,7 +37,7 @@ reply count.
    python -m pip install -r requirements.txt
    ```
 
-7. Run the script:
+7. Discover uploads and sync comments for all enabled videos:
 
    ```bash
    python fetch_comments.py
@@ -49,14 +46,39 @@ reply count.
    On the first run, approve the read-only YouTube permission in the browser.
    The resulting OAuth token is saved to `token.json` for later runs.
 
-The script reports a result for each configured video and an overall summary.
-A video with disabled comments, no comments, or another video-specific API
-failure does not prevent later videos from syncing. `comments.db` is created
-automatically and is ignored by Git.
+The default command discovers the channel's uploads before syncing. Newly
+discovered videos are enabled by default. Later discovery runs update metadata
+without changing a video's enabled or disabled status.
+
+## Commands
+
+```bash
+# Discover and store uploads without syncing comments
+python fetch_comments.py --discover-only
+
+# Sync comments for all enabled videos already stored
+python fetch_comments.py --sync-enabled
+
+# Sync comments for one video, regardless of stored status
+python fetch_comments.py --video-id VIDEO_ID
+
+# Enable or disable a stored video
+python fetch_comments.py --enable-video VIDEO_ID
+python fetch_comments.py --disable-video VIDEO_ID
+
+# List stored videos and their status
+python fetch_comments.py --list-videos
+```
+
+The script reports a result for each video and an overall summary. A video with
+disabled comments or no comments does not prevent later videos from syncing.
+Other API failures are reported with the affected video and page.
+`comments.db` is created automatically and is ignored by Git.
 
 ## Tests
 
-The pagination and SQLite persistence tests do not contact YouTube:
+The uploads pagination, comment pagination, enabled-state, and SQLite
+persistence tests do not contact YouTube:
 
 ```bash
 python -m unittest -v
