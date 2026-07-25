@@ -13,11 +13,22 @@ body {
   padding: 1rem max(1rem, calc((100% - 900px) / 2));
 }
 
+.site-header nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
 .site-header a {
   color: white;
   font-size: 1.2rem;
   font-weight: 700;
   text-decoration: none;
+}
+
+.site-header a + a {
+  font-size: 1rem;
+  font-weight: 500;
 }
 
 main {
@@ -152,4 +163,76 @@ button.primary {
 .empty-state {
   color: #687080;
   text-align: center;
+}
+
+.page-heading {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.page-heading h1 {
+  margin-bottom: 0.25rem;
+}
+
+.page-heading p,
+.model-label,
+.unclassified {
+  color: #687080;
+}
+
+.playground-list {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.playground-card {
+  background: white;
+  border: 1px solid #dfe2e7;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.scenario {
+  color: #3157a4;
+  font-weight: 700;
+}
+
+.classification-result {
+  background: #f6f8fc;
+  border-radius: 6px;
+  display: grid;
+  gap: 0.55rem;
+  margin: 1rem 0 0;
+  padding: 0.85rem;
+}
+
+.classification-result div {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: 8rem 1fr;
+}
+
+.classification-result dt {
+  color: #687080;
+}
+
+.classification-result dd {
+  margin: 0;
+}
+
+.classification-error {
+  background: #fff0f0;
+  border-radius: 6px;
+  color: #9c2626;
+  padding: 0.75rem;
+}
+
+@media (max-width: 600px) {
+  .page-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }

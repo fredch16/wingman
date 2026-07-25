@@ -126,6 +126,18 @@ new, research, ignored, and replied filters, and supports local ignore,
 research, and replied state changes. Comment details include a direct
 **Open on YouTube** link. The UI does not generate or post replies.
 
+## Classification playground
+
+Add `OPENAI_API_KEY` and, optionally, `OPENAI_MODEL` to `.env`, then start the
+Flask UI and open `http://127.0.0.1:5000/classification-playground`.
+
+The playground contains ten fixed comments covering common creator-inbox
+scenarios. Use **Classify** for one example or **Classify All** for the complete
+set. It calls the OpenAI Responses API with structured output and logs the
+prompt, raw response, and parsed JSON to the terminal. Playground results are
+held in process memory only: they are never written to the comments database
+and reset when the Flask process restarts.
+
 ## Tests
 
 The uploads pagination, comment pagination, creator-reply detection,

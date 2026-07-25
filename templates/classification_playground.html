@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Classification Playground · Wingman{% endblock %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <h1>Classification Playground</h1>
+      <p>Ten fixed examples for tuning the classifier. Nothing here is saved to the inbox.</p>
+    </div>
+    <form method="post" action="{{ url_for('classify_all') }}">
+      <button class="primary" type="submit">Classify All</button>
+    </form>
+  </div>
+  <p class="model-label">Model: <code>{{ model }}</code></p>
+
+  <section class="playground-list">
+    {% for comment in comments %}
+      <article class="playground-card">
+        <div class="comment-heading">
+          <span class="scenario">{{ comment.scenario }}</span>
+          <form method="post"
+                action="{{ url_for('classify_one', comment_id=comment.comment_id) }}">
+            <button type="submit">Classify</button>
+          </form>
+        </div>
+        <p class="comment-text">{{ comment.text }}</p>
+
+        {% if results.get(comment.comment_id) %}
+          {% set result = results[comment.comment_id] %}
+          <dl class="classification-result">
+            <div><dt>Category</dt><dd>{{ result.category }}</dd></div>
+            <div><dt>Priority</dt><dd>{{ "%.2f"|format(result.priority) }}</dd></div>
+            <div>
+              <dt>Reply worthy</dt>
+              <dd>{{ "Yes" if result.reply_worthy else "No" }}</dd>
+            </div>
+            <div>
+              <dt>Needs research</dt>
+              <dd>{{ "Yes" if result.needs_research else "No" }}</dd>
+            </div>
+            <div><dt>Reason</dt><dd>{{ result.reason }}</dd></div>
+          </dl>
+        {% elif errors.get(comment.comment_id) %}
+          <p class="classification-error">
+            Classification failed: {{ errors[comment.comment_id] }}
+          </p>
+        {% else %}
+          <p class="unclassified">Not classified yet.</p>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </section>
+{% endblock %}
