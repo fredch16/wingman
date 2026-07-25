@@ -66,9 +66,15 @@
     <div class="section-heading">
       <div>
         <span class="eyebrow">Your reply</span>
-        <h3>{{ "Ready to review" if comment.draft_reply else "Start a thoughtful reply" }}</h3>
+        <h3>
+          {% if comment.status == "replied" or comment.has_creator_reply %}
+            Posted to YouTube
+          {% else %}
+            {{ "Ready to review" if comment.draft_reply else "Start a thoughtful reply" }}
+          {% endif %}
+        </h3>
       </div>
-      {% if comment.draft_reply %}
+      {% if comment.draft_reply and comment.status != "replied" and not comment.has_creator_reply %}
         <form class="async-form"
               method="post"
               action="{{ url_for('generate_reply', comment_id=comment.comment_id) }}">
@@ -80,8 +86,19 @@
     {% if reply_generation_error %}
       <p class="form-error">{{ reply_generation_error }}</p>
     {% endif %}
+    {% if reply_error %}
+      <p class="form-error">{{ reply_error }}</p>
+    {% endif %}
 
-    {% if comment.draft_reply %}
+    {% if comment.status == "replied" or comment.has_creator_reply %}
+      <div class="reply-sent">
+        <span class="reply-sent-icon">✓</span>
+        <div>
+          <strong>Reply published</strong>
+          <p>{{ comment.final_reply or comment.draft_reply }}</p>
+        </div>
+      </div>
+    {% elif comment.draft_reply %}
       <form class="reply-editor"
             method="post"
             action="{{ url_for('approve_reply', comment_id=comment.comment_id) }}">
@@ -110,9 +127,15 @@
                 Regenerate to Enable Learning
               </button>
             {% endif %}
-            <button class="button primary" type="submit">
-              {{ "Approved" if comment.reply_approved_at else "Approve" }}
-            </button>
+            {% if comment.reply_approved_at %}
+              <button class="button primary"
+                      type="submit"
+                      formaction="{{ url_for('post_reply', comment_id=comment.comment_id) }}">
+                Post to YouTube
+              </button>
+            {% else %}
+              <button class="button primary" type="submit">Approve</button>
+            {% endif %}
           </div>
         </div>
       </form>

@@ -423,7 +423,11 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             abort(404)
         if comment.status == "replied" or comment.has_creator_reply:
             abort(409)
-        reply_text = request.form.get("reply_text", "").strip()
+        reply_text = (
+            request.form.get("reply_text")
+            or request.form.get("draft_reply")
+            or ""
+        ).strip()
         if not reply_text:
             app.extensions["reply_errors"][comment_id] = "Reply text cannot be empty."
             app.extensions["reply_drafts"][comment_id] = reply_text
