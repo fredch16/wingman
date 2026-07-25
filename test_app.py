@@ -45,6 +45,18 @@ class FakeReplyGenerator:
         return "Generated reply draft."
 
 
+class FakePreferenceLearner:
+    def __init__(self) -> None:
+        self.calls: list[object] = []
+
+    def extract_preferences(self, comparison: object) -> list[str]:
+        self.calls.append(comparison)
+        return [
+            "Fred prefers shorter replies.",
+            "Fred acknowledges ideas before explaining.",
+        ]
+
+
 def fetched_comment(comment_id: str, author: str) -> FetchedComment:
     return FetchedComment(
         comment_id=comment_id,
@@ -67,6 +79,13 @@ class InboxRouteTests(unittest.TestCase):
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.database_path = str(
             Path(self.temporary_directory.name) / "test-comments.db"
+        )
+        self.creator_profile_path = (
+            Path(self.temporary_directory.name) / "creator.md"
+        )
+        self.creator_profile_path.write_text(
+            "# Fred\n\n## Style\n\n- Friendly.\n",
+            encoding="utf-8",
         )
         connection = connect_database(self.database_path)
         try:
@@ -136,6 +155,7 @@ class InboxRouteTests(unittest.TestCase):
         self.youtube = object()
         self.classifier = FakeProductionClassifier()
         self.reply_generator = FakeReplyGenerator()
+        self.preference_learner = FakePreferenceLearner()
         app = create_app(
             {
                 "TESTING": True,
@@ -145,6 +165,8 @@ class InboxRouteTests(unittest.TestCase):
                 "CLASSIFICATION_SERVICE": self.classifier,
                 "CLASSIFICATION_DRY_RUN": False,
                 "REPLY_GENERATION_SERVICE": self.reply_generator,
+                "PREFERENCE_LEARNING_SERVICE": self.preference_learner,
+                "CREATOR_PROFILE": str(self.creator_profile_path),
             }
         )
         self.client = app.test_client()
@@ -348,6 +370,9 @@ class InboxRouteTests(unittest.TestCase):
         self.assertEqual(len(self.reply_generator.calls), 1)
         row = self.row("comment-new")
         self.assertEqual(row["draft_reply"], "Generated reply draft.")
+        self.assertEqual(
+            row["original_draft_reply"], "Generated reply draft."
+        )
         self.assertIsNone(row["final_reply"])
         self.assertIn(b"Generated reply draft.", response.data)
 
@@ -372,6 +397,93 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIsNotNone(row["reply_approved_at"])
         self.assertIn(b"Approved", approved.data)
         self.assertEqual(self.reply_calls, [])
+
+    def test_reviews_edits_before_accepting_learned_preferences(self) -> None:
+        self.client.post("/comments/comment-new/generate-reply")
+        unchanged = self.client.get("/comments/comment-new")
+        self.assertIn(b"Learn from Change", unchanged.data)
+        self.assertIn(b"learn-button", unchanged.data)
+        self.assertIn(b"disabled", unchanged.data)
+
+        review = self.client.post(
+            "/comments/comment-new/learn",
+            data={"draft_reply": "Good idea. I would keep this reply short."},
+            follow_redirects=True,
+        )
+
+        self.assertEqual(review.status_code, 200)
+        self.assertEqual(len(self.preference_learner.calls), 1)
+        comparison = self.preference_learner.calls[0]
+        self.assertEqual(comparison.original_draft, "Generated reply draft.")
+        self.assertEqual(
+            comparison.edited_reply,
+            "Good idea. I would keep this reply short.",
+        )
+        self.assertIn(b"Review the writing preferences", review.data)
+        self.assertIn(b"Fred prefers shorter replies.", review.data)
+        self.assertNotIn(
+            "Learned Preferences",
+            self.creator_profile_path.read_text(encoding="utf-8"),
+        )
+
+        accepted = self.client.post(
+            "/comments/comment-new/learning/accept",
+            data={
+                "preferences": (
+                    "Fred prefers concise replies.\n"
+                    "Fred acknowledges ideas before explaining."
+                )
+            },
+            follow_redirects=True,
+        )
+        profile = self.creator_profile_path.read_text(encoding="utf-8")
+
+        self.assertEqual(accepted.status_code, 200)
+        self.assertIn(b"Added 2 preferences to creator.md.", accepted.data)
+        self.assertIn("## Learned Preferences", profile)
+        self.assertIn("- Fred prefers concise replies.", profile)
+        self.assertIn(
+            "- Fred acknowledges ideas before explaining.", profile
+        )
+        self.assertEqual(
+            profile.split("## Learned Preferences", 1)[0],
+            "# Fred\n\n## Style\n\n- Friendly.\n\n",
+        )
+
+    def test_does_not_learn_when_reply_matches_generated_draft(self) -> None:
+        self.client.post("/comments/comment-new/generate-reply")
+
+        response = self.client.post(
+            "/comments/comment-new/learn",
+            data={"draft_reply": "Generated reply draft."},
+            follow_redirects=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.preference_learner.calls, [])
+        self.assertIn(
+            b"Make a meaningful edit to the generated draft",
+            response.data,
+        )
+
+    def test_rejects_preference_review_without_updating_profile(self) -> None:
+        self.client.post("/comments/comment-new/generate-reply")
+        self.client.post(
+            "/comments/comment-new/learn",
+            data={"draft_reply": "A significantly shorter edited reply."},
+        )
+
+        rejected = self.client.post(
+            "/comments/comment-new/learning/reject",
+            follow_redirects=True,
+        )
+
+        self.assertEqual(rejected.status_code, 200)
+        self.assertIn(b"suggestion discarded", rejected.data)
+        self.assertNotIn(
+            "Learned Preferences",
+            self.creator_profile_path.read_text(encoding="utf-8"),
+        )
 
     def test_generates_all_missing_drafts_and_skips_them_on_repeat(self) -> None:
         page = self.client.get("/")

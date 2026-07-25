@@ -58,7 +58,10 @@
     <section id="conversation-panel" class="conversation-panel" aria-live="polite">
       {% if all_comments %}
         {% with comment=all_comments[0],
-                reply_generation_error=reply_generation_errors.get(all_comments[0].comment_id) %}
+                reply_generation_error=reply_generation_errors.get(all_comments[0].comment_id),
+                learning_proposal=learning_proposals.get(all_comments[0].comment_id),
+                learning_error=learning_errors.get(all_comments[0].comment_id),
+                learning_message=learning_messages.get(all_comments[0].comment_id) %}
           {% include "_conversation_panel.html" %}
         {% endwith %}
       {% else %}
@@ -73,7 +76,10 @@
 
   {% for comment in all_comments %}
     <template id="detail-{{ comment.comment_id }}">
-      {% with reply_generation_error=reply_generation_errors.get(comment.comment_id) %}
+      {% with reply_generation_error=reply_generation_errors.get(comment.comment_id),
+              learning_proposal=learning_proposals.get(comment.comment_id),
+              learning_error=learning_errors.get(comment.comment_id),
+              learning_message=learning_messages.get(comment.comment_id) %}
         {% include "_conversation_panel.html" %}
       {% endwith %}
     </template>

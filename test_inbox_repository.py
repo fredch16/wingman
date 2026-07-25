@@ -132,6 +132,20 @@ class CommentRepositoryTests(unittest.TestCase):
         self.assertIsNone(revised.final_reply)
         self.assertIsNone(revised.reply_approved_at)
 
+    def test_preserves_generated_draft_as_learning_source(self) -> None:
+        self.assertTrue(
+            self.repository.save_generated_reply(
+                "comment-1", "Original generated reply"
+            )
+        )
+        self.repository.update_draft_reply("comment-1", "Fred's edited reply")
+
+        comment = self.repository.get_comment("comment-1")
+
+        assert comment is not None
+        self.assertEqual(comment.original_draft_reply, "Original generated reply")
+        self.assertEqual(comment.draft_reply, "Fred's edited reply")
+
     def test_ignored_comments_leave_active_inbox(self) -> None:
         self.assertTrue(self.repository.mark_ignored("comment-1"))
 

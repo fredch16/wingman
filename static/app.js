@@ -60,8 +60,10 @@
     }
 
     try {
-      const response = await fetch(form.action, {
-        method: form.method,
+      const action = submitter?.formAction || form.action;
+      const method = submitter?.formMethod || form.method;
+      const response = await fetch(action, {
+        method,
         body: new FormData(form),
       });
       if (!response.ok) throw new Error(`Request failed (${response.status})`);
@@ -82,5 +84,15 @@
         submitter.textContent = submitter.dataset.label;
       }
     }
+  });
+
+  document.addEventListener("input", (event) => {
+    const textarea = event.target.closest(".reply-editor textarea");
+    if (!textarea) return;
+    const form = textarea.closest(".reply-editor");
+    const learnButton = form?.querySelector(".learn-button");
+    if (!learnButton) return;
+    const original = textarea.dataset.originalDraft?.trim() || "";
+    learnButton.disabled = !original || textarea.value.trim() === original;
   });
 })();

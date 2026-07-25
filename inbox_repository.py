@@ -33,6 +33,7 @@ class Comment:
     classification_model: str | None
     classification_version: str | None
     draft_reply: str | None
+    original_draft_reply: str | None
     final_reply: str | None
     needs_research: bool
     is_ignored: bool
@@ -151,6 +152,7 @@ class CommentRepository:
                 comments.classification_model,
                 comments.classification_version,
                 comments.draft_reply,
+                comments.original_draft_reply,
                 comments.final_reply,
                 comments.needs_research,
                 comments.is_ignored,
@@ -198,6 +200,7 @@ class CommentRepository:
                 comments.classification_model,
                 comments.classification_version,
                 comments.draft_reply,
+                comments.original_draft_reply,
                 comments.final_reply,
                 comments.needs_research,
                 comments.is_ignored,
@@ -292,6 +295,20 @@ class CommentRepository:
             (draft_reply,),
         )
 
+    def save_generated_reply(self, comment_id: str, draft_reply: str) -> bool:
+        """Store both the immutable comparison source and editable draft."""
+        return self._update(
+            comment_id,
+            """
+            original_draft_reply = ?,
+            draft_reply = ?,
+            final_reply = NULL,
+            reply_approved_at = NULL,
+            status = CASE WHEN status = 'approved' THEN 'new' ELSE status END
+            """,
+            (draft_reply, draft_reply),
+        )
+
     def approve_draft_reply(
         self, comment_id: str, approved_at: str | None = None
     ) -> bool:
@@ -382,6 +399,7 @@ class CommentRepository:
             classification_model=row["classification_model"],
             classification_version=row["classification_version"],
             draft_reply=row["draft_reply"],
+            original_draft_reply=row["original_draft_reply"],
             final_reply=row["final_reply"],
             needs_research=bool(row["needs_research"]),
             is_ignored=bool(row["is_ignored"]),
@@ -415,6 +433,7 @@ class CommentRepository:
                 comments.classification_model,
                 comments.classification_version,
                 comments.draft_reply,
+                comments.original_draft_reply,
                 comments.final_reply,
                 comments.needs_research,
                 comments.is_ignored,

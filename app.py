@@ -3,6 +3,7 @@
 import os
 import sqlite3
 from dataclasses import replace
+from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
@@ -16,6 +17,12 @@ from classification_service import ClassificationService, CommentClassification
 from comment_store import connect_database
 from fetch_comments import api_error_message, get_authenticated_youtube_client
 from inbox_repository import CommentRepository
+from learning_service import (
+    PreferenceComparison,
+    PreferenceLearningService,
+    append_learned_preferences,
+    parse_review_preferences,
+)
 from production_classification import ClassificationRecord, classify_stored_comment
 from reply_service import ReplyGenerationService
 from video_catalog import list_stored_videos, update_video_summary
@@ -28,6 +35,9 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     app.config.from_mapping(
         DATABASE=os.getenv("DATABASE_PATH", "comments.db").strip() or "comments.db",
         OPENAI_MODEL=os.getenv("OPENAI_MODEL", "").strip() or "gpt-5.6-sol",
+        CREATOR_PROFILE=(
+            os.getenv("CREATOR_CONTEXT_FILE", "").strip() or "creator.md"
+        ),
         CLASSIFICATION_DRY_RUN=(
             os.getenv("WINGMAN_CLASSIFICATION_DRY_RUN", "false").strip().lower()
             not in {"0", "false", "no", "off"}
@@ -50,6 +60,9 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     app.extensions["production_classification_errors"] = {}
     app.extensions["production_classification_results"] = {}
     app.extensions["reply_generation_errors"] = {}
+    app.extensions["learning_proposals"] = {}
+    app.extensions["learning_errors"] = {}
+    app.extensions["learning_messages"] = {}
 
     def classification_service() -> ClassificationService:
         if "classification_service" not in app.extensions:
@@ -76,6 +89,16 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 else ReplyGenerationService(model=app.config["OPENAI_MODEL"])
             )
         return app.extensions["reply_generation_service"]
+
+    def preference_learning_service() -> PreferenceLearningService:
+        if "preference_learning_service" not in app.extensions:
+            configured_service = app.config.get("PREFERENCE_LEARNING_SERVICE")
+            app.extensions["preference_learning_service"] = (
+                configured_service
+                if configured_service is not None
+                else PreferenceLearningService(model=app.config["OPENAI_MODEL"])
+            )
+        return app.extensions["preference_learning_service"]
 
     @app.teardown_appcontext
     def close_database(_error: BaseException | None) -> None:
@@ -140,6 +163,9 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             reply_generation_errors=app.extensions[
                 "reply_generation_errors"
             ],
+            learning_proposals=app.extensions["learning_proposals"],
+            learning_errors=app.extensions["learning_errors"],
+            learning_messages=app.extensions["learning_messages"],
             classification_dry_run=app.config["CLASSIFICATION_DRY_RUN"],
         )
 
@@ -206,6 +232,11 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             reply_generation_error=app.extensions[
                 "reply_generation_errors"
             ].get(comment_id),
+            learning_proposal=app.extensions["learning_proposals"].get(
+                comment_id
+            ),
+            learning_error=app.extensions["learning_errors"].get(comment_id),
+            learning_message=app.extensions["learning_messages"].get(comment_id),
         )
 
     def generate_reply_for_comment(comment_id: str) -> None:
@@ -215,7 +246,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         errors: dict[str, str] = app.extensions["reply_generation_errors"]
         try:
             draft = reply_generation_service().generate_for_comment(comment)
-            repository().update_draft_reply(comment_id, draft)
+            repository().save_generated_reply(comment_id, draft)
             errors.pop(comment_id, None)
         except Exception as error:
             errors[comment_id] = str(error)
@@ -252,6 +283,88 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 abort(404)
         if not repository().approve_draft_reply(comment_id):
             abort(400)
+        return redirect(url_for("comment_detail", comment_id=comment_id))
+
+    @app.post("/comments/<comment_id>/learn")
+    def learn_from_change(comment_id: str):
+        comment = repository().get_comment(comment_id)
+        if comment is None:
+            abort(404)
+        edited_reply = request.form.get("draft_reply", "").strip()
+        original_draft = (comment.original_draft_reply or "").strip()
+        errors: dict[str, str] = app.extensions["learning_errors"]
+        messages: dict[str, str] = app.extensions["learning_messages"]
+        proposals: dict[str, list[str]] = app.extensions["learning_proposals"]
+        if not original_draft or edited_reply == original_draft:
+            errors[comment_id] = (
+                "Make a meaningful edit to the generated draft before learning."
+            )
+            return redirect(url_for("comment_detail", comment_id=comment_id))
+
+        repository().update_draft_reply(comment_id, edited_reply)
+        try:
+            preferences = preference_learning_service().extract_preferences(
+                PreferenceComparison(
+                    original_draft=original_draft,
+                    edited_reply=edited_reply,
+                    comment_text=comment.text,
+                    video_title=comment.video_title,
+                )
+            )
+            proposals[comment_id] = preferences
+            errors.pop(comment_id, None)
+            messages.pop(comment_id, None)
+        except Exception as error:
+            errors[comment_id] = str(error)
+            app.logger.exception(
+                "Preference extraction failed for %s", comment_id
+            )
+        return redirect(url_for("comment_detail", comment_id=comment_id))
+
+    @app.post("/comments/<comment_id>/learning/accept")
+    def accept_learned_preferences(comment_id: str):
+        if repository().get_comment(comment_id) is None:
+            abort(404)
+        proposals: dict[str, list[str]] = app.extensions["learning_proposals"]
+        if comment_id not in proposals:
+            abort(409)
+        preferences = parse_review_preferences(
+            request.form.get("preferences", "")
+        )
+        if not preferences:
+            app.extensions["learning_errors"][comment_id] = (
+                "Keep at least one preference before accepting."
+            )
+            return redirect(url_for("comment_detail", comment_id=comment_id))
+        try:
+            result = append_learned_preferences(
+                Path(app.config["CREATOR_PROFILE"]),
+                preferences,
+            )
+        except (OSError, ValueError) as error:
+            app.extensions["learning_errors"][comment_id] = str(error)
+        else:
+            if result.added:
+                message = (
+                    f"Added {len(result.added)} preference"
+                    f"{'' if len(result.added) == 1 else 's'} to creator.md."
+                )
+            else:
+                message = "Those preferences already exist in creator.md."
+            app.extensions["learning_messages"][comment_id] = message
+            app.extensions["learning_errors"].pop(comment_id, None)
+            proposals.pop(comment_id, None)
+        return redirect(url_for("comment_detail", comment_id=comment_id))
+
+    @app.post("/comments/<comment_id>/learning/reject")
+    def reject_learned_preferences(comment_id: str):
+        if repository().get_comment(comment_id) is None:
+            abort(404)
+        app.extensions["learning_proposals"].pop(comment_id, None)
+        app.extensions["learning_errors"].pop(comment_id, None)
+        app.extensions["learning_messages"][comment_id] = (
+            "Learned preference suggestion discarded."
+        )
         return redirect(url_for("comment_detail", comment_id=comment_id))
 
     @app.get("/videos")

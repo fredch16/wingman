@@ -911,9 +911,112 @@ main {
   padding: 11px 13px 11px 20px;
 }
 
+.editor-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .save-hint {
   color: var(--faint);
   font-size: 9px;
+}
+
+.learning-notice {
+  border: 1px solid;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  margin: 14px 0 0;
+  padding: 9px 11px;
+}
+
+.learning-error {
+  background: rgb(255 91 98 / 7%);
+  border-color: rgb(255 91 98 / 18%);
+  color: var(--accent-strong);
+}
+
+.learning-success {
+  background: rgb(98 201 154 / 7%);
+  border-color: rgb(98 201 154 / 18%);
+  color: var(--green);
+}
+
+.learning-review {
+  background:
+    linear-gradient(135deg, rgb(121 168 255 / 6%), transparent 52%),
+    var(--panel-raised);
+  border: 1px solid rgb(121 168 255 / 22%);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  margin-top: 18px;
+  padding: 21px;
+}
+
+.learning-review-heading {
+  align-items: flex-start;
+  display: flex;
+  gap: 13px;
+  margin-bottom: 17px;
+}
+
+.learning-review-icon {
+  align-items: center;
+  background: rgb(121 168 255 / 10%);
+  border: 1px solid rgb(121 168 255 / 20%);
+  border-radius: 8px;
+  color: var(--blue);
+  display: flex;
+  flex: 0 0 auto;
+  height: 31px;
+  justify-content: center;
+  width: 31px;
+}
+
+.learning-review h3 {
+  font-size: 14px;
+  margin: 0;
+}
+
+.learning-review-heading p,
+.no-preference p {
+  color: var(--muted);
+  font-size: 10px;
+  margin: 5px 0 0;
+}
+
+.learning-review form {
+  display: grid;
+  gap: 9px;
+}
+
+.learning-review label {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.learning-review textarea {
+  background: var(--panel);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-sm);
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.55;
+  min-height: 78px;
+  padding: 12px;
+  resize: vertical;
+  width: 100%;
+}
+
+.learning-review textarea:focus {
+  border-color: var(--blue);
+  outline: none;
+}
+
+.learning-review-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .conversation-actions {

@@ -88,13 +88,22 @@
         <label class="sr-only" for="draft-{{ comment.comment_id }}">Editable reply draft</label>
         <textarea id="draft-{{ comment.comment_id }}"
                   name="draft_reply"
+                  data-original-draft="{{ comment.original_draft_reply or '' }}"
                   rows="9"
                   required>{{ comment.draft_reply }}</textarea>
         <div class="editor-footer">
           <span class="save-hint">Edit freely — approval saves your changes.</span>
-          <button class="button primary" type="submit">
-            {{ "Approved" if comment.reply_approved_at else "Approve" }}
-          </button>
+          <div class="editor-actions">
+            <button class="button learn-button"
+                    type="submit"
+                    formaction="{{ url_for('learn_from_change', comment_id=comment.comment_id) }}"
+                    {% if not comment.original_draft_reply or comment.draft_reply|trim == comment.original_draft_reply|trim %}disabled{% endif %}>
+              Learn from Change
+            </button>
+            <button class="button primary" type="submit">
+              {{ "Approved" if comment.reply_approved_at else "Approve" }}
+            </button>
+          </div>
         </div>
       </form>
     {% else %}
@@ -109,6 +118,56 @@
       </div>
     {% endif %}
   </section>
+
+  {% if learning_error %}
+    <p class="learning-notice learning-error">{{ learning_error }}</p>
+  {% endif %}
+  {% if learning_message %}
+    <p class="learning-notice learning-success">{{ learning_message }}</p>
+  {% endif %}
+  {% if learning_proposal is not none %}
+    <section class="learning-review">
+      <div class="learning-review-heading">
+        <span class="learning-review-icon">↗</span>
+        <div>
+          <span class="eyebrow">Learn from change</span>
+          <h3>Review the writing preferences</h3>
+          <p>Only accepted preferences become part of Fred’s creator profile.</p>
+        </div>
+      </div>
+      {% if learning_proposal %}
+        <form class="async-form"
+              method="post"
+              action="{{ url_for('accept_learned_preferences', comment_id=comment.comment_id) }}">
+          <label for="preferences-{{ comment.comment_id }}">
+            Edit before accepting, one preference per line
+          </label>
+          <textarea id="preferences-{{ comment.comment_id }}"
+                    name="preferences"
+                    rows="{{ [learning_proposal|length + 1, 3]|max }}"
+                    required>{{ learning_proposal|join("\n") }}</textarea>
+          <div class="learning-review-actions">
+            <button class="button primary" type="submit">Accept</button>
+            <button class="button"
+                    type="submit"
+                    formmethod="post"
+                    formaction="{{ url_for('reject_learned_preferences', comment_id=comment.comment_id) }}">
+              Reject
+            </button>
+          </div>
+        </form>
+      {% else %}
+        <div class="no-preference">
+          <p>This edit did not reveal a durable writing preference.</p>
+          <form class="async-form"
+                method="post"
+                action="{{ url_for('reject_learned_preferences', comment_id=comment.comment_id) }}">
+            <button class="button" type="submit">Dismiss</button>
+          </form>
+        </div>
+      {% endif %}
+    </section>
+  {% endif %}
 
   <footer class="conversation-actions">
     <form class="async-form"
