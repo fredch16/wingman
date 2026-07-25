@@ -198,6 +198,22 @@ not post the generated reply to YouTube. For demo preparation, **Generate all
 drafts** in the inbox menu creates drafts for every active conversation that
 does not already have one.
 
+## Learning from reply edits
+
+Newly generated replies preserve an untouched copy of the AI draft. After
+editing the reply, **Learn from Change** becomes available beside **Approve**.
+Wingman compares the original and edited text in one structured OpenAI request
+and proposes no more than two durable writing preferences. The proposal remains
+temporary until it is reviewed: edit the lines if needed, then choose
+**Accept** or **Reject**.
+
+Acceptance appends unique bullets to the bottom of the configured creator
+profile under `## Learned Preferences`. It never rewrites earlier sections.
+Exact and near-duplicate preferences are skipped using normalized text,
+sequence similarity, and word overlap. Existing drafts created before this
+migration need to be regenerated once before they have an original draft to
+compare.
+
 ## Tests
 
 The uploads pagination, comment pagination, creator-reply detection,
