@@ -55,6 +55,7 @@
     const submitter = event.submitter;
     if (submitter) {
       submitter.disabled = true;
+      submitter.classList.add("is-working");
       submitter.dataset.label = submitter.textContent;
       submitter.textContent = "Working…";
     }
@@ -81,6 +82,7 @@
       form.prepend(message);
       if (submitter) {
         submitter.disabled = false;
+        submitter.classList.remove("is-working");
         submitter.textContent = submitter.dataset.label;
       }
     }

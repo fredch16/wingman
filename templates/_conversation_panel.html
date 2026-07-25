@@ -94,12 +94,22 @@
         <div class="editor-footer">
           <span class="save-hint">Edit freely — approval saves your changes.</span>
           <div class="editor-actions">
-            <button class="button learn-button"
-                    type="submit"
-                    formaction="{{ url_for('learn_from_change', comment_id=comment.comment_id) }}"
-                    {% if not comment.original_draft_reply or comment.draft_reply|trim == comment.original_draft_reply|trim %}disabled{% endif %}>
-              Learn from Change
-            </button>
+            {% if comment.original_draft_reply %}
+              <button class="button learn-button"
+                      type="submit"
+                      title="{{ 'Edit the generated draft to enable learning' if comment.draft_reply|trim == comment.original_draft_reply|trim else 'Compare your edit with the original AI draft' }}"
+                      formaction="{{ url_for('learn_from_change', comment_id=comment.comment_id) }}"
+                      {% if comment.draft_reply|trim == comment.original_draft_reply|trim %}disabled{% endif %}>
+                Learn from Change
+              </button>
+            {% else %}
+              <button class="button legacy-learning-button"
+                      type="submit"
+                      title="This draft predates learning. Regenerate it once to preserve an original for comparison."
+                      formaction="{{ url_for('generate_reply', comment_id=comment.comment_id) }}">
+                Regenerate to Enable Learning
+              </button>
+            {% endif %}
             <button class="button primary" type="submit">
               {{ "Approved" if comment.reply_approved_at else "Approve" }}
             </button>
