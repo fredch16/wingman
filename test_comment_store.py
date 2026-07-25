@@ -77,6 +77,59 @@ class CommentStoreTests(unittest.TestCase):
         self.assertEqual(row["first_seen_at"], "2026-07-25T12:00:00Z")
         self.assertEqual(row["last_seen_at"], "2026-07-25T13:00:00Z")
 
+    def test_migrates_existing_comments_table_with_inbox_defaults(self) -> None:
+        connection = sqlite3.connect(":memory:")
+        connection.row_factory = sqlite3.Row
+        connection.execute(
+            """
+            CREATE TABLE comments (
+                comment_id TEXT PRIMARY KEY,
+                thread_id TEXT NOT NULL,
+                video_id TEXT NOT NULL,
+                author_display_name TEXT NOT NULL,
+                author_channel_id TEXT,
+                text TEXT NOT NULL,
+                like_count INTEGER NOT NULL,
+                published_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                total_reply_count INTEGER NOT NULL,
+                can_reply INTEGER NOT NULL,
+                is_public INTEGER NOT NULL,
+                first_seen_at TEXT NOT NULL,
+                last_seen_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO comments VALUES (
+                'legacy', 'thread', 'abcdefghijk', 'Author', NULL, 'Text',
+                0, 'published', 'updated', 0, 1, 1, 'first', 'last'
+            )
+            """
+        )
+
+        create_comments_table(connection)
+
+        row = connection.execute(
+            """
+            SELECT status, priority, category, classification_reason,
+                   draft_reply, final_reply, needs_research, is_ignored,
+                   replied_at
+            FROM comments WHERE comment_id = 'legacy'
+            """
+        ).fetchone()
+        self.assertEqual(row["status"], "new")
+        self.assertIsNone(row["priority"])
+        self.assertIsNone(row["category"])
+        self.assertIsNone(row["classification_reason"])
+        self.assertIsNone(row["draft_reply"])
+        self.assertIsNone(row["final_reply"])
+        self.assertEqual(row["needs_research"], 0)
+        self.assertEqual(row["is_ignored"], 0)
+        self.assertIsNone(row["replied_at"])
+        connection.close()
+
     def test_duplicate_ids_are_upserted_once(self) -> None:
         summary = sync_comments(
             self.connection,

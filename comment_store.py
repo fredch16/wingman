@@ -25,6 +25,18 @@ COMMENT_FIELDS = (
     "is_public",
 )
 
+INBOX_COLUMNS = {
+    "status": "TEXT NOT NULL DEFAULT 'new'",
+    "priority": "TEXT",
+    "category": "TEXT",
+    "classification_reason": "TEXT",
+    "draft_reply": "TEXT",
+    "final_reply": "TEXT",
+    "needs_research": "INTEGER NOT NULL DEFAULT 0",
+    "is_ignored": "INTEGER NOT NULL DEFAULT 0",
+    "replied_at": "TEXT",
+}
+
 
 @dataclass(frozen=True)
 class SyncSummary:
@@ -62,10 +74,27 @@ def create_comments_table(connection: sqlite3.Connection) -> None:
             can_reply INTEGER NOT NULL,
             is_public INTEGER NOT NULL,
             first_seen_at TEXT NOT NULL,
-            last_seen_at TEXT NOT NULL
+            last_seen_at TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'new',
+            priority TEXT,
+            category TEXT,
+            classification_reason TEXT,
+            draft_reply TEXT,
+            final_reply TEXT,
+            needs_research INTEGER NOT NULL DEFAULT 0,
+            is_ignored INTEGER NOT NULL DEFAULT 0,
+            replied_at TEXT
         )
         """
     )
+    existing_columns = {
+        row["name"] for row in connection.execute("PRAGMA table_info(comments)")
+    }
+    for column_name, definition in INBOX_COLUMNS.items():
+        if column_name not in existing_columns:
+            connection.execute(
+                f"ALTER TABLE comments ADD COLUMN {column_name} {definition}"
+            )
 
 
 def utc_now() -> str:

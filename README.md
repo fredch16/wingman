@@ -4,7 +4,9 @@ This MVP discovers every video in the authenticated channel's uploads playlist,
 stores the video catalog in SQLite, and syncs every top-level comment for
 enabled videos. Uploads and comments are fully paginated. Each sync preserves
 first-seen timestamps, refreshes last-seen timestamps, and reports inserted,
-updated, and unchanged counts. Replies are not fetched yet.
+updated, and unchanged counts. Synced comments enter a reusable local Wingman
+inbox with workflow fields for status, priority, category, research, and reply
+drafts. Replies are not posted to YouTube.
 
 ## Setup and run
 
@@ -53,6 +55,9 @@ without changing a video's enabled or disabled status.
 ## Commands
 
 ```bash
+# Print active Wingman inbox comments
+./wingman inbox
+
 # Discover and store uploads without syncing comments
 python fetch_comments.py --discover-only
 
@@ -75,10 +80,14 @@ disabled comments or no comments does not prevent later videos from syncing.
 Other API failures are reported with the affected video and page.
 `comments.db` is created automatically and is ignored by Git.
 
+Existing databases are migrated automatically when the inbox is opened or
+comments are synced. Existing comments default to `new`; ignored and replied
+comments are omitted from the active inbox.
+
 ## Tests
 
-The uploads pagination, comment pagination, enabled-state, and SQLite
-persistence tests do not contact YouTube:
+The uploads pagination, comment pagination, enabled-state, inbox repository,
+database migration, and SQLite persistence tests do not contact YouTube:
 
 ```bash
 python -m unittest -v

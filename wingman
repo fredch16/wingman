@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+"""Executable entry point for the Wingman CLI."""
+
+import os
+import sys
+from pathlib import Path
+
+if sys.prefix == sys.base_prefix:
+    virtualenv_python = Path(__file__).resolve().parent / ".venv" / "bin" / "python"
+    if virtualenv_python.is_file():
+        os.execv(virtualenv_python, [str(virtualenv_python), *sys.argv])
+
+from wingman_cli import main
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
