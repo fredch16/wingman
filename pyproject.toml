@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "wingman-comments"
 version = "0.2.0"
-description = "AI-assisted YouTube comment triage, drafting, learning, and publishing"
+description = "AI-assisted social comment triage, drafting, learning, and publishing"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -20,6 +20,7 @@ dependencies = [
 [project.scripts]
 wingman = "wingman.cli:main"
 wingman-sync = "wingman.youtube.sync:main"
+wingman-instagram = "wingman.instagram.sync:main"
 wingman-web = "wingman.web:main"
 
 [tool.setuptools.packages.find]

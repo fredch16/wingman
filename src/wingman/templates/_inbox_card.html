@@ -40,7 +40,7 @@
             {{ comment.category|replace("_", " ") }}
           </span>
         {% endif %}
-        <span class="video-name">{{ comment.video_title }}</span>
+        <span class="video-name">{{ comment.platform_label }} · {{ comment.video_title }}</span>
       </span>
       <span class="reply-state {% if comment.reply_approved_at %}reply-approved{% elif comment.draft_reply %}reply-draft{% else %}reply-needed{% endif %}">
         <span class="reply-state-dot"></span>

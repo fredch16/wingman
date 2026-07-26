@@ -41,9 +41,9 @@
       </div>
       <p>{{ comment.text }}</p>
       <a class="video-link"
-         href="https://www.youtube.com/watch?v={{ comment.video_id }}&lc={{ comment.comment_id }}"
+         href="{% if comment.platform == 'instagram' %}{{ comment.permalink }}{% else %}https://www.youtube.com/watch?v={{ comment.video_id }}&lc={{ comment.comment_id }}{% endif %}"
          target="_blank"
-         rel="noopener noreferrer">{{ comment.video_title }} ↗</a>
+         rel="noopener noreferrer">{{ comment.video_title }} · {{ comment.platform_label }} ↗</a>
     </div>
   </section>
 
@@ -68,7 +68,7 @@
         <span class="eyebrow">Your reply</span>
         <h3>
           {% if comment.status == "replied" or comment.has_creator_reply %}
-            Posted to YouTube
+            Posted to {{ comment.platform_label }}
           {% else %}
             {{ "Ready to review" if comment.draft_reply else "Start a thoughtful reply" }}
           {% endif %}
@@ -136,7 +136,7 @@
             <button class="button primary post-button"
                     type="submit"
                     formaction="{{ url_for('approve_and_post_reply', comment_id=comment.comment_id) }}">
-              Post to YouTube
+              Post to {{ comment.platform_label }}
             </button>
           </div>
         </div>
