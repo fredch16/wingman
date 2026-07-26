@@ -329,6 +329,12 @@ class InboxRouteTests(unittest.TestCase):
         self.assertEqual(classify_rest.status_code, 302)
         self.assertEqual(len(self.classifier.calls), 12)
 
+    def test_reclassifies_all_active_comments(self) -> None:
+        response = self.client.post("/inbox/reclassify-all")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(self.classifier.calls), 3)
+
     def test_dry_run_displays_result_without_updating_database(self) -> None:
         dry_classifier = FakeProductionClassifier()
         dry_app = create_app(
@@ -442,6 +448,24 @@ class InboxRouteTests(unittest.TestCase):
         self.assertEqual(row["final_reply"], "Final text posted from the editor.")
         self.assertEqual(row["creator_reply_id"], "youtube-reply-1")
         self.assertIn(b"Reply published", posted.data)
+
+    def test_approves_and_posts_editor_text_in_one_action(self) -> None:
+        self.client.post("/comments/comment-new/generate-reply")
+
+        posted = self.client.post(
+            "/comments/comment-new/approve-and-post",
+            data={"draft_reply": "Approved and posted with the shortcut."},
+            follow_redirects=True,
+        )
+
+        self.assertEqual(posted.status_code, 200)
+        self.assertEqual(len(self.reply_calls), 1)
+        row = self.row("comment-new")
+        self.assertEqual(row["status"], "replied")
+        self.assertIsNotNone(row["reply_approved_at"])
+        self.assertEqual(
+            row["final_reply"], "Approved and posted with the shortcut."
+        )
 
     def test_async_forms_only_use_explicit_submit_button_overrides(self) -> None:
         script = Path("static/app.js").read_text(encoding="utf-8")
@@ -583,6 +607,14 @@ class InboxRouteTests(unittest.TestCase):
         second_run = self.client.post("/inbox/generate-all")
         self.assertEqual(second_run.status_code, 302)
         self.assertEqual(len(self.reply_generator.calls), 3)
+
+    def test_regenerates_every_active_draft(self) -> None:
+        self.client.post("/inbox/generate-all")
+
+        regenerated = self.client.post("/inbox/regenerate-all")
+
+        self.assertEqual(regenerated.status_code, 302)
+        self.assertEqual(len(self.reply_generator.calls), 6)
 
     def test_ignored_view_lists_ignored_conversations(self) -> None:
         response = self.client.get("/?view=ignored")

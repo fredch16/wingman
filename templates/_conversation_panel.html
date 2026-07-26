@@ -138,6 +138,11 @@
             {% endif %}
           </div>
         </div>
+        <button class="sr-only shortcut-approve-post"
+                type="submit"
+                formaction="{{ url_for('approve_and_post_reply', comment_id=comment.comment_id) }}">
+          Approve and post
+        </button>
       </form>
     {% else %}
       <div class="draft-empty">

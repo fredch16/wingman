@@ -28,9 +28,30 @@
     detailPanel.replaceChildren(template.content.cloneNode(true));
     detailPanel.classList.add("mobile-open");
     history.replaceState(null, "", `#${encodeURIComponent(card.dataset.commentId)}`);
+    card.scrollIntoView({ block: "nearest" });
   }
 
   cards.forEach((card) => card.addEventListener("click", () => selectCard(card)));
+
+  function selectedCardIndex() {
+    return cards.findIndex((card) => card.classList.contains("selected"));
+  }
+
+  function moveSelection(offset) {
+    if (!cards.length) return;
+    const current = selectedCardIndex();
+    const next = Math.min(
+      cards.length - 1,
+      Math.max(0, (current < 0 ? 0 : current) + offset),
+    );
+    selectCard(cards[next]);
+    cards[next].focus({ preventScroll: true });
+  }
+
+  function submitDetailForm(selector) {
+    const form = detailPanel?.querySelector(selector);
+    if (form instanceof HTMLFormElement) form.requestSubmit();
+  }
 
   if (cards.length) {
     const requestedId = decodeURIComponent(location.hash.slice(1));
@@ -53,6 +74,8 @@
     event.preventDefault();
 
     const submitter = event.submitter;
+    const isIgnoreAction = new URL(form.action, document.baseURI).pathname.endsWith("/ignore");
+    const ignoredCardIndex = selectedCardIndex();
     if (submitter) {
       submitter.disabled = true;
       submitter.classList.add("is-working");
@@ -78,7 +101,17 @@
       const parsed = new DOMParser().parseFromString(documentText, "text/html");
       const refreshed = parsed.querySelector(".conversation-shell");
       if (!refreshed || !detailPanel) throw new Error("Updated conversation was unavailable");
-      detailPanel.replaceChildren(refreshed);
+      if (isIgnoreAction && ignoredCardIndex >= 0) {
+        const [ignoredCard] = cards.splice(ignoredCardIndex, 1);
+        ignoredCard.remove();
+        if (cards.length) {
+          selectCard(cards[Math.min(ignoredCardIndex, cards.length - 1)]);
+        } else {
+          detailPanel.replaceChildren();
+        }
+      } else {
+        detailPanel.replaceChildren(refreshed);
+      }
     } catch (error) {
       const message = document.createElement("p");
       message.className = "form-error";
@@ -100,5 +133,55 @@
     if (!learnButton) return;
     const original = textarea.dataset.originalDraft?.trim() || "";
     learnButton.disabled = !original || textarea.value.trim() === original;
+  });
+
+  document.addEventListener("keydown", (event) => {
+    const target = event.target;
+    const isEditing = target instanceof HTMLTextAreaElement
+      || target instanceof HTMLInputElement
+      || target instanceof HTMLSelectElement
+      || target?.isContentEditable;
+
+    if (event.key === "Escape" && isEditing) {
+      event.preventDefault();
+      target.blur();
+      return;
+    }
+
+    if (
+      event.key === "Enter"
+      && event.ctrlKey
+      && target instanceof HTMLTextAreaElement
+      && target.closest(".reply-editor")
+    ) {
+      event.preventDefault();
+      const form = target.closest(".reply-editor");
+      const approveAndPost = form.querySelector(".shortcut-approve-post");
+      form.requestSubmit(approveAndPost);
+      return;
+    }
+
+    if (isEditing || event.ctrlKey || event.metaKey || event.altKey) return;
+
+    if (event.key === "j") {
+      event.preventDefault();
+      moveSelection(1);
+    } else if (event.key === "k") {
+      event.preventDefault();
+      moveSelection(-1);
+    } else if (event.key === "r") {
+      event.preventDefault();
+      submitDetailForm('form[action$="/generate-reply"]');
+    } else if (event.key === "e") {
+      const editor = detailPanel?.querySelector(".reply-editor textarea");
+      if (editor) {
+        event.preventDefault();
+        editor.focus();
+        editor.setSelectionRange(editor.value.length, editor.value.length);
+      }
+    } else if (event.key === "h") {
+      event.preventDefault();
+      submitDetailForm('form[action$="/ignore"]');
+    }
   });
 })();

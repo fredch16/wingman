@@ -218,6 +218,12 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             classify_production_comment(comment.comment_id)
         return redirect(url_for("inbox"))
 
+    @app.post("/inbox/reclassify-all")
+    def reclassify_all():
+        for comment in repository().list_active_inbox_comments():
+            classify_production_comment(comment.comment_id)
+        return redirect(url_for("inbox"))
+
     @app.get("/comments/<comment_id>")
     def comment_detail(comment_id: str) -> str:
         comment = repository().get_comment(comment_id)
@@ -265,6 +271,12 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 generate_reply_for_comment(comment.comment_id)
         return redirect(url_for("inbox"))
 
+    @app.post("/inbox/regenerate-all")
+    def regenerate_all_replies():
+        for comment in repository().list_active_inbox_comments():
+            generate_reply_for_comment(comment.comment_id)
+        return redirect(url_for("inbox"))
+
     @app.post("/comments/<comment_id>/draft-reply")
     def save_draft_reply(comment_id: str):
         if repository().get_comment(comment_id) is None:
@@ -285,6 +297,17 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         if not repository().approve_draft_reply(comment_id):
             abort(400)
         return redirect(url_for("comment_detail", comment_id=comment_id))
+
+    @app.post("/comments/<comment_id>/approve-and-post")
+    def approve_and_post_reply(comment_id: str):
+        edited_draft = request.form.get("draft_reply", "").strip()
+        if not edited_draft:
+            abort(400)
+        if not repository().update_draft_reply(comment_id, edited_draft):
+            abort(404)
+        if not repository().approve_draft_reply(comment_id):
+            abort(400)
+        return post_reply(comment_id)
 
     @app.post("/comments/<comment_id>/learn")
     def learn_from_change(comment_id: str):
