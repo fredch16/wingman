@@ -6,11 +6,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from app import create_app
-from classification_playground import PLAYGROUND_COMMENTS
-from classification_service import CommentClassification
-from comment_store import connect_database, sync_comments
-from fetch_comments import Comment as FetchedComment
+from wingman.web import create_app
+from wingman.playground import PLAYGROUND_COMMENTS
+from wingman.ai.classification_service import CommentClassification
+from wingman.db.comment_store import connect_database, sync_comments
+from wingman.youtube.sync import Comment as FetchedComment
 
 
 class FakeClassificationService:

@@ -9,7 +9,7 @@ from typing import Any, Protocol
 from openai import OpenAI
 from pydantic import BaseModel
 
-from reply_prompt import REPLY_GENERATION_PROMPT
+from wingman.ai.reply_prompt import REPLY_GENERATION_PROMPT
 
 LOGGER = logging.getLogger("wingman.reply_generation")
 

@@ -4,8 +4,8 @@ import sqlite3
 import unittest
 from unittest.mock import ANY, Mock, patch
 
-from fetch_comments import Comment, FetchResult, sync_videos
-from video_catalog import (
+from wingman.youtube.sync import Comment, FetchResult, sync_videos
+from wingman.db.video_catalog import (
     Video,
     append_video_response_guidance,
     create_videos_table,
@@ -208,7 +208,7 @@ class VideoCatalogTests(unittest.TestCase):
         self.assertEqual(summary.count("## Response Guidance"), 1)
         self.assertEqual(summary.count("When asked about the button"), 1)
 
-    @patch("fetch_comments.fetch_all_comments_for_video")
+    @patch("wingman.youtube.sync.fetch_all_comments_for_video")
     def test_only_enabled_videos_are_synced(self, fetch: Mock) -> None:
         store_discovered_videos(
             self.connection,
@@ -229,7 +229,7 @@ class VideoCatalogTests(unittest.TestCase):
         fetch.assert_called_once_with(ANY, "abcdefghijk")
         self.assertEqual([result.video_id for result in results], ["abcdefghijk"])
 
-    @patch("fetch_comments.fetch_all_comments_for_video")
+    @patch("wingman.youtube.sync.fetch_all_comments_for_video")
     def test_recent_comment_sync_skips_unless_refreshed(self, fetch: Mock) -> None:
         store_discovered_videos(
             self.connection,

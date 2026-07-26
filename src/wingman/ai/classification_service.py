@@ -7,7 +7,7 @@ from typing import Any, Literal, Protocol
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
-from classification_prompt import CLASSIFICATION_PROMPT
+from wingman.ai.classification_prompt import CLASSIFICATION_PROMPT
 
 LOGGER = logging.getLogger("wingman.classification")
 if not LOGGER.handlers:

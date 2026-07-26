@@ -7,8 +7,8 @@ import sys
 
 from dotenv import load_dotenv
 
-from comment_store import connect_database
-from inbox_repository import CommentRepository
+from wingman.db.comment_store import connect_database
+from wingman.db.inbox_repository import CommentRepository
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

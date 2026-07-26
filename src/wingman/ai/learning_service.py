@@ -13,7 +13,7 @@ from typing import Any, Literal
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
-from learning_prompt import (
+from wingman.ai.learning_prompt import (
     PREFERENCE_LEARNING_PROMPT,
     VIDEO_CONTEXT_LEARNING_PROMPT,
 )

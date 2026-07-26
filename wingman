@@ -5,12 +5,15 @@ import os
 import sys
 from pathlib import Path
 
+project_root = Path(__file__).resolve().parent
+sys.path.insert(0, str(project_root / "src"))
+
 if sys.prefix == sys.base_prefix:
-    virtualenv_python = Path(__file__).resolve().parent / ".venv" / "bin" / "python"
+    virtualenv_python = project_root / ".venv" / "bin" / "python"
     if virtualenv_python.is_file():
         os.execv(virtualenv_python, [str(virtualenv_python), *sys.argv])
 
-from wingman_cli import main
+from wingman.cli import main
 
 
 if __name__ == "__main__":

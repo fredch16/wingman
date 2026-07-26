@@ -6,8 +6,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from reply_prompt import REPLY_GENERATION_PROMPT
-from reply_service import GeneratedReply, ReplyContext, ReplyGenerationService
+from wingman.ai.reply_prompt import REPLY_GENERATION_PROMPT
+from wingman.ai.reply_service import GeneratedReply, ReplyContext, ReplyGenerationService
 
 
 class FakeResponse:

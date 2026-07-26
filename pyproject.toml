@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wingman-comments"
+version = "0.2.0"
+description = "AI-assisted YouTube comment triage, drafting, learning, and publishing"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "Flask>=3.0,<4.0",
+  "google-api-python-client>=2.0,<3.0",
+  "google-auth-oauthlib>=1.0,<2.0",
+  "openai>=2.0,<3.0",
+  "pydantic>=2.0,<3.0",
+  "python-dotenv>=1.0,<2.0",
+]
+
+[project.scripts]
+wingman = "wingman.cli:main"
+wingman-sync = "wingman.youtube.sync:main"
+wingman-web = "wingman.web:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+wingman = [
+  "static/*",
+  "templates/*.html",
+]

@@ -2,8 +2,8 @@
 
 from dataclasses import dataclass
 
-from classification_service import ClassificationService, CommentClassification
-from inbox_repository import CommentRepository, utc_now
+from wingman.ai.classification_service import ClassificationService, CommentClassification
+from wingman.db.inbox_repository import CommentRepository, utc_now
 
 CLASSIFICATION_VERSION = "production-v2"
 

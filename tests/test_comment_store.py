@@ -4,8 +4,8 @@ import sqlite3
 import unittest
 from dataclasses import replace
 
-from comment_store import create_comments_table, sync_comments
-from fetch_comments import Comment
+from wingman.db.comment_store import create_comments_table, sync_comments
+from wingman.youtube.sync import Comment
 
 
 def comment(comment_id: str = "comment-1") -> Comment:

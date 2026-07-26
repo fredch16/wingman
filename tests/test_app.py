@@ -5,14 +5,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from app import create_app
-from classification_service import CommentClassification
-from comment_store import connect_database, sync_comments
-from fetch_comments import Comment as FetchedComment
-from inbox_repository import CommentRepository
-from learning_service import ExtractedPreference, VideoResponseGuidance
-from video_catalog import Video, store_discovered_videos
-from youtube_reply import PostedReply
+from wingman.web import create_app
+from wingman.ai.classification_service import CommentClassification
+from wingman.db.comment_store import connect_database, sync_comments
+from wingman.youtube.sync import Comment as FetchedComment
+from wingman.db.inbox_repository import CommentRepository
+from wingman.ai.learning_service import ExtractedPreference, VideoResponseGuidance
+from wingman.db.video_catalog import Video, store_discovered_videos
+from wingman.youtube.reply import PostedReply
 
 
 class FakeProductionClassifier:
@@ -484,7 +484,7 @@ class InboxRouteTests(unittest.TestCase):
         )
 
     def test_async_forms_only_use_explicit_submit_button_overrides(self) -> None:
-        script = Path("static/app.js").read_text(encoding="utf-8")
+        script = Path("src/wingman/static/app.js").read_text(encoding="utf-8")
 
         self.assertIn('getAttribute("formaction")', script)
         self.assertIn('getAttribute("formmethod")', script)

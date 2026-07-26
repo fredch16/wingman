@@ -5,8 +5,8 @@ import unittest
 from typing import Any
 from unittest.mock import Mock, patch
 
-from comment_store import create_comments_table
-from fetch_comments import (
+from wingman.db.comment_store import create_comments_table
+from wingman.youtube.sync import (
     Comment,
     FetchResult,
     PageFetchError,
@@ -148,7 +148,7 @@ class MultipleVideoTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.connection.close()
 
-    @patch("fetch_comments.fetch_all_comments_for_video")
+    @patch("wingman.youtube.sync.fetch_all_comments_for_video")
     def test_multiple_videos_are_synced_separately(self, fetch: Mock) -> None:
         fetch.side_effect = [
             FetchResult([comment("comment-1", "video00001")], 1),
@@ -168,7 +168,7 @@ class MultipleVideoTests(unittest.TestCase):
             [("comment-1", "video00001"), ("comment-2", "video00002")],
         )
 
-    @patch("fetch_comments.fetch_all_comments_for_video")
+    @patch("wingman.youtube.sync.fetch_all_comments_for_video")
     def test_failure_on_one_video_does_not_stop_the_next(self, fetch: Mock) -> None:
         fetch.side_effect = [
             PageFetchError(1, RuntimeError("Comments are disabled")),
