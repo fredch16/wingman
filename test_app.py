@@ -493,7 +493,13 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn('toolbar?.getBoundingClientRect().bottom', script)
         self.assertIn("cardBounds.top - visibleTop", script)
         self.assertIn('showWorkflowToast("Reply posted successfully")', script)
+        self.assertIn('showWorkflowToast("Conversation hidden")', script)
         self.assertIn("updateConversationCount()", script)
+        self.assertIn(
+            'card.dataset.commentId === activeCommentId',
+            script,
+        )
+        self.assertIn("showCompletedInbox()", script)
         self.assertIn('`Regenerating${".".repeat(dotCount)}`', script)
         self.assertIn("setInterval(updateProgress, 420)", script)
         self.assertIn('form.querySelector(\'button[type="submit"]\')', script)

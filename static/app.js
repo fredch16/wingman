@@ -109,6 +109,21 @@
     });
   }
 
+  function showCompletedInbox() {
+    if (!detailPanel) return;
+    const empty = document.createElement("div");
+    empty.className = "detail-empty";
+    const mark = document.createElement("span");
+    mark.className = "brand-mark";
+    mark.textContent = "✓";
+    const heading = document.createElement("h2");
+    heading.textContent = "You're all caught up";
+    const copy = document.createElement("p");
+    copy.textContent = "No conversations need your attention right now.";
+    empty.append(mark, heading, copy);
+    detailPanel.replaceChildren(empty);
+  }
+
   if (cards.length) {
     const requestedId = decodeURIComponent(location.hash.slice(1));
     const initial = cards.find((card) => card.dataset.commentId === requestedId) || cards[0];
@@ -130,7 +145,13 @@
     event.preventDefault();
 
     const submitter = event.submitter;
-    const activeCardIndex = selectedCardIndex();
+    const activeCommentId = form.closest(".conversation-shell")?.dataset.detailId;
+    const cardIndexById = cards.findIndex(
+      (card) => card.dataset.commentId === activeCommentId,
+    );
+    const activeCardIndex = cardIndexById >= 0
+      ? cardIndexById
+      : selectedCardIndex();
     let progressTimer = null;
     const feedbackButtons = submitter ? [submitter] : [];
     if (submitter?.matches(".shortcut-approve-post")) {
@@ -184,6 +205,7 @@
       if ((isIgnoreAction || completedPost) && activeCardIndex >= 0) {
         const completedCard = cards[activeCardIndex];
         if (completedPost) showWorkflowToast("Reply posted successfully");
+        if (isIgnoreAction) showWorkflowToast("Conversation hidden");
         await dismissCard(completedCard);
         cards.splice(activeCardIndex, 1);
         completedCard.remove();
@@ -191,7 +213,7 @@
         if (cards.length) {
           selectCard(cards[Math.min(activeCardIndex, cards.length - 1)]);
         } else {
-          detailPanel.replaceChildren();
+          showCompletedInbox();
         }
       } else {
         detailPanel.replaceChildren(refreshed);
