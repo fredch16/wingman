@@ -74,8 +74,7 @@
     event.preventDefault();
 
     const submitter = event.submitter;
-    const isIgnoreAction = new URL(form.action, document.baseURI).pathname.endsWith("/ignore");
-    const ignoredCardIndex = selectedCardIndex();
+    const activeCardIndex = selectedCardIndex();
     if (submitter) {
       submitter.disabled = true;
       submitter.classList.add("is-working");
@@ -90,6 +89,10 @@
         ? new URL(actionOverride, document.baseURI).href
         : form.action;
       const method = methodOverride || form.method;
+      const actionPath = new URL(action, document.baseURI).pathname;
+      const isIgnoreAction = actionPath.endsWith("/ignore");
+      const isPostAction = actionPath.endsWith("/reply")
+        || actionPath.endsWith("/approve-and-post");
       const response = await fetch(action, {
         method,
         body: new FormData(form),
@@ -101,11 +104,12 @@
       const parsed = new DOMParser().parseFromString(documentText, "text/html");
       const refreshed = parsed.querySelector(".conversation-shell");
       if (!refreshed || !detailPanel) throw new Error("Updated conversation was unavailable");
-      if (isIgnoreAction && ignoredCardIndex >= 0) {
-        const [ignoredCard] = cards.splice(ignoredCardIndex, 1);
-        ignoredCard.remove();
+      const completedPost = isPostAction && refreshed.querySelector(".reply-sent");
+      if ((isIgnoreAction || completedPost) && activeCardIndex >= 0) {
+        const [completedCard] = cards.splice(activeCardIndex, 1);
+        completedCard.remove();
         if (cards.length) {
-          selectCard(cards[Math.min(ignoredCardIndex, cards.length - 1)]);
+          selectCard(cards[Math.min(activeCardIndex, cards.length - 1)]);
         } else {
           detailPanel.replaceChildren();
         }

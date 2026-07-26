@@ -448,6 +448,9 @@ class InboxRouteTests(unittest.TestCase):
         self.assertEqual(row["final_reply"], "Final text posted from the editor.")
         self.assertEqual(row["creator_reply_id"], "youtube-reply-1")
         self.assertIn(b"Reply published", posted.data)
+        self.assertNotIn(
+            b"Full text for comment-new", self.client.get("/").data
+        )
 
     def test_approves_and_posts_editor_text_in_one_action(self) -> None:
         self.client.post("/comments/comment-new/generate-reply")
@@ -472,6 +475,8 @@ class InboxRouteTests(unittest.TestCase):
 
         self.assertIn('getAttribute("formaction")', script)
         self.assertIn('getAttribute("formmethod")', script)
+        self.assertIn('actionPath.endsWith("/reply")', script)
+        self.assertIn('refreshed.querySelector(".reply-sent")', script)
         self.assertNotIn("submitter?.formAction", script)
         self.assertNotIn("submitter?.formMethod", script)
 
