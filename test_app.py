@@ -228,6 +228,7 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn(b"Classify comment", response.data)
         self.assertIn(b"Classify next 10", response.data)
         self.assertIn(b"Classify all", response.data)
+        self.assertIn(b'data-count="3"', response.data)
 
     def test_comment_detail_and_missing_comment(self) -> None:
         response = self.client.get("/comments/comment-new")
@@ -479,6 +480,8 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn('refreshed.querySelector(".reply-sent")', script)
         self.assertIn('toolbar?.getBoundingClientRect().bottom', script)
         self.assertIn("cardBounds.top - visibleTop", script)
+        self.assertIn('showWorkflowToast("Reply posted successfully")', script)
+        self.assertIn("updateConversationCount()", script)
         self.assertNotIn("submitter?.formAction", script)
         self.assertNotIn("submitter?.formMethod", script)
 

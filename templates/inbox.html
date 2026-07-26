@@ -12,7 +12,12 @@
             {% if view == "ignored" %}
               Conversations moved out of your active queue.
             {% else %}
-              {{ all_comments|length }} conversations waiting for you
+              <span id="conversation-count"
+                    data-count="{{ all_comments|length }}">
+                {{ all_comments|length }}
+                {{ "conversation" if all_comments|length == 1 else "conversations" }}
+                waiting for you
+              </span>
             {% endif %}
           </p>
         </div>

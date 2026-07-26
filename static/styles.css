@@ -444,6 +444,58 @@ main {
   transform: scaleY(1);
 }
 
+.conversation-card.is-dismissing {
+  border-bottom-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding-bottom: 0;
+  padding-top: 0;
+  pointer-events: none;
+  transform: translateX(-14px) scale(.985);
+  transition:
+    height 260ms ease,
+    opacity 180ms ease,
+    padding 260ms ease,
+    transform 220ms ease;
+}
+
+.workflow-toast {
+  background: rgb(24 31 29 / 96%);
+  border: 1px solid rgb(98 201 154 / 38%);
+  border-radius: 10px;
+  bottom: 24px;
+  box-shadow: var(--shadow);
+  color: #dff8ec;
+  font-size: 12px;
+  font-weight: 600;
+  left: 50%;
+  opacity: 0;
+  padding: 11px 15px;
+  pointer-events: none;
+  position: fixed;
+  transform: translate(-50%, 10px);
+  transition: opacity 160ms ease, transform 180ms ease;
+  z-index: 50;
+}
+
+.workflow-toast::before {
+  color: var(--green);
+  content: "✓";
+  margin-right: 8px;
+}
+
+.workflow-toast.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conversation-card.is-dismissing,
+  .workflow-toast {
+    transition-duration: 1ms;
+  }
+}
+
 .avatar {
   align-items: center;
   background:
