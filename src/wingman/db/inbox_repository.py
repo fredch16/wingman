@@ -16,6 +16,8 @@ class Comment:
     """A comment as presented and managed in the Wingman inbox."""
 
     comment_id: str
+    platform: str
+    permalink: str
     video_id: str
     video_title: str
     video_summary: str | None
@@ -43,6 +45,19 @@ class Comment:
     creator_replied_at: str | None
     reply_status_checked_at: str | None
     reply_approved_at: str | None
+
+    @property
+    def source_url(self) -> str:
+        if self.platform == "instagram":
+            return self.permalink
+        return (
+            f"https://www.youtube.com/watch?v={self.video_id}"
+            f"&lc={self.comment_id}"
+        )
+
+    @property
+    def platform_label(self) -> str:
+        return "YouTube" if self.platform == "youtube" else self.platform.title()
 
 
 def utc_now() -> str:
@@ -99,10 +114,11 @@ class CommentRepository:
               AND {classification_filter}
               AND LOWER(comments.author_display_name) != ?
               AND NOT (
-                  comments.author_channel_id IS NOT NULL
-                  AND comments.author_channel_id = (
+                  comments.platform = 'youtube'
+                  AND comments.author_channel_id IS NOT NULL
+                  AND comments.author_channel_id = COALESCE((
                       SELECT value FROM settings WHERE key = ?
-                  )
+                  ), '')
               )
             ORDER BY {order_by}
             {limit_clause}
@@ -135,6 +151,8 @@ class CommentRepository:
             f"""
             SELECT
                 comments.comment_id,
+                comments.platform,
+                COALESCE(NULLIF(videos.permalink, ''), '') AS permalink,
                 comments.video_id,
                 COALESCE(videos.title, comments.video_id) AS video_title,
                 videos.summary AS video_summary,
@@ -167,10 +185,11 @@ class CommentRepository:
             WHERE {filters[filter_name]}
               AND LOWER(comments.author_display_name) != ?
               AND NOT (
-                  comments.author_channel_id IS NOT NULL
-                  AND comments.author_channel_id = (
+                  comments.platform = 'youtube'
+                  AND comments.author_channel_id IS NOT NULL
+                  AND comments.author_channel_id = COALESCE((
                       SELECT value FROM settings WHERE key = ?
-                  )
+                  ), '')
               )
             ORDER BY comments.published_at DESC, comments.comment_id
             """,
@@ -183,6 +202,8 @@ class CommentRepository:
             """
             SELECT
                 comments.comment_id,
+                comments.platform,
+                COALESCE(NULLIF(videos.permalink, ''), '') AS permalink,
                 comments.video_id,
                 COALESCE(videos.title, comments.video_id) AS video_title,
                 videos.summary AS video_summary,
@@ -253,7 +274,7 @@ class CommentRepository:
             (final_reply, replied_at or utc_now()),
         )
 
-    def mark_youtube_replied(
+    def mark_platform_replied(
         self,
         comment_id: str,
         reply_id: str,
@@ -274,6 +295,8 @@ class CommentRepository:
             """,
             (final_reply, timestamp, reply_id, timestamp, timestamp),
         )
+
+    mark_youtube_replied = mark_platform_replied
 
     def update_priority(self, comment_id: str, priority: float | None) -> bool:
         return self._update(comment_id, "priority = ?", (priority,))
@@ -376,6 +399,8 @@ class CommentRepository:
     def _comment_from_row(row: sqlite3.Row) -> Comment:
         return Comment(
             comment_id=row["comment_id"],
+            platform=row["platform"],
+            permalink=row["permalink"],
             video_id=row["video_id"],
             video_title=row["video_title"],
             video_summary=row["video_summary"],
@@ -416,6 +441,8 @@ class CommentRepository:
         return """
             SELECT
                 comments.comment_id,
+                comments.platform,
+                COALESCE(NULLIF(videos.permalink, ''), '') AS permalink,
                 comments.video_id,
                 COALESCE(videos.title, comments.video_id) AS video_title,
                 videos.summary AS video_summary,

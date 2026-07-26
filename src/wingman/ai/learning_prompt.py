@@ -1,6 +1,6 @@
 """Shared instructions for extracting durable preferences from reply edits."""
 
-PREFERENCE_LEARNING_PROMPT = """Compare an AI-generated YouTube reply with the
+PREFERENCE_LEARNING_PROMPT = """Compare an AI-generated social media reply with the
 creator's edited version and extract at most two durable writing preferences
 that would improve future replies.
 

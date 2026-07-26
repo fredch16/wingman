@@ -60,7 +60,7 @@ Return:
 Base the result only on the supplied comment. Do not draft a reply."""
 
 
-CLASSIFICATION_PROMPT = """You classify YouTube comments for an engineering creator who documents their learning journey and wants to build a genuine, positive engineering community.
+CLASSIFICATION_PROMPT = """You classify social media comments for an engineering creator who documents their learning journey and wants to build a genuine, positive engineering community.
 
 Your primary task is to estimate:
 

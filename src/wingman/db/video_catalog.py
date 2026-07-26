@@ -1,4 +1,4 @@
-"""Discover and persist videos from the authenticated YouTube channel."""
+"""Discover and persist creator videos across supported platforms."""
 
 from __future__ import annotations
 
@@ -14,6 +14,8 @@ class Video:
     title: str
     published_at: str
     thumbnail_url: str
+    platform: str = "youtube"
+    permalink: str = ""
 
 
 @dataclass(frozen=True)
@@ -41,6 +43,8 @@ class StoredVideo:
     last_seen_at: str
     comments_last_checked_at: str | None
     summary: str | None
+    platform: str
+    permalink: str
 
 
 class PlaylistPaginationError(RuntimeError):
@@ -124,6 +128,8 @@ def create_videos_table(connection: sqlite3.Connection) -> None:
         """
         CREATE TABLE IF NOT EXISTS videos (
             video_id TEXT PRIMARY KEY,
+            platform TEXT NOT NULL DEFAULT 'youtube',
+            permalink TEXT NOT NULL DEFAULT '',
             title TEXT NOT NULL,
             published_at TEXT NOT NULL,
             thumbnail_url TEXT NOT NULL,
@@ -144,6 +150,14 @@ def create_videos_table(connection: sqlite3.Connection) -> None:
         )
     if "summary" not in existing_columns:
         connection.execute("ALTER TABLE videos ADD COLUMN summary TEXT")
+    if "platform" not in existing_columns:
+        connection.execute(
+            "ALTER TABLE videos ADD COLUMN platform TEXT NOT NULL DEFAULT 'youtube'"
+        )
+    if "permalink" not in existing_columns:
+        connection.execute(
+            "ALTER TABLE videos ADD COLUMN permalink TEXT NOT NULL DEFAULT ''"
+        )
 
 
 def store_discovered_videos(
@@ -163,12 +177,18 @@ def store_discovered_videos(
         for video in unique_videos.values():
             existing = connection.execute(
                 """
-                SELECT title, published_at, thumbnail_url
+                SELECT title, published_at, thumbnail_url, platform, permalink
                 FROM videos WHERE video_id = ?
                 """,
                 (video.video_id,),
             ).fetchone()
-            current_values = (video.title, video.published_at, video.thumbnail_url)
+            current_values = (
+                video.title,
+                video.published_at,
+                video.thumbnail_url,
+                video.platform,
+                video.permalink,
+            )
             if existing is None:
                 inserted += 1
             elif tuple(existing) == current_values:
@@ -179,13 +199,17 @@ def store_discovered_videos(
             connection.execute(
                 """
                 INSERT INTO videos (
-                    video_id, title, published_at, thumbnail_url, is_enabled,
+                    video_id, platform, permalink, title, published_at,
+                    thumbnail_url, is_enabled,
                     first_seen_at, last_seen_at
                 ) VALUES (
-                    :video_id, :title, :published_at, :thumbnail_url, 1,
+                    :video_id, :platform, :permalink, :title, :published_at,
+                    :thumbnail_url, 1,
                     :first_seen_at, :last_seen_at
                 )
                 ON CONFLICT(video_id) DO UPDATE SET
+                    platform = excluded.platform,
+                    permalink = excluded.permalink,
                     title = excluded.title,
                     published_at = excluded.published_at,
                     thumbnail_url = excluded.thumbnail_url,
@@ -212,7 +236,7 @@ def list_stored_videos(connection: sqlite3.Connection) -> list[StoredVideo]:
         """
         SELECT video_id, title, published_at, thumbnail_url, is_enabled,
                first_seen_at, last_seen_at, comments_last_checked_at
-               , summary
+               , summary, platform, permalink
         FROM videos
         ORDER BY published_at DESC, video_id
         """
@@ -228,6 +252,8 @@ def list_stored_videos(connection: sqlite3.Connection) -> list[StoredVideo]:
             last_seen_at=row["last_seen_at"],
             comments_last_checked_at=row["comments_last_checked_at"],
             summary=row["summary"],
+            platform=row["platform"],
+            permalink=row["permalink"],
         )
         for row in rows
     ]

@@ -34,6 +34,11 @@ from wingman.db.video_catalog import (
     update_video_summary,
 )
 from wingman.youtube.reply import post_comment_reply
+from wingman.instagram.client import (
+    InstagramAPIError,
+    InstagramClient,
+    post_comment_reply as post_instagram_comment_reply,
+)
 
 
 def create_app(test_config: dict[str, Any] | None = None) -> Flask:
@@ -89,6 +94,21 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         if configured_service is not None:
             return configured_service
         return post_comment_reply
+
+    def instagram_client() -> InstagramClient:
+        configured_client = app.config.get("INSTAGRAM_CLIENT")
+        if configured_client is not None:
+            return configured_client
+        return InstagramClient(
+            os.getenv("INSTAGRAM_ACCESS_TOKEN", ""),
+            os.getenv("INSTAGRAM_GRAPH_API_VERSION", "v25.0"),
+        )
+
+    def instagram_reply_service():
+        configured_service = app.config.get("INSTAGRAM_REPLY_SERVICE")
+        if configured_service is not None:
+            return configured_service
+        return post_instagram_comment_reply
 
     def reply_generation_service() -> ReplyGenerationService:
         if "reply_generation_service" not in app.extensions:
@@ -557,22 +577,35 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             return redirect(url_for("comment_detail", comment_id=comment_id))
 
         try:
-            youtube = (
-                app.config["YOUTUBE_CLIENT"]
-                if app.config.get("YOUTUBE_CLIENT") is not None
-                else get_authenticated_youtube_client()
-            )
-            posted = youtube_reply_service()(youtube, comment.comment_id, reply_text)
+            if comment.platform == "instagram":
+                posted = instagram_reply_service()(
+                    instagram_client(), comment.comment_id, reply_text
+                )
+            else:
+                youtube = (
+                    app.config["YOUTUBE_CLIENT"]
+                    if app.config.get("YOUTUBE_CLIENT") is not None
+                    else get_authenticated_youtube_client()
+                )
+                posted = youtube_reply_service()(
+                    youtube, comment.comment_id, reply_text
+                )
         except HttpError as error:
             app.extensions["reply_errors"][comment_id] = api_error_message(error)
             app.extensions["reply_drafts"][comment_id] = reply_text
             app.logger.exception("YouTube reply failed for %s", comment_id)
-        except (GoogleAuthError, OSError, RuntimeError, ValueError) as error:
+        except (
+            GoogleAuthError,
+            InstagramAPIError,
+            OSError,
+            RuntimeError,
+            ValueError,
+        ) as error:
             app.extensions["reply_errors"][comment_id] = str(error)
             app.extensions["reply_drafts"][comment_id] = reply_text
-            app.logger.exception("YouTube reply failed for %s", comment_id)
+            app.logger.exception("%s reply failed for %s", comment.platform, comment_id)
         else:
-            repository().mark_youtube_replied(
+            repository().mark_platform_replied(
                 comment_id=comment_id,
                 reply_id=posted.reply_id,
                 final_reply=posted.text,

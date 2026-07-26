@@ -1,6 +1,6 @@
 # Wingman
 
-Wingman is an AI-assisted YouTube comment inbox for prioritizing conversations,
+Wingman is an AI-assisted creator comment inbox for prioritizing conversations,
 drafting replies in a creator's voice, learning from edits, and publishing
 responses without leaving the workflow.
 
@@ -8,16 +8,18 @@ The project started as a hackathon MVP at the Cursor Social Media Hackathon in
 Stuttgart in July 2026, where it won second place. Since then, Wingman has
 evolved into a tool I use daily to manage real creator conversations: it syncs
 comments, ranks what deserves attention, prepares contextual replies, learns
-reusable preferences, and posts approved text directly to YouTube.
+reusable preferences, and posts approved text directly to YouTube or Instagram.
 
 ## What Wingman does
 
 - Discovers every upload on an authenticated YouTube channel.
+- Discovers Instagram Reels and posts through the Instagram Graph API.
 - Synchronizes top-level comments with full pagination and incremental refreshes.
 - Detects existing creator replies and keeps completed threads out of the inbox.
 - Classifies comments by priority, category, reply-worthiness, and research need.
 - Generates editable replies from creator, video, comment, and thread context.
-- Publishes replies to YouTube and removes completed conversations immediately.
+- Publishes replies to the originating platform and removes completed
+  conversations immediately.
 - Learns durable voice preferences from changes to AI drafts.
 - Learns video-specific model answers for recurring questions.
 - Preserves ignored conversations in a separate view.
@@ -49,15 +51,15 @@ selected comment, context, and editable reply are shown on the right.
 | `e` or `a` | Focus the reply editor |
 | `Ctrl+Enter` | Post the selected reply |
 | `h` | Hide the selected conversation |
-| `o` or `O` | Open the YouTube comment in a new tab |
+| `o` or `O` | Open the source comment in a new tab |
 | `Esc` | Leave the reply editor |
 
 Shortcuts are inactive while typing, apart from `Ctrl+Enter` and `Esc`.
 
 ## Setup
 
-Wingman requires Python 3.11 or newer, a YouTube OAuth desktop client, and an
-OpenAI API key.
+Wingman requires Python 3.11 or newer, an OpenAI API key, and credentials for at
+least one supported platform.
 
 1. Create a project in the
    [Google Cloud Console](https://console.cloud.google.com/).
@@ -79,6 +81,14 @@ OpenAI API key.
    YOUTUBE_CLIENT_SECRETS_FILE=client_secret.json
    YOUTUBE_TOKEN_FILE=token.json
    DATABASE_PATH=comments.db
+   ```
+
+   To enable Instagram, add a professional-account Graph API token:
+
+   ```dotenv
+   INSTAGRAM_ACCESS_TOKEN=...
+   INSTAGRAM_ACCOUNT_ID=...
+   INSTAGRAM_GRAPH_API_VERSION=v25.0
    ```
 
 8. Create an environment and install Wingman:
@@ -157,6 +167,31 @@ Synchronization is resilient across videos: disabled comments, empty results,
 or a failure on one video do not stop later videos. Successful comment and reply
 checks are committed incrementally so interrupted runs can resume.
 
+## Synchronize Instagram
+
+Verify the authenticated account and list its media without changing the local
+database:
+
+```bash
+wingman-instagram --list-media
+```
+
+Synchronize every available Instagram post and its comment threads:
+
+```bash
+wingman-instagram
+```
+
+To limit a run to one or more posts:
+
+```bash
+wingman-instagram --media-id MEDIA_ID
+```
+
+Instagram's flat comment response is reconstructed into conversations using
+parent IDs. Existing replies from `@charbonnierlabs` are detected during sync,
+so answered threads stay out of the active inbox.
+
 ## Classification and reply generation
 
 Classification is explicit. Opening the inbox never calls OpenAI. Use the inbox
@@ -172,7 +207,7 @@ Reply generation combines:
 4. The viewer comment and available thread context.
 
 The generated text stays editable until it is posted. A successful post is
-recorded locally only after YouTube confirms it.
+recorded locally only after the source platform confirms it.
 
 ## Learning
 
@@ -208,6 +243,7 @@ in the sidebar.
 ├── src/wingman/
 │   ├── ai/             # prompts, classification, generation, and learning
 │   ├── db/             # SQLite schema, repositories, and video catalog
+│   ├── instagram/      # Graph API client, synchronization, and publishing
 │   ├── youtube/        # synchronization, reply detection, and publishing
 │   ├── static/         # browser JavaScript and styles
 │   ├── templates/      # Flask/Jinja views
@@ -229,9 +265,9 @@ runtime code separate from tests and local data.
 
 The suite covers pagination, synchronization, migrations, repository behavior,
 classification, reply generation, preference learning, video-specific learning,
-creator-reply detection, YouTube publishing, routes, and keyboard workflow
-regressions. Tests use fakes and temporary SQLite databases; they do not contact
-YouTube or OpenAI.
+creator-reply detection, YouTube and Instagram publishing, routes, and keyboard
+workflow regressions. Tests use fakes and temporary SQLite databases; they do
+not contact Instagram, YouTube, or OpenAI.
 
 ```bash
 python -m unittest -v

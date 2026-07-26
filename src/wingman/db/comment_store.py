@@ -1,4 +1,4 @@
-"""SQLite persistence for fetched YouTube comments."""
+"""SQLite persistence for fetched creator comments."""
 
 from __future__ import annotations
 
@@ -6,12 +6,10 @@ import sqlite3
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from wingman.youtube.sync import Comment
+from typing import Any
 
 COMMENT_FIELDS = (
+    "platform",
     "thread_id",
     "video_id",
     "author_display_name",
@@ -72,6 +70,7 @@ def create_comments_table(connection: sqlite3.Connection) -> None:
         """
         CREATE TABLE IF NOT EXISTS comments (
             comment_id TEXT PRIMARY KEY,
+            platform TEXT NOT NULL DEFAULT 'youtube',
             thread_id TEXT NOT NULL,
             video_id TEXT NOT NULL,
             author_display_name TEXT NOT NULL,
@@ -110,6 +109,10 @@ def create_comments_table(connection: sqlite3.Connection) -> None:
     existing_columns = {
         row["name"] for row in connection.execute("PRAGMA table_info(comments)")
     }
+    if "platform" not in existing_columns:
+        connection.execute(
+            "ALTER TABLE comments ADD COLUMN platform TEXT NOT NULL DEFAULT 'youtube'"
+        )
     for column_name, definition in INBOX_COLUMNS.items():
         if column_name not in existing_columns:
             connection.execute(
@@ -123,7 +126,7 @@ def utc_now() -> str:
 
 def sync_comments(
     connection: sqlite3.Connection,
-    comments: list[Comment],
+    comments: list[Any],
     synced_at: str | None = None,
 ) -> SyncSummary:
     """Upsert comments and report how the stored records changed."""
@@ -137,6 +140,7 @@ def sync_comments(
     with connection:
         for comment in unique_comments.values():
             values = asdict(comment)
+            values.setdefault("platform", "youtube")
             existing = connection.execute(
                 f"SELECT {', '.join(COMMENT_FIELDS)} "
                 "FROM comments WHERE comment_id = ?",
@@ -157,17 +161,18 @@ def sync_comments(
             connection.execute(
                 """
                 INSERT INTO comments (
-                    comment_id, thread_id, video_id, author_display_name,
+                    comment_id, platform, thread_id, video_id, author_display_name,
                     author_channel_id, text, like_count, published_at, updated_at,
                     total_reply_count, can_reply, is_public, first_seen_at,
                     last_seen_at
                 ) VALUES (
-                    :comment_id, :thread_id, :video_id, :author_display_name,
+                    :comment_id, :platform, :thread_id, :video_id, :author_display_name,
                     :author_channel_id, :text, :like_count, :published_at,
                     :updated_at, :total_reply_count, :can_reply, :is_public,
                     :first_seen_at, :last_seen_at
                 )
                 ON CONFLICT(comment_id) DO UPDATE SET
+                    platform = excluded.platform,
                     thread_id = excluded.thread_id,
                     video_id = excluded.video_id,
                     author_display_name = excluded.author_display_name,
