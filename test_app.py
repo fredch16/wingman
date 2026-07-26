@@ -477,6 +477,8 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn('getAttribute("formmethod")', script)
         self.assertIn('actionPath.endsWith("/reply")', script)
         self.assertIn('refreshed.querySelector(".reply-sent")', script)
+        self.assertIn('toolbar?.getBoundingClientRect().bottom', script)
+        self.assertIn("cardBounds.top - visibleTop", script)
         self.assertNotIn("submitter?.formAction", script)
         self.assertNotIn("submitter?.formMethod", script)
 

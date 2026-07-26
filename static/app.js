@@ -17,6 +17,23 @@
     });
   }
 
+  function revealCard(card) {
+    const listPanel = card.closest(".inbox-list-panel");
+    if (!listPanel) return;
+    const toolbar = listPanel.querySelector(".inbox-toolbar");
+    const panelBounds = listPanel.getBoundingClientRect();
+    const cardBounds = card.getBoundingClientRect();
+    const visibleTop = Math.max(
+      panelBounds.top,
+      toolbar?.getBoundingClientRect().bottom || panelBounds.top,
+    );
+    if (cardBounds.top < visibleTop) {
+      listPanel.scrollTop += cardBounds.top - visibleTop;
+    } else if (cardBounds.bottom > panelBounds.bottom) {
+      listPanel.scrollTop += cardBounds.bottom - panelBounds.bottom;
+    }
+  }
+
   function selectCard(card) {
     const template = document.querySelector(`#detail-${CSS.escape(card.dataset.commentId)}`);
     if (!template || !detailPanel) return;
@@ -28,7 +45,7 @@
     detailPanel.replaceChildren(template.content.cloneNode(true));
     detailPanel.classList.add("mobile-open");
     history.replaceState(null, "", `#${encodeURIComponent(card.dataset.commentId)}`);
-    card.scrollIntoView({ block: "nearest" });
+    revealCard(card);
   }
 
   cards.forEach((card) => card.addEventListener("click", () => selectCard(card)));
