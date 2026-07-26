@@ -486,6 +486,11 @@ class InboxRouteTests(unittest.TestCase):
             'detailPanel?.querySelector(".reply-editor")',
             script,
         )
+        self.assertIn(
+            'form.querySelector(".editor-actions .primary")',
+            script,
+        )
+        self.assertIn('? "Posting…"', script)
         self.assertNotIn(
             'target.closest(".reply-editor")',
             script,

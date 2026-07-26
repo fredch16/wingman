@@ -129,11 +129,18 @@
 
     const submitter = event.submitter;
     const activeCardIndex = selectedCardIndex();
-    if (submitter) {
-      submitter.disabled = true;
-      submitter.classList.add("is-working");
-      submitter.dataset.label = submitter.textContent;
-      submitter.textContent = "Working…";
+    const feedbackButtons = submitter ? [submitter] : [];
+    if (submitter?.matches(".shortcut-approve-post")) {
+      const visiblePostButton = form.querySelector(".editor-actions .primary");
+      if (visiblePostButton) feedbackButtons.push(visiblePostButton);
+    }
+    for (const button of feedbackButtons) {
+      button.disabled = true;
+      button.classList.add("is-working");
+      button.dataset.label = button.textContent;
+      button.textContent = button.matches(".editor-actions .primary")
+        ? "Posting…"
+        : "Working…";
     }
 
     try {
@@ -179,10 +186,10 @@
       message.className = "form-error";
       message.textContent = error.message;
       form.prepend(message);
-      if (submitter) {
-        submitter.disabled = false;
-        submitter.classList.remove("is-working");
-        submitter.textContent = submitter.dataset.label;
+      for (const button of feedbackButtons) {
+        button.disabled = false;
+        button.classList.remove("is-working");
+        button.textContent = button.dataset.label;
       }
     }
   });
@@ -213,7 +220,7 @@
     if (event.key === "Enter" && event.ctrlKey) {
       const form = detailPanel?.querySelector(".reply-editor");
       const approveAndPost = form?.querySelector(".shortcut-approve-post");
-      if (form && approveAndPost) {
+      if (form && approveAndPost && !approveAndPost.disabled) {
         event.preventDefault();
         form.requestSubmit(approveAndPost);
         return;
