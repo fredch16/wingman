@@ -3,6 +3,7 @@
   const developerToggle = document.querySelector("#developer-mode");
   const detailPanel = document.querySelector("#conversation-panel");
   const cards = [...document.querySelectorAll(".conversation-card")];
+  const conversationCount = document.querySelector("#conversation-count");
 
   const developerMode = localStorage.getItem("wingman-developer-mode") === "true";
   root.classList.toggle("developer-mode-on", developerMode);
@@ -70,6 +71,42 @@
     if (form instanceof HTMLFormElement) form.requestSubmit();
   }
 
+  function updateConversationCount() {
+    if (!conversationCount) return;
+    const count = cards.length;
+    conversationCount.dataset.count = String(count);
+    conversationCount.textContent = `${count} ${count === 1 ? "conversation" : "conversations"} waiting for you`;
+  }
+
+  function showWorkflowToast(message) {
+    const toast = document.createElement("div");
+    toast.className = "workflow-toast";
+    toast.setAttribute("role", "status");
+    toast.textContent = message;
+    document.body.append(toast);
+    requestAnimationFrame(() => toast.classList.add("visible"));
+    setTimeout(() => {
+      toast.classList.remove("visible");
+      toast.addEventListener("transitionend", () => toast.remove(), { once: true });
+    }, 2800);
+  }
+
+  async function dismissCard(card) {
+    card.style.height = `${card.getBoundingClientRect().height}px`;
+    card.style.minHeight = "0";
+    card.getBoundingClientRect();
+    card.classList.add("is-dismissing");
+    card.style.height = "0";
+    await new Promise((resolve) => {
+      const fallback = setTimeout(resolve, 350);
+      card.addEventListener("transitionend", (event) => {
+        if (event.propertyName !== "height") return;
+        clearTimeout(fallback);
+        resolve();
+      }, { once: true });
+    });
+  }
+
   if (cards.length) {
     const requestedId = decodeURIComponent(location.hash.slice(1));
     const initial = cards.find((card) => card.dataset.commentId === requestedId) || cards[0];
@@ -123,8 +160,12 @@
       if (!refreshed || !detailPanel) throw new Error("Updated conversation was unavailable");
       const completedPost = isPostAction && refreshed.querySelector(".reply-sent");
       if ((isIgnoreAction || completedPost) && activeCardIndex >= 0) {
-        const [completedCard] = cards.splice(activeCardIndex, 1);
+        const completedCard = cards[activeCardIndex];
+        if (completedPost) showWorkflowToast("Reply posted successfully");
+        await dismissCard(completedCard);
+        cards.splice(activeCardIndex, 1);
         completedCard.remove();
+        updateConversationCount();
         if (cards.length) {
           selectCard(cards[Math.min(activeCardIndex, cards.length - 1)]);
         } else {
