@@ -387,7 +387,7 @@ class InboxRouteTests(unittest.TestCase):
     def test_generates_edits_and_locally_approves_reply(self) -> None:
         detail = self.client.get("/comments/comment-new")
         self.assertIn(b"Generate Draft", detail.data)
-        self.assertNotIn(b"Post reply", detail.data)
+        self.assertNotIn(b"Post to YouTube", detail.data)
 
         response = self.client.post(
             "/comments/comment-new/generate-reply",
@@ -435,7 +435,7 @@ class InboxRouteTests(unittest.TestCase):
         )
         self.assertIn(b"Post to YouTube", approved.data)
         self.assertIn(
-            b'formaction="/comments/comment-new/reply"',
+            b'formaction="/comments/comment-new/approve-and-post"',
             approved.data,
         )
 
@@ -502,6 +502,7 @@ class InboxRouteTests(unittest.TestCase):
             'form.querySelector(".editor-actions .primary")',
             script,
         )
+        self.assertIn('button.matches(".post-button")', script)
         self.assertIn('? "Posting…"', script)
         self.assertNotIn(
             'target.closest(".reply-editor")',
