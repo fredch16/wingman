@@ -5,11 +5,11 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from classification_prompt import (
+from wingman.ai.classification_prompt import (
     CLASSIFICATION_PROMPT,
     PREVIOUS_CLASSIFICATION_PROMPT,
 )
-from classification_service import ClassificationService, CommentClassification
+from wingman.ai.classification_service import ClassificationService, CommentClassification
 
 
 class FakeResponse:

@@ -7,9 +7,9 @@ from contextlib import redirect_stdout
 from datetime import datetime, timezone
 from unittest.mock import Mock
 
-from comment_store import sync_comments
-from fetch_comments import Comment
-from reply_detection import (
+from wingman.db.comment_store import sync_comments
+from wingman.youtube.sync import Comment
+from wingman.youtube.detection import (
     BACKLOG_CHECK_SETTING,
     backfill_reply_status,
     get_stored_creator_channel_id,

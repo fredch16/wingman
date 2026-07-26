@@ -4,9 +4,9 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from comment_store import create_comments_table
-from reply_detection import CREATOR_CHANNEL_SETTING, create_settings_table
-from video_catalog import create_videos_table
+from wingman.db.comment_store import create_comments_table
+from wingman.youtube.detection import CREATOR_CHANNEL_SETTING, create_settings_table
+from wingman.db.video_catalog import create_videos_table
 
 CREATOR_HANDLE = "@charbonnierlabs"
 

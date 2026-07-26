@@ -1,227 +1,253 @@
-# Wingman YouTube Comment Fetcher
+# Wingman
 
-This MVP discovers every video in the authenticated channel's uploads playlist,
-stores the video catalog in SQLite, and syncs every top-level comment for
-enabled videos. Uploads and comments are fully paginated. Each sync preserves
-first-seen timestamps, refreshes last-seen timestamps, and reports inserted,
-updated, and unchanged counts. Synced comments enter a reusable local Wingman
-inbox with workflow fields for status, priority, category, research, and reply
-drafts. Approved replies can be posted directly to YouTube from the local UI.
+Wingman is an AI-assisted YouTube comment inbox for prioritizing conversations,
+drafting replies in a creator's voice, learning from edits, and publishing
+responses without leaving the workflow.
 
-## Setup and run
+The project started as a hackathon MVP at the Cursor Social Media Hackathon in
+Stuttgart in July 2026, where it won second place. Since then, Wingman has
+evolved into a tool I use daily to manage real creator conversations: it syncs
+comments, ranks what deserves attention, prepares contextual replies, learns
+reusable preferences, and posts approved text directly to YouTube.
 
-1. Create or select a project in the [Google Cloud Console](https://console.cloud.google.com/).
-2. In **APIs & Services > Library**, enable **YouTube Data API v3**.
-3. Configure the OAuth consent screen, then create an **OAuth client ID** with
-   application type **Desktop app**. Download its JSON file as
-   `client_secret.json` in this directory.
-4. Copy the example environment file:
+## What Wingman does
+
+- Discovers every upload on an authenticated YouTube channel.
+- Synchronizes top-level comments with full pagination and incremental refreshes.
+- Detects existing creator replies and keeps completed threads out of the inbox.
+- Classifies comments by priority, category, reply-worthiness, and research need.
+- Generates editable replies from creator, video, comment, and thread context.
+- Publishes replies to YouTube and removes completed conversations immediately.
+- Learns durable voice preferences from changes to AI drafts.
+- Learns video-specific model answers for recurring questions.
+- Preserves ignored conversations in a separate view.
+- Supports a fast keyboard-driven review workflow.
+
+Wingman stores its working state in SQLite. Existing databases are migrated
+automatically as fields are added.
+
+## Daily workflow
+
+The main screen is a two-pane inbox. Conversations are ranked on the left; the
+selected comment, context, and editable reply are shown on the right.
+
+1. Synchronize the latest comments.
+2. Classify new conversations, individually or in bulk.
+3. Generate missing drafts from the inbox menu.
+4. Review or edit the selected reply.
+5. Optionally teach Wingman a creator-wide preference or video-specific answer.
+6. Post the reply. The completed conversation fades out and the next one opens.
+7. Hide conversations that do not need a response.
+
+### Keyboard controls
+
+| Key | Action |
+| --- | --- |
+| `j` | Select the next comment |
+| `k` | Select the previous comment |
+| `r` | Generate or regenerate the selected reply |
+| `e` or `a` | Focus the reply editor |
+| `Ctrl+Enter` | Post the selected reply |
+| `h` | Hide the selected conversation |
+| `o` or `O` | Open the YouTube comment in a new tab |
+| `Esc` | Leave the reply editor |
+
+Shortcuts are inactive while typing, apart from `Ctrl+Enter` and `Esc`.
+
+## Setup
+
+Wingman requires Python 3.11 or newer, a YouTube OAuth desktop client, and an
+OpenAI API key.
+
+1. Create a project in the
+   [Google Cloud Console](https://console.cloud.google.com/).
+2. Enable **YouTube Data API v3**.
+3. Configure the OAuth consent screen.
+4. Create an OAuth client with application type **Desktop app**.
+5. Save the downloaded credentials as `client_secret.json` in the repository
+   root.
+6. Create the local environment file:
 
    ```bash
    cp .env.example .env
    ```
 
-5. Open `.env` and add the OAuth file paths and SQLite database path:
+7. Configure the required values:
 
    ```dotenv
+   OPENAI_API_KEY=...
    YOUTUBE_CLIENT_SECRETS_FILE=client_secret.json
    YOUTUBE_TOKEN_FILE=token.json
    DATABASE_PATH=comments.db
    ```
 
-   Do not commit `.env`.
-
-6. Create a virtual environment and install dependencies:
+8. Create an environment and install Wingman:
 
    ```bash
    python3 -m venv .venv
    source .venv/bin/activate
-   python -m pip install -r requirements.txt
+   python -m pip install -e .
    ```
 
-7. Discover uploads and sync comments for all enabled videos:
+The first authenticated YouTube operation opens the Google consent flow.
+Wingman requests `youtube.force-ssl` because publishing replies requires it.
+The resulting token is stored locally in `token.json`.
 
-   ```bash
-   python fetch_comments.py
-   ```
+## Run the application
 
-   On the first run, approve the YouTube account-management permission in the
-   browser. It is required to publish replies.
-   The resulting OAuth token is saved to `token.json` for later runs.
-
-The default command discovers the channel's uploads before syncing. Newly
-discovered videos are enabled by default. Later discovery runs update metadata
-without changing a video's enabled or disabled status.
-
-## Commands
+Start the web inbox:
 
 ```bash
-# Print active Wingman inbox comments
-./wingman inbox
-
-# Discover and store uploads without syncing comments
-python fetch_comments.py --discover-only
-
-# Sync comments for all enabled videos already stored
-python fetch_comments.py --sync-enabled
-
-# Sync comments for one video, regardless of stored status
-python fetch_comments.py --video-id VIDEO_ID
-
-# Enable or disable a stored video
-python fetch_comments.py --enable-video VIDEO_ID
-python fetch_comments.py --disable-video VIDEO_ID
-
-# List stored videos and their status
-python fetch_comments.py --list-videos
-
-# Backfill creator-reply status for unchecked stored comments
-python fetch_comments.py --backfill-replies
-
-# Force either sync mode to ignore its one-hour freshness check
-python fetch_comments.py --sync-enabled --refresh
-python fetch_comments.py --backfill-replies --refresh
+wingman-web
 ```
 
-The script reports a result for each video and an overall summary. A video with
-disabled comments or no comments does not prevent later videos from syncing.
-Other API failures are reported with the affected video and page.
-`comments.db` is created automatically and is ignored by Git.
+Then open <http://127.0.0.1:5000>.
 
-After comment sync, Wingman checks previously unchecked threads for replies from
-the authenticated creator channel. It uses embedded thread replies when
-complete and requests the full reply list only when necessary. Confirmed creator
-replies are excluded from the active inbox, and repeat runs do not recheck
-completed rows. The backfill summary reports checked, replied, and unreplied
-totals.
-
-Top-level comments authored by the authenticated creator channel are excluded
-from the inbox. `@CharbonnierLabs` is also excluded as a fallback for older
-comments without channel IDs.
-
-Top-level comment fetches and creator-reply backlog checks have independent
-last-checked timestamps and a one-hour freshness window. A recently synced
-video skips comment fetching without preventing a due backlog check.
-`--refresh` bypasses the relevant freshness check; forced backlog refreshes
-recheck previously unreplied comments but never recheck confirmed creator
-replies.
-
-Backlog runs print the pending count, current comment, API stage, and detection
-result as they progress. Each successful comment is committed immediately, so
-an interrupted run resumes from the remaining unchecked comments.
-
-Existing databases are migrated automatically when the inbox is opened or
-comments are synced. Existing comments default to `new`; ignored and replied
-comments are omitted from the active inbox.
-
-## Wingman inbox UI
-
-Start the local Flask UI:
+The compatibility launcher remains available:
 
 ```bash
 python app.py
 ```
 
-Then open `http://127.0.0.1:5000`. The two-panel inbox ranks unreplied
-conversations by priority and opens a comment beside the list without a page
-reload. Priority is presented as Critical, High, Medium, or Low; numerical
-scores and classification metadata stay hidden until **Developer mode** is
-enabled. Developer mode also reveals Wingman's plain-language ranking
-explanation between the comment and reply editor. The **Ignored** view keeps
-dismissed conversations available. The dark, C Labs-inspired interface uses a
-restrained coral accent and semantic colors for categories and reply states.
+Print the active inbox in the terminal:
 
-Comment detail pages include a reply form that publishes directly beneath the
-top-level YouTube comment. Posting is explicit and immediate. Wingman updates
-the local inbox to replied only after YouTube confirms the new reply.
+```bash
+wingman inbox
+```
 
-Existing installations previously used a read-only OAuth scope. The first
-authenticated action after this update will open the Google consent flow once
-to grant the `youtube.force-ssl` permission and refresh the ignored local token.
+The repository-local `./wingman inbox` launcher also works before installation.
 
-## Classification playground
+## Synchronize YouTube
 
-Add `OPENAI_API_KEY` and, optionally, `OPENAI_MODEL` to `.env`, then start the
-Flask UI and open `http://127.0.0.1:5000/classification-playground`.
+Run the default discovery and synchronization flow:
 
-The playground contains twelve fixed comments covering common creator-inbox
-scenarios. Use **Classify** for one example or **Classify All** for the complete
-set. **Classify All** runs both the previous and current prompts so their
-structured results can be compared side by side. It logs each prompt, raw
-response, and parsed JSON to the terminal. Playground results are held in
-process memory only: they are never written to the comments database and reset
-when the Flask process restarts.
+```bash
+wingman-sync
+```
 
-Classifier `production-v2` adds explicit `specific_appreciation` and
-`humorous_engagement` categories and includes video-title context in both
-playground and production requests. Existing stored classifications retain their
-original version until they are explicitly reclassified.
+Useful synchronization commands:
 
-## Production classification inbox
+```bash
+# Discover uploads without syncing comments
+wingman-sync --discover-only
 
-The main inbox displays classified, unreplied comments in descending priority,
-then newest-first order. Use **Classify This**, **Classify Top 10 Unclassified**,
-or **Classify All Unclassified** to run classification explicitly; opening the
-page never calls OpenAI. The production workflow reuses the same structured
-classifier and prompt as the playground.
+# Sync every enabled video already in the catalog
+wingman-sync --sync-enabled
 
-Each completed classification stores its category, priority, reply-worthiness,
-research flag, reason, timestamp, model, and prompt version in SQLite. Reasoning
-and model metadata live in a separate developer panel, while the primary card
-stays focused on the comment and its rank. **Generate Reply** is intentionally
-a disabled placeholder.
+# Sync one video regardless of its stored enabled state
+wingman-sync --video-id VIDEO_ID
 
-Classification results persist to SQLite by default. Set
-`WINGMAN_CLASSIFICATION_DRY_RUN=true` only when temporary, process-local results
-are useful for testing; dry-run results reset when the app restarts.
+# Manage the stored video catalog
+wingman-sync --list-videos
+wingman-sync --enable-video VIDEO_ID
+wingman-sync --disable-video VIDEO_ID
 
-## Reply generation
+# Check stored threads for creator replies
+wingman-sync --backfill-replies
 
-Reply generation uses three context layers:
+# Bypass the one-hour freshness window
+wingman-sync --sync-enabled --refresh
+wingman-sync --backfill-replies --refresh
+```
 
-1. The shared task prompt in `reply_prompt.py`.
-2. Fred's editable voice profile in `creator.md`.
-3. The comment's stored video title and manually maintained video summary.
+`python fetch_comments.py` remains as a compatibility entrypoint and accepts the
+same arguments.
 
-Edit `creator.md` directly whenever Fred's voice, preferences, or examples
-change. Set `CREATOR_CONTEXT_FILE` in `.env` only if the profile lives elsewhere.
+Synchronization is resilient across videos: disabled comments, empty results,
+or a failure on one video do not stop later videos. Successful comment and reply
+checks are committed incrementally so interrupted runs can resume.
 
-Open **Video Context** in the Flask navigation to add or edit a summary for each
-discovered video. Discovery updates video metadata without overwriting these
-manual summaries.
+## Classification and reply generation
 
-Choose a conversation, then select **Generate Draft**. Wingman makes one OpenAI
-request and smoothly replaces the empty state with an editable draft. Fred can
-edit it directly and choose **Approve**; approval saves the latest edit, copies
-it to the local final-reply field, and records an approval timestamp without
-posting anything. The primary action then becomes **Post to YouTube**, which
-publishes the current editor text and shows a confirmation only after YouTube
-accepts it. For demo preparation, **Generate all drafts** in the inbox menu
-creates drafts for every active conversation that does not already have one.
+Classification is explicit. Opening the inbox never calls OpenAI. Use the inbox
+menu to classify or reclassify comments and to generate or regenerate drafts in
+bulk. Developer mode reveals numerical scores, reasons, model metadata, and the
+classification playground.
 
-## Learning from reply edits
+Reply generation combines:
 
-Newly generated replies preserve an untouched copy of the AI draft. After
-editing the reply, **Learn from Change** becomes available beside **Approve**.
-Wingman sends the viewer comment, video title and summary, classification
-context, untouched AI draft, and edited reply in one structured OpenAI request.
-It identifies the type of meaningful change and proposes no more than two
-durable writing rules. The proposal remains temporary until it is reviewed:
-edit the lines if needed, then choose **Accept** or **Reject**.
+1. The shared reply-generation instructions.
+2. The editable creator profile in `creator.md`.
+3. The selected video's stored context and learned response guidance.
+4. The viewer comment and available thread context.
 
-Acceptance appends unique bullets to the bottom of the configured creator
-profile under `## Learned Preferences`. It never rewrites earlier sections.
-Exact and near-duplicate preferences are skipped using normalized text,
-sequence similarity, and word overlap. Existing drafts created before this
-migration need to be regenerated once before they have an original draft to
-compare.
+The generated text stays editable until it is posted. A successful post is
+recorded locally only after YouTube confirms it.
+
+## Learning
+
+### Creator-wide preferences
+
+**Learn from Change** compares the untouched generated draft with the edited
+reply. Wingman proposes up to two durable voice rules, such as preferred length,
+acknowledgement style, tone, technical depth, or uncertainty handling.
+
+Nothing is learned automatically. Proposed rules can be edited, accepted, or
+rejected. Accepted, non-duplicate rules are appended to `creator.md` under
+`## Learned Preferences`.
+
+### Video-specific response guidance
+
+**Learn for This Video** compares the viewer's comment with the current reply
+and infers:
+
+- the kind of future question for which the answer is relevant; and
+- a reusable model answer grounded in the creator's response.
+
+After review, the guidance is appended to that video's context under
+`## Response Guidance`. Future drafts for the same video receive it
+automatically; unrelated videos do not.
+
+Video summaries and learned guidance can also be reviewed from **Video context**
+in the sidebar.
+
+## Project structure
+
+```text
+.
+├── src/wingman/
+│   ├── ai/             # prompts, classification, generation, and learning
+│   ├── db/             # SQLite schema, repositories, and video catalog
+│   ├── youtube/        # synchronization, reply detection, and publishing
+│   ├── static/         # browser JavaScript and styles
+│   ├── templates/      # Flask/Jinja views
+│   ├── cli.py          # terminal inbox command
+│   ├── playground.py   # fixed classification regression scenarios
+│   └── web.py          # Flask application factory and routes
+├── tests/              # isolated unit and route tests
+├── app.py              # compatibility web launcher
+├── fetch_comments.py   # compatibility synchronization launcher
+├── creator.md          # editable creator voice profile
+├── pyproject.toml      # package metadata and console commands
+└── requirements.txt    # dependency-only compatibility install
+```
+
+The `src` layout prevents accidental imports from the repository root and keeps
+runtime code separate from tests and local data.
 
 ## Tests
 
-The uploads pagination, comment pagination, creator-reply detection,
-enabled-state, inbox repository, database migration, and SQLite persistence
-tests do not contact YouTube:
+The suite covers pagination, synchronization, migrations, repository behavior,
+classification, reply generation, preference learning, video-specific learning,
+creator-reply detection, YouTube publishing, routes, and keyboard workflow
+regressions. Tests use fakes and temporary SQLite databases; they do not contact
+YouTube or OpenAI.
 
 ```bash
 python -m unittest -v
 ```
+
+## Local files and secrets
+
+These files are intentionally ignored and must not be committed:
+
+- `.env`
+- `client_secret.json`
+- `token.json`
+- `comments.db`
+- virtual environments and Python caches
+
+Set `CREATOR_CONTEXT_FILE` only when the creator profile should live somewhere
+other than the root `creator.md`. Set `OPENAI_MODEL` to override the configured
+model, and use `WINGMAN_CLASSIFICATION_DRY_RUN=true` for temporary,
+process-local classification experiments.

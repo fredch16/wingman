@@ -3,11 +3,11 @@
 import sqlite3
 import unittest
 
-from comment_store import sync_comments
-from fetch_comments import Comment as FetchedComment
-from inbox_repository import CommentRepository
-from reply_detection import store_creator_channel_id
-from video_catalog import Video, store_discovered_videos
+from wingman.db.comment_store import sync_comments
+from wingman.youtube.sync import Comment as FetchedComment
+from wingman.db.inbox_repository import CommentRepository
+from wingman.youtube.detection import store_creator_channel_id
+from wingman.db.video_catalog import Video, store_discovered_videos
 
 
 def fetched_comment(comment_id: str) -> FetchedComment:

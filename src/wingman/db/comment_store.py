@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from fetch_comments import Comment
+    from wingman.youtube.sync import Comment
 
 COMMENT_FIELDS = (
     "thread_id",

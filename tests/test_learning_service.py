@@ -6,11 +6,11 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from learning_prompt import (
+from wingman.ai.learning_prompt import (
     PREFERENCE_LEARNING_PROMPT,
     VIDEO_CONTEXT_LEARNING_PROMPT,
 )
-from learning_service import (
+from wingman.ai.learning_service import (
     ExtractedPreference,
     ExtractedPreferences,
     PreferenceComparison,

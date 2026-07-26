@@ -3,7 +3,7 @@
 import unittest
 from unittest.mock import Mock
 
-from youtube_reply import PostedReply, post_comment_reply
+from wingman.youtube.reply import PostedReply, post_comment_reply
 
 
 class YouTubeReplyTests(unittest.TestCase):

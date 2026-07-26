@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from comment_store import create_comments_table
+from wingman.db.comment_store import create_comments_table
 
 CREATOR_CHANNEL_SETTING = "authenticated_creator_channel_id"
 BACKLOG_CHECK_SETTING = "reply_backlog_last_checked_at"

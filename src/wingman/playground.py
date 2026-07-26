@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from classification_service import CommentClassification
+from wingman.ai.classification_service import CommentClassification
 
 
 @dataclass(frozen=True)
