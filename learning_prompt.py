@@ -19,3 +19,18 @@ provided enum and write the rule as one concise sentence beginning with "Fred".
 Use the comment, video context, and classification context to distinguish a
 durable preference from an edit that was only necessary for this reply. Do not
 rewrite the reply and do not provide commentary outside the structured result."""
+
+
+VIDEO_CONTEXT_LEARNING_PROMPT = """Learn one reusable, video-specific response
+pattern from a viewer comment and the creator's reply.
+
+Identify the type of future comment or question for which this answer is useful,
+then write a concise model answer that preserves the factual substance and
+approach of the creator's reply. The result will be added to this video's context
+and used when drafting replies to similar future comments.
+
+Keep the trigger specific enough to avoid applying the answer to unrelated
+comments. Keep the model answer broadly reusable: remove viewer-specific wording,
+names, and references to the current exchange. Do not invent facts or generalize
+beyond what the creator actually said. Return no commentary outside the
+structured result."""

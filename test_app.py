@@ -10,7 +10,7 @@ from classification_service import CommentClassification
 from comment_store import connect_database, sync_comments
 from fetch_comments import Comment as FetchedComment
 from inbox_repository import CommentRepository
-from learning_service import ExtractedPreference
+from learning_service import ExtractedPreference, VideoResponseGuidance
 from video_catalog import Video, store_discovered_videos
 from youtube_reply import PostedReply
 
@@ -64,6 +64,18 @@ class FakePreferenceLearner:
                 preference="Fred acknowledges ideas before explaining.",
             ),
         ]
+
+    def extract_video_response_guidance(
+        self, comparison: object
+    ) -> VideoResponseGuidance:
+        self.calls.append(comparison)
+        return VideoResponseGuidance(
+            trigger="viewers ask why the button changes the control signal",
+            model_answer=(
+                "The button changes the setpoint, so the controller responds "
+                "by adjusting its output."
+            ),
+        )
 
 
 def fetched_comment(comment_id: str, author: str) -> FetchedComment:
@@ -605,6 +617,54 @@ class InboxRouteTests(unittest.TestCase):
         self.assertNotIn(
             "Learned Preferences",
             self.creator_profile_path.read_text(encoding="utf-8"),
+        )
+
+    def test_learns_reviewable_response_guidance_for_one_video(self) -> None:
+        self.client.post("/comments/comment-new/generate-reply")
+
+        review = self.client.post(
+            "/comments/comment-new/learn-video-context",
+            data={"draft_reply": "The button changes the setpoint."},
+            follow_redirects=True,
+        )
+
+        self.assertEqual(review.status_code, 200)
+        comparison = self.preference_learner.calls[-1]
+        self.assertEqual(comparison.comment_text, "Full text for comment-new")
+        self.assertEqual(
+            comparison.creator_reply, "The button changes the setpoint."
+        )
+        self.assertIn(b"Review reusable response guidance", review.data)
+        self.assertIn(b"viewers ask why the button changes", review.data)
+
+        accepted = self.client.post(
+            "/comments/comment-new/video-learning/accept",
+            data={
+                "guidance": (
+                    "When viewers ask about the button, explain that it "
+                    "changes the setpoint."
+                )
+            },
+            follow_redirects=True,
+        )
+
+        self.assertEqual(accepted.status_code, 200)
+        self.assertIn(b"Added response guidance", accepted.data)
+        connection = connect_database(self.database_path)
+        try:
+            summary = connection.execute(
+                "SELECT summary FROM videos WHERE video_id = 'abcdefghijk'"
+            ).fetchone()["summary"]
+        finally:
+            connection.close()
+        self.assertIn("## Response Guidance", summary)
+        self.assertIn("When viewers ask about the button", summary)
+
+        self.client.post("/comments/comment-low/generate-reply")
+        future_comment = self.reply_generator.calls[-1]
+        self.assertIn(
+            "When viewers ask about the button",
+            future_comment.video_summary,
         )
 
     def test_generates_all_missing_drafts_and_skips_them_on_repeat(self) -> None:

@@ -127,6 +127,12 @@
                 Regenerate to Enable Learning
               </button>
             {% endif %}
+            <button class="button video-learn-button"
+                    type="submit"
+                    title="Infer a reusable model answer for similar comments on this video"
+                    formaction="{{ url_for('learn_video_context', comment_id=comment.comment_id) }}">
+              Learn for This Video
+            </button>
             {% if comment.reply_approved_at %}
               <button class="button primary"
                       type="submit"
@@ -209,6 +215,44 @@
           </form>
         </div>
       {% endif %}
+    </section>
+  {% endif %}
+
+  {% if video_learning_error %}
+    <p class="learning-notice learning-error">{{ video_learning_error }}</p>
+  {% endif %}
+  {% if video_learning_message %}
+    <p class="learning-notice learning-success">{{ video_learning_message }}</p>
+  {% endif %}
+  {% if video_learning_proposal %}
+    <section class="learning-review video-learning-review">
+      <div class="learning-review-heading">
+        <span class="learning-review-icon">▶</span>
+        <div>
+          <span class="eyebrow">Learn for this video</span>
+          <h3>Review reusable response guidance</h3>
+          <p>This becomes part of this video’s context for future matching comments.</p>
+        </div>
+      </div>
+      <form class="async-form"
+            method="post"
+            action="{{ url_for('accept_video_context_learning', comment_id=comment.comment_id) }}">
+        <label for="video-guidance-{{ comment.comment_id }}">
+          Edit the trigger or model answer before accepting
+        </label>
+        <textarea id="video-guidance-{{ comment.comment_id }}"
+                  name="guidance"
+                  rows="4"
+                  required>{{ video_learning_proposal }}</textarea>
+        <div class="learning-review-actions">
+          <button class="button primary" type="submit">Add to Video Context</button>
+          <button class="button"
+                  type="submit"
+                  formaction="{{ url_for('reject_video_context_learning', comment_id=comment.comment_id) }}">
+            Reject
+          </button>
+        </div>
+      </form>
     </section>
   {% endif %}
 

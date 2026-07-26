@@ -69,7 +69,10 @@
                 reply_generation_error=reply_generation_errors.get(all_comments[0].comment_id),
                 learning_proposal=learning_proposals.get(all_comments[0].comment_id),
                 learning_error=learning_errors.get(all_comments[0].comment_id),
-                learning_message=learning_messages.get(all_comments[0].comment_id) %}
+                learning_message=learning_messages.get(all_comments[0].comment_id),
+                video_learning_proposal=video_learning_proposals.get(all_comments[0].comment_id),
+                video_learning_error=video_learning_errors.get(all_comments[0].comment_id),
+                video_learning_message=video_learning_messages.get(all_comments[0].comment_id) %}
           {% include "_conversation_panel.html" %}
         {% endwith %}
       {% else %}
@@ -87,7 +90,10 @@
       {% with reply_generation_error=reply_generation_errors.get(comment.comment_id),
               learning_proposal=learning_proposals.get(comment.comment_id),
               learning_error=learning_errors.get(comment.comment_id),
-              learning_message=learning_messages.get(comment.comment_id) %}
+              learning_message=learning_messages.get(comment.comment_id),
+              video_learning_proposal=video_learning_proposals.get(comment.comment_id),
+              video_learning_error=video_learning_errors.get(comment.comment_id),
+              video_learning_message=video_learning_messages.get(comment.comment_id) %}
         {% include "_conversation_panel.html" %}
       {% endwith %}
     </template>

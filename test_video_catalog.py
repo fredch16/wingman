@@ -7,6 +7,7 @@ from unittest.mock import ANY, Mock, patch
 from fetch_comments import Comment, FetchResult, sync_videos
 from video_catalog import (
     Video,
+    append_video_response_guidance,
     create_videos_table,
     enabled_video_ids,
     fetch_all_upload_videos,
@@ -175,6 +176,37 @@ class VideoCatalogTests(unittest.TestCase):
         self.assertEqual(
             stored.summary, "Manual context for reply generation."
         )
+
+    def test_appends_response_guidance_without_replacing_video_summary(self) -> None:
+        video = stored_video("abcdefghijk", "Button demo")
+        store_discovered_videos(self.connection, [video])
+        update_video_summary(
+            self.connection,
+            video.video_id,
+            "The button changes the controller setpoint.",
+        )
+
+        self.assertTrue(
+            append_video_response_guidance(
+                self.connection,
+                video.video_id,
+                "When asked about the button, explain the setpoint change.",
+            )
+        )
+        self.assertTrue(
+            append_video_response_guidance(
+                self.connection,
+                video.video_id,
+                "When asked about the button, explain the setpoint change.",
+            )
+        )
+
+        summary = list_stored_videos(self.connection)[0].summary
+        self.assertTrue(
+            summary.startswith("The button changes the controller setpoint.")
+        )
+        self.assertEqual(summary.count("## Response Guidance"), 1)
+        self.assertEqual(summary.count("When asked about the button"), 1)
 
     @patch("fetch_comments.fetch_all_comments_for_video")
     def test_only_enabled_videos_are_synced(self, fetch: Mock) -> None:

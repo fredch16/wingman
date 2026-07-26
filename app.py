@@ -21,12 +21,18 @@ from learning_service import (
     ExtractedPreference,
     PreferenceComparison,
     PreferenceLearningService,
+    VideoResponseComparison,
     append_learned_preferences,
+    format_video_response_guidance,
     parse_review_preferences,
 )
 from production_classification import ClassificationRecord, classify_stored_comment
 from reply_service import ReplyGenerationService
-from video_catalog import list_stored_videos, update_video_summary
+from video_catalog import (
+    append_video_response_guidance,
+    list_stored_videos,
+    update_video_summary,
+)
 from youtube_reply import post_comment_reply
 
 
@@ -64,6 +70,9 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     app.extensions["learning_proposals"] = {}
     app.extensions["learning_errors"] = {}
     app.extensions["learning_messages"] = {}
+    app.extensions["video_learning_proposals"] = {}
+    app.extensions["video_learning_errors"] = {}
+    app.extensions["video_learning_messages"] = {}
 
     def classification_service() -> ClassificationService:
         if "classification_service" not in app.extensions:
@@ -167,6 +176,9 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             learning_proposals=app.extensions["learning_proposals"],
             learning_errors=app.extensions["learning_errors"],
             learning_messages=app.extensions["learning_messages"],
+            video_learning_proposals=app.extensions["video_learning_proposals"],
+            video_learning_errors=app.extensions["video_learning_errors"],
+            video_learning_messages=app.extensions["video_learning_messages"],
             classification_dry_run=app.config["CLASSIFICATION_DRY_RUN"],
         )
 
@@ -244,6 +256,15 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             ),
             learning_error=app.extensions["learning_errors"].get(comment_id),
             learning_message=app.extensions["learning_messages"].get(comment_id),
+            video_learning_proposal=app.extensions[
+                "video_learning_proposals"
+            ].get(comment_id),
+            video_learning_error=app.extensions["video_learning_errors"].get(
+                comment_id
+            ),
+            video_learning_message=app.extensions[
+                "video_learning_messages"
+            ].get(comment_id),
         )
 
     def generate_reply_for_comment(comment_id: str) -> None:
@@ -395,6 +416,85 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         app.extensions["learning_errors"].pop(comment_id, None)
         app.extensions["learning_messages"][comment_id] = (
             "Learned preference suggestion discarded."
+        )
+        return redirect(url_for("comment_detail", comment_id=comment_id))
+
+    @app.post("/comments/<comment_id>/learn-video-context")
+    def learn_video_context(comment_id: str):
+        comment = repository().get_comment(comment_id)
+        if comment is None:
+            abort(404)
+        creator_reply = request.form.get("draft_reply", "").strip()
+        if not creator_reply:
+            app.extensions["video_learning_errors"][comment_id] = (
+                "Write a reply before learning video-specific guidance."
+            )
+            return redirect(url_for("comment_detail", comment_id=comment_id))
+        repository().update_draft_reply(comment_id, creator_reply)
+        try:
+            guidance = (
+                preference_learning_service().extract_video_response_guidance(
+                    VideoResponseComparison(
+                        comment_text=comment.text,
+                        creator_reply=creator_reply,
+                        video_title=comment.video_title,
+                        video_summary=comment.video_summary,
+                    )
+                )
+            )
+            app.extensions["video_learning_proposals"][comment_id] = (
+                format_video_response_guidance(guidance)
+            )
+            app.extensions["video_learning_errors"].pop(comment_id, None)
+            app.extensions["video_learning_messages"].pop(comment_id, None)
+        except Exception as error:
+            app.extensions["video_learning_errors"][comment_id] = str(error)
+            app.logger.exception(
+                "Video context learning failed for %s", comment_id
+            )
+        return redirect(url_for("comment_detail", comment_id=comment_id))
+
+    @app.post("/comments/<comment_id>/video-learning/accept")
+    def accept_video_context_learning(comment_id: str):
+        comment = repository().get_comment(comment_id)
+        if comment is None:
+            abort(404)
+        proposals: dict[str, str] = app.extensions[
+            "video_learning_proposals"
+        ]
+        if comment_id not in proposals:
+            abort(409)
+        guidance = request.form.get("guidance", "").strip()
+        if not guidance:
+            app.extensions["video_learning_errors"][comment_id] = (
+                "Keep response guidance before accepting."
+            )
+            return redirect(url_for("comment_detail", comment_id=comment_id))
+        try:
+            if not append_video_response_guidance(
+                repository().connection,
+                comment.video_id,
+                guidance,
+            ):
+                abort(404)
+        except ValueError as error:
+            app.extensions["video_learning_errors"][comment_id] = str(error)
+        else:
+            proposals.pop(comment_id, None)
+            app.extensions["video_learning_errors"].pop(comment_id, None)
+            app.extensions["video_learning_messages"][comment_id] = (
+                "Added response guidance to this video’s context."
+            )
+        return redirect(url_for("comment_detail", comment_id=comment_id))
+
+    @app.post("/comments/<comment_id>/video-learning/reject")
+    def reject_video_context_learning(comment_id: str):
+        if repository().get_comment(comment_id) is None:
+            abort(404)
+        app.extensions["video_learning_proposals"].pop(comment_id, None)
+        app.extensions["video_learning_errors"].pop(comment_id, None)
+        app.extensions["video_learning_messages"][comment_id] = (
+            "Video response guidance discarded."
         )
         return redirect(url_for("comment_detail", comment_id=comment_id))
 

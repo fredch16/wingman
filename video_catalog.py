@@ -264,6 +264,34 @@ def update_video_summary(
     return cursor.rowcount > 0
 
 
+def append_video_response_guidance(
+    connection: sqlite3.Connection,
+    video_id: str,
+    guidance: str,
+) -> bool:
+    create_videos_table(connection)
+    normalized = " ".join(guidance.split()).strip()
+    if not normalized:
+        raise ValueError("Video response guidance cannot be empty.")
+    row = connection.execute(
+        "SELECT summary FROM videos WHERE video_id = ?",
+        (video_id,),
+    ).fetchone()
+    if row is None:
+        return False
+    current = (row["summary"] or "").strip()
+    if normalized.casefold() in current.casefold():
+        return True
+    heading = "## Response Guidance"
+    if heading in current:
+        updated = f"{current}\n\n- {normalized}"
+    elif current:
+        updated = f"{current}\n\n{heading}\n\n- {normalized}"
+    else:
+        updated = f"{heading}\n\n- {normalized}"
+    return update_video_summary(connection, video_id, updated)
+
+
 def comments_checked_recently(
     connection: sqlite3.Connection,
     video_id: str,
