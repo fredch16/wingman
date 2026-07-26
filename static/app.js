@@ -261,6 +261,12 @@
         editor.focus();
         editor.setSelectionRange(editor.value.length, editor.value.length);
       }
+    } else if (event.key === "o" || event.key === "O") {
+      const commentLink = detailPanel?.querySelector(".video-link");
+      if (commentLink) {
+        event.preventDefault();
+        commentLink.click();
+      }
     } else if (event.key === "h") {
       event.preventDefault();
       submitDetailForm('form[action$="/ignore"]');

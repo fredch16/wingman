@@ -502,6 +502,11 @@ class InboxRouteTests(unittest.TestCase):
             script,
         )
         self.assertIn(
+            'event.key === "o" || event.key === "O"',
+            script,
+        )
+        self.assertIn('commentLink.click()', script)
+        self.assertIn(
             'detailPanel?.querySelector(".reply-editor")',
             script,
         )
