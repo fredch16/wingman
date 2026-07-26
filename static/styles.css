@@ -1006,7 +1006,9 @@ main {
 
 .editor-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  justify-content: flex-end;
 }
 
 .save-hint {

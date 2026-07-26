@@ -6,13 +6,19 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from learning_prompt import PREFERENCE_LEARNING_PROMPT
+from learning_prompt import (
+    PREFERENCE_LEARNING_PROMPT,
+    VIDEO_CONTEXT_LEARNING_PROMPT,
+)
 from learning_service import (
     ExtractedPreference,
     ExtractedPreferences,
     PreferenceComparison,
     PreferenceLearningService,
+    VideoResponseComparison,
+    VideoResponseGuidance,
     append_learned_preferences,
+    format_video_response_guidance,
 )
 
 
@@ -32,6 +38,16 @@ class FakeResponse:
 
     def model_dump_json(self, indent: int, warnings: bool = True) -> str:
         return '{"id":"learning-response"}'
+
+
+class FakeVideoGuidanceResponse:
+    output_parsed = VideoResponseGuidance(
+        trigger="viewers ask what the button changes",
+        model_answer="It changes the setpoint used by the controller.",
+    )
+
+    def model_dump_json(self, indent: int, warnings: bool = True) -> str:
+        return '{"id":"video-learning-response"}'
 
 
 class PreferenceLearningServiceTests(unittest.TestCase):
@@ -79,6 +95,36 @@ class PreferenceLearningServiceTests(unittest.TestCase):
             request["input"][1]["content"],
         )
         self.assertIn("technical_question", request["input"][1]["content"])
+
+    def test_extracts_video_specific_trigger_and_model_answer(self) -> None:
+        parse = Mock(return_value=FakeVideoGuidanceResponse())
+        client = SimpleNamespace(responses=SimpleNamespace(parse=parse))
+        service = PreferenceLearningService(client=client, model="test-model")
+
+        guidance = service.extract_video_response_guidance(
+            VideoResponseComparison(
+                comment_text="What does the button do?",
+                creator_reply="It changes the setpoint.",
+                video_title="PID button demo",
+                video_summary="A controller demonstration.",
+            )
+        )
+
+        self.assertEqual(
+            format_video_response_guidance(guidance),
+            (
+                "When viewers ask what the button changes, answer along these "
+                "lines: It changes the setpoint used by the controller."
+            ),
+        )
+        request = parse.call_args.kwargs
+        self.assertEqual(request["text_format"], VideoResponseGuidance)
+        self.assertEqual(
+            request["input"][0],
+            {"role": "system", "content": VIDEO_CONTEXT_LEARNING_PROMPT},
+        )
+        self.assertIn("What does the button do?", request["input"][1]["content"])
+        self.assertIn("It changes the setpoint.", request["input"][1]["content"])
 
     def test_appends_only_unique_preferences_under_new_section(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

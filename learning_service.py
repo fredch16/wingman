@@ -13,7 +13,10 @@ from typing import Any, Literal
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
-from learning_prompt import PREFERENCE_LEARNING_PROMPT
+from learning_prompt import (
+    PREFERENCE_LEARNING_PROMPT,
+    VIDEO_CONTEXT_LEARNING_PROMPT,
+)
 
 LOGGER = logging.getLogger("wingman.preference_learning")
 LEARNED_PREFERENCES_HEADING = "## Learned Preferences"
@@ -40,6 +43,11 @@ class ExtractedPreferences(BaseModel):
     changes: list[ExtractedPreference] = Field(max_length=2)
 
 
+class VideoResponseGuidance(BaseModel):
+    trigger: str
+    model_answer: str
+
+
 @dataclass(frozen=True)
 class PreferenceComparison:
     original_draft: str
@@ -50,6 +58,13 @@ class PreferenceComparison:
     category: str | None = None
     classification_reason: str | None = None
 
+
+@dataclass(frozen=True)
+class VideoResponseComparison:
+    comment_text: str
+    creator_reply: str
+    video_title: str
+    video_summary: str | None = None
 
 @dataclass(frozen=True)
 class AppendResult:
@@ -118,6 +133,44 @@ class PreferenceLearningService:
             [change.model_dump() for change in changes],
         )
         return changes[:2]
+
+    def extract_video_response_guidance(
+        self, comparison: VideoResponseComparison
+    ) -> VideoResponseGuidance:
+        prompt_input = [
+            {"role": "system", "content": VIDEO_CONTEXT_LEARNING_PROMPT},
+            {
+                "role": "user",
+                "content": (
+                    f"Video:\n{comparison.video_title}\n\n"
+                    f"Current video context:\n"
+                    f"{comparison.video_summary or 'Not provided'}\n\n"
+                    f"Viewer comment:\n{comparison.comment_text}\n\n"
+                    f"Creator's reply:\n{comparison.creator_reply}"
+                ),
+            },
+        ]
+        LOGGER.info("Video response learning prompt: %s", prompt_input)
+        response = self.client.responses.parse(
+            model=self.model,
+            input=prompt_input,
+            text_format=VideoResponseGuidance,
+        )
+        parsed = response.output_parsed
+        if parsed is None:
+            raise ValueError("OpenAI returned no video response guidance.")
+        trigger = clean_preference(parsed.trigger)
+        model_answer = clean_preference(parsed.model_answer)
+        if not trigger or not model_answer:
+            raise ValueError("OpenAI returned incomplete video response guidance.")
+        return VideoResponseGuidance(
+            trigger=trigger,
+            model_answer=model_answer,
+        )
+
+
+def format_video_response_guidance(guidance: VideoResponseGuidance) -> str:
+    return f"When {guidance.trigger}, answer along these lines: {guidance.model_answer}"
 
 
 def clean_preference(value: str) -> str:
