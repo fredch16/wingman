@@ -462,18 +462,18 @@ main {
 .workflow-toast {
   background: rgb(24 31 29 / 96%);
   border: 1px solid rgb(98 201 154 / 38%);
-  border-radius: 10px;
-  bottom: 24px;
+  border-radius: 12px;
+  bottom: 32px;
   box-shadow: var(--shadow);
   color: #dff8ec;
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 600;
-  left: 50%;
   opacity: 0;
-  padding: 11px 15px;
+  padding: 16px 20px;
   pointer-events: none;
   position: fixed;
-  transform: translate(-50%, 10px);
+  right: 32px;
+  transform: translateY(12px);
   transition: opacity 160ms ease, transform 180ms ease;
   z-index: 50;
 }
@@ -481,12 +481,13 @@ main {
 .workflow-toast::before {
   color: var(--green);
   content: "✓";
-  margin-right: 8px;
+  font-size: 17px;
+  margin-right: 10px;
 }
 
 .workflow-toast.visible {
   opacity: 1;
-  transform: translate(-50%, 0);
+  transform: translateY(0);
 }
 
 @media (prefers-reduced-motion: reduce) {
