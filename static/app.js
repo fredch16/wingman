@@ -138,7 +138,7 @@
       button.disabled = true;
       button.classList.add("is-working");
       button.dataset.label = button.textContent;
-      button.textContent = button.matches(".editor-actions .primary")
+      button.textContent = button.matches(".post-button")
         ? "Posting…"
         : "Working…";
     }
