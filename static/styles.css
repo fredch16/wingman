@@ -495,6 +495,10 @@ main {
   .workflow-toast {
     transition-duration: 1ms;
   }
+
+  .button.is-regenerating {
+    animation: none;
+  }
 }
 
 .avatar {
@@ -893,6 +897,25 @@ main {
 
 .button.is-working {
   cursor: progress;
+}
+
+.button.is-regenerating {
+  animation: regenerate-pulse 900ms ease-in-out infinite;
+  min-width: 112px;
+}
+
+@keyframes regenerate-pulse {
+  0%,
+  100% {
+    box-shadow: var(--shadow-sm);
+    opacity: .58;
+  }
+
+  50% {
+    border-color: rgb(255 115 121 / 65%);
+    box-shadow: 0 0 0 4px rgb(255 91 98 / 8%);
+    opacity: 1;
+  }
 }
 
 .draft-empty {

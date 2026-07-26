@@ -68,7 +68,9 @@
 
   function submitDetailForm(selector) {
     const form = detailPanel?.querySelector(selector);
-    if (form instanceof HTMLFormElement) form.requestSubmit();
+    if (!(form instanceof HTMLFormElement)) return;
+    const submitButton = form.querySelector('button[type="submit"]');
+    form.requestSubmit(submitButton || undefined);
   }
 
   function updateConversationCount() {
@@ -129,6 +131,7 @@
 
     const submitter = event.submitter;
     const activeCardIndex = selectedCardIndex();
+    let progressTimer = null;
     const feedbackButtons = submitter ? [submitter] : [];
     if (submitter?.matches(".shortcut-approve-post")) {
       const visiblePostButton = form.querySelector(".editor-actions .primary");
@@ -154,6 +157,17 @@
       const isIgnoreAction = actionPath.endsWith("/ignore");
       const isPostAction = actionPath.endsWith("/reply")
         || actionPath.endsWith("/approve-and-post");
+      const isGenerateAction = actionPath.endsWith("/generate-reply");
+      if (isGenerateAction && submitter) {
+        let dotCount = 1;
+        const updateProgress = () => {
+          submitter.textContent = `Regenerating${".".repeat(dotCount)}`;
+          dotCount = dotCount === 3 ? 1 : dotCount + 1;
+        };
+        submitter.classList.add("is-regenerating");
+        updateProgress();
+        progressTimer = setInterval(updateProgress, 420);
+      }
       const response = await fetch(action, {
         method,
         body: new FormData(form),
@@ -165,6 +179,7 @@
       const parsed = new DOMParser().parseFromString(documentText, "text/html");
       const refreshed = parsed.querySelector(".conversation-shell");
       if (!refreshed || !detailPanel) throw new Error("Updated conversation was unavailable");
+      if (progressTimer) clearInterval(progressTimer);
       const completedPost = isPostAction && refreshed.querySelector(".reply-sent");
       if ((isIgnoreAction || completedPost) && activeCardIndex >= 0) {
         const completedCard = cards[activeCardIndex];
@@ -182,13 +197,14 @@
         detailPanel.replaceChildren(refreshed);
       }
     } catch (error) {
+      if (progressTimer) clearInterval(progressTimer);
       const message = document.createElement("p");
       message.className = "form-error";
       message.textContent = error.message;
       form.prepend(message);
       for (const button of feedbackButtons) {
         button.disabled = false;
-        button.classList.remove("is-working");
+        button.classList.remove("is-working", "is-regenerating");
         button.textContent = button.dataset.label;
       }
     }
