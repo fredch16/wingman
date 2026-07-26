@@ -24,12 +24,15 @@
                 <form method="post" action="{{ url_for('classify_top_10') }}">
                   <button type="submit">Classify next 10</button>
                 </form>
-                <form method="post" action="{{ url_for('classify_all_unclassified') }}">
-                  <button type="submit">Classify all</button>
-                </form>
               {% endif %}
+              <form method="post" action="{{ url_for('reclassify_all') }}">
+                <button type="submit">Classify all comments</button>
+              </form>
               <form method="post" action="{{ url_for('generate_all_replies') }}">
                 <button type="submit">Generate all drafts</button>
+              </form>
+              <form method="post" action="{{ url_for('regenerate_all_replies') }}">
+                <button type="submit">Regenerate all drafts</button>
               </form>
             </div>
           </details>
