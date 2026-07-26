@@ -210,17 +210,14 @@
       return;
     }
 
-    if (
-      event.key === "Enter"
-      && event.ctrlKey
-      && target instanceof HTMLTextAreaElement
-      && target.closest(".reply-editor")
-    ) {
-      event.preventDefault();
-      const form = target.closest(".reply-editor");
-      const approveAndPost = form.querySelector(".shortcut-approve-post");
-      form.requestSubmit(approveAndPost);
-      return;
+    if (event.key === "Enter" && event.ctrlKey) {
+      const form = detailPanel?.querySelector(".reply-editor");
+      const approveAndPost = form?.querySelector(".shortcut-approve-post");
+      if (form && approveAndPost) {
+        event.preventDefault();
+        form.requestSubmit(approveAndPost);
+        return;
+      }
     }
 
     if (isEditing || event.ctrlKey || event.metaKey || event.altKey) return;

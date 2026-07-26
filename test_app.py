@@ -482,6 +482,14 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn("cardBounds.top - visibleTop", script)
         self.assertIn('showWorkflowToast("Reply posted successfully")', script)
         self.assertIn("updateConversationCount()", script)
+        self.assertIn(
+            'detailPanel?.querySelector(".reply-editor")',
+            script,
+        )
+        self.assertNotIn(
+            'target.closest(".reply-editor")',
+            script,
+        )
         self.assertNotIn("submitter?.formAction", script)
         self.assertNotIn("submitter?.formMethod", script)
 
