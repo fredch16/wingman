@@ -498,6 +498,10 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn("setInterval(updateProgress, 420)", script)
         self.assertIn('form.querySelector(\'button[type="submit"]\')', script)
         self.assertIn(
+            'event.key === "e" || event.key === "a"',
+            script,
+        )
+        self.assertIn(
             'detailPanel?.querySelector(".reply-editor")',
             script,
         )

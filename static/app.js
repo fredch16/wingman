@@ -254,7 +254,7 @@
     } else if (event.key === "r") {
       event.preventDefault();
       submitDetailForm('form[action$="/generate-reply"]');
-    } else if (event.key === "e") {
+    } else if (event.key === "e" || event.key === "a") {
       const editor = detailPanel?.querySelector(".reply-editor textarea");
       if (editor) {
         event.preventDefault();
