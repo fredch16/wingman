@@ -494,6 +494,9 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn("cardBounds.top - visibleTop", script)
         self.assertIn('showWorkflowToast("Reply posted successfully")', script)
         self.assertIn("updateConversationCount()", script)
+        self.assertIn('`Regenerating${".".repeat(dotCount)}`', script)
+        self.assertIn("setInterval(updateProgress, 420)", script)
+        self.assertIn('form.querySelector(\'button[type="submit"]\')', script)
         self.assertIn(
             'detailPanel?.querySelector(".reply-editor")',
             script,
