@@ -157,8 +157,8 @@ wingman daily
 
 This runs a complete YouTube sync followed by a complete Instagram sync. The app
 starts at <http://127.0.0.1:5000> only after both succeed and stays attached to
-the terminal; stop it with `Ctrl+C`. Add `--refresh` to bypass YouTube's
-one-hour freshness window:
+the terminal; stop it with `Ctrl+C`. Add `--refresh` to bypass both platforms'
+freshness caches:
 
 ```bash
 wingman daily --refresh
@@ -231,6 +231,21 @@ creator replies:
 
 ```bash
 wingman-instagram
+```
+
+Instagram skips comment requests for media checked within the last 60 minutes.
+The media catalog is still refreshed, but cached comments are reused. Force all
+comment requests with:
+
+```bash
+wingman-instagram --refresh
+```
+
+Change the cache duration for one run with
+`--freshness-minutes MINUTES`, or set the daily default in `.env`:
+
+```dotenv
+INSTAGRAM_SYNC_FRESHNESS_MINUTES=60
 ```
 
 To verify the authenticated account and list its media without changing the

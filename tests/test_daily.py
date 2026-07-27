@@ -36,20 +36,28 @@ class DailyWorkflowTests(unittest.TestCase):
             ],
         )
 
-    def test_refresh_is_forwarded_to_youtube(self) -> None:
-        arguments_seen: list[list[str] | None] = []
+    def test_refresh_is_forwarded_to_both_platforms(self) -> None:
+        arguments_seen: list[tuple[str, list[str] | None]] = []
 
         status = run_daily_workflow(
             refresh=True,
             youtube_command=lambda arguments: (
-                arguments_seen.append(arguments) or 0
+                arguments_seen.append(("youtube", arguments)) or 0
             ),
-            instagram_command=lambda _arguments: 0,
+            instagram_command=lambda arguments: (
+                arguments_seen.append(("instagram", arguments)) or 0
+            ),
             app_launcher=lambda _host, _port: None,
         )
 
         self.assertEqual(status, 0)
-        self.assertEqual(arguments_seen, [["--refresh"]])
+        self.assertEqual(
+            arguments_seen,
+            [
+                ("youtube", ["--refresh"]),
+                ("instagram", ["--refresh"]),
+            ],
+        )
 
     def test_youtube_failure_stops_before_instagram_and_app(self) -> None:
         events: list[str] = []

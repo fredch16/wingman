@@ -12,6 +12,9 @@ from wingman.web import create_app
 
 
 class FakeInstagramClient:
+    def __init__(self) -> None:
+        self.comment_requests = 0
+
     def authenticated_account(self) -> dict:
         return {
             "id": "profile-id",
@@ -33,6 +36,7 @@ class FakeInstagramClient:
 
     def comments(self, media_id: str) -> list[dict]:
         assert media_id == "media-1"
+        self.comment_requests += 1
         return [
             {
                 "id": "viewer-answered",
@@ -123,6 +127,22 @@ class InstagramIntegrationTests(unittest.TestCase):
         finally:
             connection.close()
 
+    def test_recent_media_is_cached_until_refresh_is_requested(self) -> None:
+        client = FakeInstagramClient()
+
+        first = sync_instagram(client, self.database_path)
+        cached = sync_instagram(client, self.database_path)
+        refreshed = sync_instagram(
+            client,
+            self.database_path,
+            refresh=True,
+        )
+
+        self.assertEqual(first, (1, 3))
+        self.assertEqual(cached, (1, 0))
+        self.assertEqual(refreshed, (1, 3))
+        self.assertEqual(client.comment_requests, 2)
+
     def test_posts_selected_instagram_reply_through_platform_service(self) -> None:
         sync_instagram(FakeInstagramClient(), self.database_path)
         calls: list[tuple[object, str, str]] = []
@@ -151,6 +171,8 @@ class InstagramIntegrationTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertIn(b"platform-badge-instagram", response.data)
+        self.assertIn(b"Instagram comment", response.data)
         self.assertEqual(
             calls,
             [

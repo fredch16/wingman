@@ -554,6 +554,66 @@ main {
   white-space: nowrap;
 }
 
+.card-identity,
+.conversation-identity {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+}
+
+.card-identity {
+  overflow: hidden;
+}
+
+.card-identity strong {
+  min-width: 0;
+}
+
+.platform-badge {
+  align-items: center;
+  border: 1px solid currentColor;
+  border-radius: 9px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 750;
+  gap: 7px;
+  letter-spacing: .025em;
+  padding: 7px 10px;
+}
+
+.platform-badge svg {
+  fill: none;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  width: 20px;
+}
+
+.platform-badge-instagram {
+  background:
+    linear-gradient(115deg, rgb(255 80 121 / 16%), rgb(154 92 246 / 12%));
+  border-color: rgb(235 102 165 / 48%);
+  color: #f29ac5;
+}
+
+.platform-badge-youtube {
+  background: rgb(255 46 46 / 11%);
+  border-color: rgb(255 83 83 / 42%);
+  color: #ff7777;
+}
+
+.platform-icon-dot {
+  fill: currentColor;
+  stroke: none;
+}
+
+.platform-icon-play {
+  fill: currentColor;
+  stroke: none;
+}
+
 .priority {
   align-items: center;
   background: rgb(255 255 255 / 2%);
@@ -715,6 +775,11 @@ main {
   display: flex;
   justify-content: space-between;
   margin-bottom: 36px;
+}
+
+.conversation-identity .platform-badge {
+  font-size: 13px;
+  padding: 8px 12px;
 }
 
 .mobile-back {

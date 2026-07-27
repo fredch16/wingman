@@ -24,7 +24,10 @@
   </span>
   <span class="card-content">
     <span class="card-header">
-      <strong>{{ comment.author_display_name }}</strong>
+      <span class="card-identity">
+        <strong>{{ comment.author_display_name }}</strong>
+        {% include "_platform_badge.html" %}
+      </span>
       <span class="priority priority-{{ priority_class }}">
         <span class="priority-dot"></span>{{ priority_label }}
         {% if score is not none %}
@@ -40,7 +43,7 @@
             {{ comment.category|replace("_", " ") }}
           </span>
         {% endif %}
-        <span class="video-name">{{ comment.platform_label }} · {{ comment.video_title }}</span>
+        <span class="video-name">{{ comment.video_title }}</span>
       </span>
       <span class="reply-state {% if comment.reply_approved_at %}reply-approved{% elif comment.draft_reply %}reply-draft{% else %}reply-needed{% endif %}">
         <span class="reply-state-dot"></span>

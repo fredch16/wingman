@@ -22,7 +22,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     daily.add_argument(
         "--refresh",
         action="store_true",
-        help="force YouTube API checks even within the freshness window",
+        help="bypass both platform freshness caches",
     )
     return parser.parse_args(argv)
 

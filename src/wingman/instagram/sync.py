@@ -5,12 +5,14 @@ from __future__ import annotations
 import argparse
 import os
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
 
 from wingman.db.comment_store import connect_database, sync_comments
 from wingman.db.video_catalog import (
     Video,
+    comments_checked_recently,
     mark_comments_checked,
     store_discovered_videos,
 )
@@ -147,6 +149,9 @@ def sync_instagram(
     database_path: str,
     *,
     media_ids: set[str] | None = None,
+    refresh: bool = False,
+    freshness: timedelta = timedelta(hours=1),
+    now: datetime | None = None,
 ) -> tuple[int, int]:
     account_id, creator_username = account_id_from_env(client)
     media = client.media(account_id)
@@ -161,6 +166,18 @@ def sync_instagram(
         )
         for item in media:
             media_id = str(item["id"])
+            if not refresh and comments_checked_recently(
+                connection,
+                media_id,
+                now=now,
+                freshness=freshness,
+            ):
+                minutes = int(freshness.total_seconds() // 60)
+                print(
+                    f"Instagram {media_id}: skipped "
+                    f"(checked within {minutes} minutes; use --refresh)"
+                )
+                continue
             api_comments = client.comments(media_id)
             roots, replies_by_root = group_comment_threads(api_comments)
             comments = [
@@ -201,14 +218,27 @@ def sync_instagram(
 
 
 def main(argv: list[str] | None = None) -> int:
+    load_dotenv(".env")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--database", default=None)
     parser.add_argument("--media-id", action="append", default=[])
     parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="ignore freshness checks and fetch every selected media item",
+    )
+    parser.add_argument(
+        "--freshness-minutes",
+        type=int,
+        default=int(os.getenv("INSTAGRAM_SYNC_FRESHNESS_MINUTES", "60")),
+        help="skip media checked within this many minutes (default: 60)",
+    )
+    parser.add_argument(
         "--list-media", action="store_true", help="List media without syncing comments."
     )
     args = parser.parse_args(argv)
-    load_dotenv(".env")
+    if args.freshness_minutes <= 0:
+        parser.error("--freshness-minutes must be greater than zero")
     client = client_from_env()
     account_id, username = account_id_from_env(client)
     media = client.media(account_id)
@@ -222,6 +252,8 @@ def main(argv: list[str] | None = None) -> int:
         client,
         database,
         media_ids=set(args.media_id) or None,
+        refresh=args.refresh,
+        freshness=timedelta(minutes=args.freshness_minutes),
     )
     print(f"Synchronized {comments} comments from {count} Instagram media.")
     return 0

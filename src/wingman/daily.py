@@ -49,7 +49,8 @@ def run_daily_workflow(
 
     print("\nDaily sync 2/2: Instagram", flush=True)
     try:
-        instagram_status = instagram_command([])
+        instagram_arguments = ["--refresh"] if refresh else []
+        instagram_status = instagram_command(instagram_arguments)
     except Exception as error:
         print(f"Instagram synchronization failed: {error}", flush=True)
         return 1
@@ -74,7 +75,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--refresh",
         action="store_true",
-        help="force YouTube API checks even within the freshness window",
+        help="bypass both platform freshness caches",
     )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=5000)
