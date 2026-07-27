@@ -20,7 +20,10 @@
     <a class="mobile-back" href="{{ url_for('inbox') }}">← Inbox</a>
     <div>
       <span class="eyebrow">Conversation</span>
-      <h2>{{ comment.author_display_name }}</h2>
+      <div class="conversation-identity">
+        <h2>{{ comment.author_display_name }}</h2>
+        {% include "_platform_badge.html" %}
+      </div>
     </div>
     <span class="priority priority-{{ priority_class }}">
       <span class="priority-dot"></span>{{ priority_label }}

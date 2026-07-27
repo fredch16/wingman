@@ -252,6 +252,8 @@ class InboxRouteTests(unittest.TestCase):
             b"https://www.youtube.com/watch?v=abcdefghijk&lc=comment-new",
             response.data,
         )
+        self.assertIn(b"platform-badge-youtube", response.data)
+        self.assertIn(b"YouTube comment", response.data)
         self.assertEqual(self.client.get("/comments/missing").status_code, 404)
 
     def test_ignore_and_unignore_action(self) -> None:
