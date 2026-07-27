@@ -127,22 +127,64 @@ wingman inbox
 
 The repository-local `./wingman inbox` launcher also works before installation.
 
-## Synchronize YouTube
+## Quick synchronization
 
-Run the default discovery and synchronization flow:
+Run synchronization commands from the repository root with `.venv` activated:
+
+```bash
+cd /home/fredch/Projects/cursor-hackathon-wingman
+source .venv/bin/activate
+```
+
+To synchronize YouTube only:
 
 ```bash
 wingman-sync
 ```
 
-Useful synchronization commands:
+To synchronize Instagram only:
+
+```bash
+wingman-instagram
+```
+
+To synchronize everything, run both commands:
+
+```bash
+wingman-sync
+wingman-instagram
+```
+
+Both platforms write into the same SQLite inbox configured by `DATABASE_PATH`.
+There is currently no separate `sync-all` command; “sync everything” means
+running these two commands one after the other.
+
+## Synchronize YouTube
+
+The default command performs the complete YouTube workflow: it discovers the
+authenticated channel's uploads, updates the local video catalog, synchronizes
+comments for every enabled video, and checks those threads for existing creator
+replies.
+
+```bash
+wingman-sync
+```
+
+Use `--sync-enabled` when the catalog is already current and you only want to
+refresh comments. By default, videos checked within the last hour are skipped;
+add `--refresh` to force API checks.
+
+Additional YouTube commands:
 
 ```bash
 # Discover uploads without syncing comments
 wingman-sync --discover-only
 
-# Sync every enabled video already in the catalog
+# Sync comments for every enabled stored video, without discovering uploads
 wingman-sync --sync-enabled
+
+# Force comment refreshes for every enabled stored video
+wingman-sync --sync-enabled --refresh
 
 # Sync one video regardless of its stored enabled state
 wingman-sync --video-id VIDEO_ID
@@ -155,8 +197,7 @@ wingman-sync --disable-video VIDEO_ID
 # Check stored threads for creator replies
 wingman-sync --backfill-replies
 
-# Bypass the one-hour freshness window
-wingman-sync --sync-enabled --refresh
+# Force a fresh creator-reply check
 wingman-sync --backfill-replies --refresh
 ```
 
@@ -169,17 +210,19 @@ checks are committed incrementally so interrupted runs can resume.
 
 ## Synchronize Instagram
 
-Verify the authenticated account and list its media without changing the local
-database:
-
-```bash
-wingman-instagram --list-media
-```
-
-Synchronize every available Instagram post and its comment threads:
+The default Instagram command discovers all available media, synchronizes their
+top-level conversations, reconstructs reply threads, and detects existing
+creator replies:
 
 ```bash
 wingman-instagram
+```
+
+To verify the authenticated account and list its media without changing the
+local database:
+
+```bash
+wingman-instagram --list-media
 ```
 
 To limit a run to one or more posts:
