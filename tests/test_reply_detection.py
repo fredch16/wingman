@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from unittest.mock import Mock
 
 from wingman.db.comment_store import sync_comments
+from wingman.instagram.sync import Comment as InstagramComment
 from wingman.youtube.sync import Comment
 from wingman.youtube.detection import (
     BACKLOG_CHECK_SETTING,
@@ -125,6 +126,44 @@ class ReplyDetectionTests(unittest.TestCase):
         youtube.commentThreads.assert_not_called()
         self.assertIn("Reply backlog: 1 comments pending", output.getvalue())
         self.assertIn("No replies; no API call needed", output.getvalue())
+
+    def test_youtube_backfill_ignores_instagram_conversations(self) -> None:
+        sync_comments(
+            self.connection,
+            [
+                comment(total_reply_count=0),
+                InstagramComment(
+                    comment_id="instagram-comment",
+                    thread_id="instagram-thread",
+                    video_id="instagram-media",
+                    author_display_name="@viewer",
+                    author_channel_id="instagram-viewer",
+                    text="Instagram question",
+                    like_count=0,
+                    published_at="2026-07-25T10:00:00Z",
+                    updated_at="2026-07-25T10:00:00Z",
+                    total_reply_count=2,
+                    can_reply=True,
+                    is_public=True,
+                ),
+            ],
+        )
+        youtube = Mock()
+
+        summary = backfill_reply_status(
+            youtube,
+            self.connection,
+            CREATOR_CHANNEL_ID,
+            checked_at="2026-07-25T12:00:00Z",
+        )
+
+        self.assertEqual((summary.checked, summary.failed), (1, 0))
+        instagram = self.connection.execute(
+            "SELECT reply_status_checked_at FROM comments "
+            "WHERE comment_id = 'instagram-comment'"
+        ).fetchone()
+        self.assertIsNone(instagram["reply_status_checked_at"])
+        youtube.commentThreads.assert_not_called()
 
     def test_detects_embedded_creator_reply(self) -> None:
         sync_comments(self.connection, [comment(total_reply_count=1)])

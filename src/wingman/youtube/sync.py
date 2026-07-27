@@ -415,7 +415,8 @@ def print_reply_check_summary(summary: ReplyCheckSummary) -> None:
     if summary.skipped:
         print("Skipped: backlog checked within the last hour")
         return
-    print(f"Checked: {summary.checked}")
+    print(f"Attempted: {summary.checked + summary.failed}")
+    print(f"Checked successfully: {summary.checked}")
     print(f"Replied: {summary.replied}")
     print(f"Unreplied: {summary.unreplied}")
     if summary.failed:

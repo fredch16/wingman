@@ -200,14 +200,14 @@ def sync_instagram(
     return len(media), comment_count
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--database", default=None)
     parser.add_argument("--media-id", action="append", default=[])
     parser.add_argument(
         "--list-media", action="store_true", help="List media without syncing comments."
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     load_dotenv(".env")
     client = client_from_env()
     account_id, username = account_id_from_env(client)

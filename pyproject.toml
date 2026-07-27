@@ -19,6 +19,7 @@ dependencies = [
 
 [project.scripts]
 wingman = "wingman.cli:main"
+wingman-daily = "wingman.daily:main"
 wingman-sync = "wingman.youtube.sync:main"
 wingman-instagram = "wingman.instagram.sync:main"
 wingman-web = "wingman.web:main"

@@ -142,7 +142,8 @@ def comments_pending_reply_check(
         f"""
         SELECT comment_id, thread_id, video_id, total_reply_count
         FROM comments
-        WHERE has_creator_reply = 0
+        WHERE platform = 'youtube'
+          AND has_creator_reply = 0
           {checked_filter}
         {video_filter}
         ORDER BY published_at, comment_id

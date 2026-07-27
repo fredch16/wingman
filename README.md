@@ -148,7 +148,24 @@ To synchronize Instagram only:
 wingman-instagram
 ```
 
-To synchronize everything, run both commands:
+For the normal daily workflow—synchronize both platforms and then launch the
+inbox on port 5000—run:
+
+```bash
+wingman daily
+```
+
+This runs a complete YouTube sync followed by a complete Instagram sync. The app
+starts at <http://127.0.0.1:5000> only after both succeed and stays attached to
+the terminal; stop it with `Ctrl+C`. Add `--refresh` to bypass YouTube's
+one-hour freshness window:
+
+```bash
+wingman daily --refresh
+```
+
+The equivalent standalone entry point is `wingman-daily` after reinstalling the
+package. To synchronize both platforms without launching the app, run:
 
 ```bash
 wingman-sync
@@ -156,8 +173,6 @@ wingman-instagram
 ```
 
 Both platforms write into the same SQLite inbox configured by `DATABASE_PATH`.
-There is currently no separate `sync-all` command; “sync everything” means
-running these two commands one after the other.
 
 ## Synchronize YouTube
 
@@ -291,6 +306,7 @@ in the sidebar.
 │   ├── static/         # browser JavaScript and styles
 │   ├── templates/      # Flask/Jinja views
 │   ├── cli.py          # terminal inbox command
+│   ├── daily.py        # all-platform synchronization and app launch
 │   ├── playground.py   # fixed classification regression scenarios
 │   └── web.py          # Flask application factory and routes
 ├── tests/              # isolated unit and route tests
