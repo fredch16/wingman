@@ -15,6 +15,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="wingman")
     subcommands = parser.add_subparsers(dest="command", required=True)
     subcommands.add_parser("inbox", help="list active inbox comments")
+    daily = subcommands.add_parser(
+        "daily",
+        help="sync YouTube and Instagram, then launch the web inbox",
+    )
+    daily.add_argument(
+        "--refresh",
+        action="store_true",
+        help="force YouTube API checks even within the freshness window",
+    )
     return parser.parse_args(argv)
 
 
@@ -39,6 +48,11 @@ def print_inbox(repository: CommentRepository) -> None:
 def main(argv: list[str] | None = None) -> int:
     load_dotenv(dotenv_path=".env")
     args = parse_args(argv)
+    if args.command == "daily":
+        from wingman.daily import run_daily_workflow
+
+        return run_daily_workflow(refresh=args.refresh)
+
     database_path = os.getenv("DATABASE_PATH", "comments.db").strip() or "comments.db"
     try:
         with connect_database(database_path) as connection:
