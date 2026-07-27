@@ -265,6 +265,55 @@ Instagram's flat comment response is reconstructed into conversations using
 parent IDs. Existing replies from `@charbonnierlabs` are detected during sync,
 so answered threads stay out of the active inbox.
 
+## Move inbox state between devices
+
+For the temporary Git-based multi-device workflow, Wingman can save a consistent
+compressed database snapshot:
+
+```bash
+wingman state save
+wingman state status
+```
+
+This writes two Git-trackable files:
+
+```text
+state/wingman-state.db.gz
+state/wingman-state.db.gz.meta
+```
+
+The save operation uses SQLite's backup mechanism, compacts the result, and
+records a SHA-256 checksum. It does not copy `.env`, API keys, OAuth tokens, or
+`creator.md`.
+
+On the device with the newest state:
+
+```bash
+wingman state save
+git add state/wingman-state.db.gz state/wingman-state.db.gz.meta
+git commit -m "chore: save Wingman state" \
+  -m "- Update the shared compressed inbox snapshot"
+git push
+```
+
+On the other device, stop Wingman before restoring, then run:
+
+```bash
+git pull --ff-only
+wingman state status
+wingman state restore
+```
+
+Before restoration, Wingman saves the receiving device's current database under
+`.wingman-backups/`. If the snapshot checksum or SQLite integrity check fails,
+the current database is left untouched.
+
+This is a single-writer workflow: always publish from one device and pull before
+working on another. Git cannot merge two database snapshots. The snapshot is
+compressed but **not encrypted** and contains viewer usernames, comments,
+drafts, classifications, ignored state, and learned video context. Only push it
+to a private repository whose collaborators may access that information.
+
 ## Classification and reply generation
 
 Classification is explicit. Opening the inbox never calls OpenAI. Use the inbox
