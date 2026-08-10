@@ -40,6 +40,8 @@ from wingman.instagram.client import (
     post_comment_reply as post_instagram_comment_reply,
 )
 
+BULK_REPLY_PRIORITY_THRESHOLD = 0.2
+
 
 def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     load_dotenv(dotenv_path=".env")
@@ -308,14 +310,22 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     @app.post("/inbox/generate-all")
     def generate_all_replies():
         for comment in repository().list_active_inbox_comments():
-            if not comment.draft_reply:
+            if (
+                comment.priority is not None
+                and comment.priority > BULK_REPLY_PRIORITY_THRESHOLD
+                and not comment.draft_reply
+            ):
                 generate_reply_for_comment(comment.comment_id)
         return redirect(url_for("inbox"))
 
     @app.post("/inbox/regenerate-all")
     def regenerate_all_replies():
         for comment in repository().list_active_inbox_comments():
-            generate_reply_for_comment(comment.comment_id)
+            if (
+                comment.priority is not None
+                and comment.priority > BULK_REPLY_PRIORITY_THRESHOLD
+            ):
+                generate_reply_for_comment(comment.comment_id)
         return redirect(url_for("inbox"))
 
     @app.post("/comments/<comment_id>/draft-reply")

@@ -34,10 +34,10 @@
                 <button type="submit">Classify all comments</button>
               </form>
               <form method="post" action="{{ url_for('generate_all_replies') }}">
-                <button type="submit">Generate all drafts</button>
+                <button type="submit">Generate drafts above 0.2</button>
               </form>
               <form method="post" action="{{ url_for('regenerate_all_replies') }}">
-                <button type="submit">Regenerate all drafts</button>
+                <button type="submit">Regenerate drafts above 0.2</button>
               </form>
             </div>
           </details>
