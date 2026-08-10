@@ -688,13 +688,32 @@ class InboxRouteTests(unittest.TestCase):
             future_comment.video_summary,
         )
 
-    def test_generates_all_missing_drafts_and_skips_them_on_repeat(self) -> None:
+    def test_bulk_generation_only_drafts_priorities_above_point_two(self) -> None:
+        connection = connect_database(self.database_path)
+        try:
+            sync_comments(
+                connection,
+                [fetched_comment("comment-threshold", "Threshold Author")],
+            )
+            CommentRepository(connection).save_classification(
+                "comment-threshold",
+                category="generic_praise",
+                priority=0.2,
+                reply_worthy=True,
+                needs_research=False,
+                reason="Exactly at the bulk-generation threshold.",
+                classification_model="test-model",
+                classification_version="production-v2",
+            )
+        finally:
+            connection.close()
+
         page = self.client.get("/")
-        self.assertIn(b"Generate all drafts", page.data)
+        self.assertIn(b"Generate drafts above 0.2", page.data)
 
         first_run = self.client.post("/inbox/generate-all")
         self.assertEqual(first_run.status_code, 302)
-        self.assertEqual(len(self.reply_generator.calls), 3)
+        self.assertEqual(len(self.reply_generator.calls), 2)
         self.assertEqual(
             self.row("comment-new")["draft_reply"],
             "Generated reply draft.",
@@ -703,22 +722,20 @@ class InboxRouteTests(unittest.TestCase):
             self.row("comment-low")["draft_reply"],
             "Generated reply draft.",
         )
-        self.assertEqual(
-            self.row("comment-unclassified")["draft_reply"],
-            "Generated reply draft.",
-        )
+        self.assertIsNone(self.row("comment-unclassified")["draft_reply"])
+        self.assertIsNone(self.row("comment-threshold")["draft_reply"])
 
         second_run = self.client.post("/inbox/generate-all")
         self.assertEqual(second_run.status_code, 302)
-        self.assertEqual(len(self.reply_generator.calls), 3)
+        self.assertEqual(len(self.reply_generator.calls), 2)
 
-    def test_regenerates_every_active_draft(self) -> None:
+    def test_regenerates_only_qualifying_active_drafts(self) -> None:
         self.client.post("/inbox/generate-all")
 
         regenerated = self.client.post("/inbox/regenerate-all")
 
         self.assertEqual(regenerated.status_code, 302)
-        self.assertEqual(len(self.reply_generator.calls), 6)
+        self.assertEqual(len(self.reply_generator.calls), 4)
 
     def test_ignored_view_lists_ignored_conversations(self) -> None:
         response = self.client.get("/?view=ignored")

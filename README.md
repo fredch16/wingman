@@ -35,7 +35,7 @@ selected comment, context, and editable reply are shown on the right.
 
 1. Synchronize the latest comments.
 2. Classify new conversations, individually or in bulk.
-3. Generate missing drafts from the inbox menu.
+3. Generate missing drafts above priority `0.2` from the inbox menu.
 4. Review or edit the selected reply.
 5. Optionally teach Wingman a creator-wide preference or video-specific answer.
 6. Post the reply. The completed conversation fades out and the next one opens.
@@ -318,8 +318,10 @@ to a private repository whose collaborators may access that information.
 
 Classification is explicit. Opening the inbox never calls OpenAI. Use the inbox
 menu to classify or reclassify comments and to generate or regenerate drafts in
-bulk. Developer mode reveals numerical scores, reasons, model metadata, and the
-classification playground.
+bulk. Bulk generation only processes classified comments with priority strictly
+above `0.2`; comments rated exactly `0.2`, lower-rated comments, and unclassified
+comments can still be generated individually. Developer mode reveals numerical
+scores, reasons, model metadata, and the classification playground.
 
 Reply generation combines:
 
