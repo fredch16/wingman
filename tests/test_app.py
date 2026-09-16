@@ -257,7 +257,10 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn(b"https://img/video.jpg", response.data)
         self.assertIn(b"Original comment", response.data)
         self.assertIn(b"platform-badge-youtube", response.data)
+        self.assertIn(b"platform-action-youtube", response.data)
         self.assertIn(b"YouTube comment", response.data)
+        self.assertNotIn(b'avatar avatar-large', response.data)
+        self.assertNotIn(b'class="avatar"', response.data)
         self.assertEqual(self.client.get("/comments/missing").status_code, 404)
 
     def test_ignore_and_unignore_action(self) -> None:

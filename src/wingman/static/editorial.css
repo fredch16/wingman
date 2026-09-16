@@ -374,14 +374,14 @@ button.primary:hover,
 }
 
 .platform-badge {
-  background: transparent;
-  border: 0;
-  color: var(--muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  color: white;
   flex: 0 0 auto;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  padding: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  padding: 5px 8px;
   text-transform: uppercase;
 }
 
@@ -390,12 +390,18 @@ button.primary:hover,
   width: 12px;
 }
 
-.platform-badge-youtube svg {
-  color: #9b3934;
+.platform-badge-youtube {
+  background: #d93a32;
+  border-color: #b92e28;
 }
 
-.platform-badge-instagram svg {
-  color: var(--blue);
+.platform-badge-instagram {
+  background: linear-gradient(120deg, #6f3cc3 0%, #d83265 48%, #ed8d2f 100%);
+  border-color: #b43c69;
+}
+
+.platform-badge svg {
+  color: white;
 }
 
 .card-comment {
@@ -588,11 +594,22 @@ button.primary:hover,
 }
 
 .source-platform {
-  color: var(--signal);
+  border-radius: var(--radius-xs);
+  color: white;
   font-family: "IBM Plex Mono", monospace;
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 700;
   letter-spacing: 0.06em;
+  padding: 4px 7px;
   text-transform: uppercase;
+}
+
+.source-platform-youtube {
+  background: #d93a32;
+}
+
+.source-platform-instagram {
+  background: linear-gradient(120deg, #6f3cc3 0%, #d83265 48%, #ed8d2f 100%);
 }
 
 .ranking-explanation {
