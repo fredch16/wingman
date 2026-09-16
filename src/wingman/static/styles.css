@@ -341,58 +341,65 @@ main {
   margin-bottom: 9px;
 }
 
-.more-menu {
-  position: relative;
+.inbox-batch-controls,
+.generate-batch-form {
+  align-items: center;
+  display: flex;
+  gap: 10px;
 }
 
-.more-menu summary {
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  color: var(--muted);
+.batch-button {
+  border: 1px solid var(--border-bright);
+  border-radius: 9px;
   cursor: pointer;
-  letter-spacing: 0.1em;
-  list-style: none;
-  padding: 8px 9px;
-  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+  font-size: 13px;
+  font-weight: 650;
+  min-height: 38px;
+  padding: 0 15px;
+  transition: background 140ms ease, border-color 140ms ease,
+    box-shadow 140ms ease, color 140ms ease, transform 140ms ease;
 }
 
-.more-menu summary:hover,
-.more-menu[open] summary {
+.batch-button:hover {
+  transform: translateY(-1px);
+}
+
+.batch-button-secondary {
   background: var(--surface);
-  border-color: var(--border-bright);
+  color: var(--text-soft);
+}
+
+.batch-button-secondary:hover {
+  background: var(--surface-bright);
   color: var(--text);
 }
 
-.more-menu > div {
-  background: rgb(24 26 32 / 98%);
-  border: 1px solid var(--border-bright);
-  border-radius: 10px;
-  box-shadow: var(--shadow);
-  display: grid;
-  min-width: 175px;
-  padding: 6px;
-  position: absolute;
-  right: 0;
-  top: 40px;
-  z-index: 8;
-}
-
-.more-menu button {
-  background: none;
-  border: 0;
-  border-radius: 6px;
-  color: var(--text-soft);
-  cursor: pointer;
-  font-size: 13px;
-  padding: 11px 12px;
-  text-align: left;
-  transition: background 120ms ease, color 120ms ease;
-  width: 100%;
-}
-
-.more-menu button:hover {
-  background: var(--surface-bright);
+.batch-button-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 5px 18px rgb(255 76 76 / 16%);
   color: white;
+}
+
+.batch-button-primary:hover {
+  box-shadow: 0 7px 22px rgb(255 76 76 / 24%);
+}
+
+.generation-scope {
+  align-items: center;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  font-size: 12px;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.generation-scope input {
+  accent-color: var(--accent);
+  height: 15px;
+  margin: 0;
+  width: 15px;
 }
 
 .conversation-list {
@@ -1982,6 +1989,24 @@ main > .classification-result {
 
   .inbox-list-panel {
     height: 100%;
+  }
+
+  .inbox-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .inbox-batch-controls {
+    width: 100%;
+  }
+
+  .generate-batch-form {
+    flex: 1;
+  }
+
+  .batch-button-primary {
+    margin-left: auto;
   }
 
   .conversation-panel {

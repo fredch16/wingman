@@ -238,8 +238,10 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn(b"Unclassified", response.data)
         self.assertIn(b"Full text for comment-unclassified", response.data)
         self.assertIn(b"Classify comment", response.data)
-        self.assertIn(b"Classify next 10", response.data)
-        self.assertIn(b"Classify all", response.data)
+        self.assertIn(b'action="/inbox/classify-all"', response.data)
+        self.assertIn(b'action="/inbox/generate-all"', response.data)
+        self.assertIn(b"Only rated above 0.2", response.data)
+        self.assertNotIn('aria-label="Inbox actions">•••'.encode(), response.data)
         self.assertIn(b'data-count="3"', response.data)
 
     def test_comment_detail_and_missing_comment(self) -> None:
@@ -798,7 +800,7 @@ class InboxRouteTests(unittest.TestCase):
             future_comment.video_summary,
         )
 
-    def test_bulk_generation_only_drafts_priorities_above_point_two(self) -> None:
+    def test_rated_bulk_generation_only_drafts_priorities_above_point_two(self) -> None:
         connection = connect_database(self.database_path)
         try:
             sync_comments(
@@ -819,9 +821,11 @@ class InboxRouteTests(unittest.TestCase):
             connection.close()
 
         page = self.client.get("/")
-        self.assertIn(b"Generate drafts above 0.2", page.data)
+        self.assertIn(b"Only rated above 0.2", page.data)
 
-        first_run = self.client.post("/inbox/generate-all")
+        first_run = self.client.post(
+            "/inbox/generate-all", data={"rated_only": "1"}
+        )
         self.assertEqual(first_run.status_code, 302)
         self.assertEqual(len(self.reply_generator.calls), 2)
         self.assertEqual(
@@ -835,12 +839,30 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIsNone(self.row("comment-unclassified")["draft_reply"])
         self.assertIsNone(self.row("comment-threshold")["draft_reply"])
 
-        second_run = self.client.post("/inbox/generate-all")
+        second_run = self.client.post(
+            "/inbox/generate-all", data={"rated_only": "1"}
+        )
         self.assertEqual(second_run.status_code, 302)
         self.assertEqual(len(self.reply_generator.calls), 2)
 
+    def test_unrestricted_bulk_generation_includes_unclassified_comments(
+        self,
+    ) -> None:
+        response = self.client.post("/inbox/generate-all")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(self.reply_generator.calls), 3)
+        self.assertEqual(
+            self.row("comment-unclassified")["draft_reply"],
+            "Generated reply draft.",
+        )
+
+        repeated = self.client.post("/inbox/generate-all")
+        self.assertEqual(repeated.status_code, 302)
+        self.assertEqual(len(self.reply_generator.calls), 3)
+
     def test_regenerates_only_qualifying_active_drafts(self) -> None:
-        self.client.post("/inbox/generate-all")
+        self.client.post("/inbox/generate-all", data={"rated_only": "1"})
 
         regenerated = self.client.post("/inbox/regenerate-all")
 
