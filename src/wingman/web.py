@@ -15,8 +15,9 @@ from wingman.playground import PLAYGROUND_COMMENTS, get_playground_comment
 from wingman.ai.classification_prompt import PREVIOUS_CLASSIFICATION_PROMPT
 from wingman.ai.classification_service import ClassificationService, CommentClassification
 from wingman.db.comment_store import connect_database
+from wingman.db.automation_repository import AutomationRepository
 from wingman.youtube.sync import api_error_message, get_authenticated_youtube_client
-from wingman.db.inbox_repository import CommentRepository
+from wingman.db.inbox_repository import Comment, CommentRepository
 from wingman.ai.learning_service import (
     ExtractedPreference,
     PreferenceComparison,
@@ -65,6 +66,25 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             g.database = connect_database(app.config["DATABASE"])
         return CommentRepository(g.database)
 
+    def automation_repository() -> AutomationRepository:
+        if "automation_repository" not in g:
+            repository()
+            g.automation_repository = AutomationRepository(g.database)
+        return g.automation_repository
+
+    def with_automation(comment: Comment) -> Comment:
+        if comment.draft_reply:
+            return comment
+        match = automation_repository().match(comment.video_id, comment.text)
+        if match is None:
+            return comment
+        return replace(
+            comment,
+            automation_id=match.automation_id,
+            automation_keyword=match.matched_keyword,
+            automation_reply=match.default_reply,
+        )
+
     app.extensions["classification_results"] = {}
     app.extensions["classification_errors"] = {}
     app.extensions["previous_classification_results"] = {}
@@ -80,6 +100,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     app.extensions["video_learning_proposals"] = {}
     app.extensions["video_learning_errors"] = {}
     app.extensions["video_learning_messages"] = {}
+    app.extensions["automation_error"] = None
 
     def classification_service() -> ClassificationService:
         if "classification_service" not in app.extensions:
@@ -184,6 +205,10 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 for comment in repository().list_unclassified_inbox_comments()
                 if comment.comment_id not in dry_run_results
             ]
+        comments = [with_automation(comment) for comment in comments]
+        unclassified_comments = [
+            with_automation(comment) for comment in unclassified_comments
+        ]
         return render_template(
             "inbox.html",
             comments=comments,
@@ -263,6 +288,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         comment = repository().get_comment(comment_id)
         if comment is None:
             abort(404)
+        comment = with_automation(comment)
         return render_template(
             "comment_detail.html",
             comment=comment,
@@ -534,6 +560,56 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             "video_contexts.html",
             videos=list_stored_videos(repository().connection),
         )
+
+    @app.get("/automations")
+    def automations() -> str:
+        return render_template(
+            "automations.html",
+            automations=automation_repository().list_all(),
+            videos=list_stored_videos(repository().connection),
+            automation_error=app.extensions["automation_error"],
+        )
+
+    @app.post("/automations")
+    def create_automation():
+        try:
+            automation_repository().create(
+                request.form.get("video_id", "").strip(),
+                request.form.get("keywords", ""),
+                request.form.get("default_reply", ""),
+            )
+            app.extensions["automation_error"] = None
+        except ValueError as error:
+            app.extensions["automation_error"] = str(error)
+        return redirect(url_for("automations"))
+
+    @app.post("/automations/<int:automation_id>/update")
+    def update_automation(automation_id: int):
+        try:
+            updated = automation_repository().update(
+                automation_id,
+                request.form.get("keywords", ""),
+                request.form.get("default_reply", ""),
+            )
+            if not updated:
+                abort(404)
+            app.extensions["automation_error"] = None
+        except ValueError as error:
+            app.extensions["automation_error"] = str(error)
+        return redirect(url_for("automations"))
+
+    @app.post("/automations/<int:automation_id>/toggle")
+    def toggle_automation(automation_id: int):
+        is_enabled = request.form.get("is_enabled") == "true"
+        if not automation_repository().set_enabled(automation_id, is_enabled):
+            abort(404)
+        return redirect(url_for("automations"))
+
+    @app.post("/automations/<int:automation_id>/delete")
+    def delete_automation(automation_id: int):
+        if not automation_repository().delete(automation_id):
+            abort(404)
+        return redirect(url_for("automations"))
 
     @app.post("/videos/<video_id>/summary")
     def save_video_summary(video_id: str):
