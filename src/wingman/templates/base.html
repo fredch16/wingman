@@ -56,6 +56,30 @@
             <span>Settings</span>
           </a>
         </nav>
+        <section class="sync-controls" aria-labelledby="sync-heading">
+          <span id="sync-heading">Refetch</span>
+          <div>
+            <form class="background-job-form" method="post" action="{{ url_for('run_sync_job', platform='all') }}">
+              <button type="submit">All</button>
+            </form>
+            <form class="background-job-form" method="post" action="{{ url_for('run_sync_job', platform='youtube') }}">
+              <button type="submit">YT</button>
+            </form>
+            <form class="background-job-form" method="post" action="{{ url_for('run_sync_job', platform='instagram') }}">
+              <button type="submit">IG</button>
+            </form>
+          </div>
+        </section>
+        <section id="job-progress" class="job-progress" aria-live="polite" hidden>
+          <div class="job-progress-heading">
+            <strong data-job-label>Working</strong>
+            <span data-job-count>0 / 0</span>
+          </div>
+          <div class="job-progress-track" aria-hidden="true">
+            <span data-job-bar></span>
+          </div>
+          <small data-job-current>Starting…</small>
+        </section>
         <div class="sidebar-footer">
           <label class="developer-toggle">
             <span>

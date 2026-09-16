@@ -43,6 +43,12 @@ selected comment, context, and editable reply are shown on the right.
 6. Post the reply. The completed conversation fades out and the next one opens.
 7. Hide conversations that do not need a response.
 
+The sidebar **Refetch** controls run synchronization without restarting the
+application: **All** refreshes YouTube then Instagram, while **YT** and **IG**
+refresh only that platform. Refetch, bulk classification, and bulk generation
+run in the background and display live item counts and progress in the sidebar.
+Only one long-running workflow runs at a time to avoid competing database writes.
+
 AI is optional for replying. Every conversation opens with an empty response
 editor, so you can type a manual reply and press `Ctrl+Enter` to post it
 directly to YouTube or Instagram without classifying, generating, or approving

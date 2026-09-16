@@ -2,12 +2,13 @@
 
 import os
 import sqlite3
+from contextlib import closing
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
-from flask import Flask, abort, g, redirect, render_template, request, url_for
+from flask import Flask, abort, g, jsonify, redirect, render_template, request, url_for
 from google.auth.exceptions import GoogleAuthError
 from googleapiclient.errors import HttpError
 
@@ -40,6 +41,9 @@ from wingman.instagram.client import (
     InstagramClient,
     post_comment_reply as post_instagram_comment_reply,
 )
+from wingman.instagram.sync import main as sync_instagram
+from wingman.jobs import JobManager, ProgressCallback
+from wingman.youtube.sync import main as sync_youtube
 
 BULK_REPLY_PRIORITY_THRESHOLD = 0.2
 
@@ -101,6 +105,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     app.extensions["video_learning_errors"] = {}
     app.extensions["video_learning_messages"] = {}
     app.extensions["automation_error"] = None
+    app.extensions["job_manager"] = JobManager()
 
     def classification_service() -> ClassificationService:
         if "classification_service" not in app.extensions:
@@ -282,6 +287,117 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         for comment in repository().list_active_inbox_comments():
             classify_production_comment(comment.comment_id)
         return redirect(url_for("inbox"))
+
+    def start_sync_job(platform: str):
+        commands = {
+            "youtube": (
+                "Refetch YouTube",
+                app.config.get("YOUTUBE_SYNC_COMMAND", sync_youtube),
+            ),
+            "instagram": (
+                "Refetch Instagram",
+                app.config.get("INSTAGRAM_SYNC_COMMAND", sync_instagram),
+            ),
+        }
+        selected = list(commands) if platform == "all" else [platform]
+        if any(name not in commands for name in selected):
+            abort(404)
+
+        def worker(update: ProgressCallback) -> None:
+            for index, name in enumerate(selected, start=1):
+                label, command = commands[name]
+                update(index - 1, len(selected), label)
+                status = command(["--refresh"])
+                if status:
+                    raise RuntimeError(f"{label} failed with status {status}")
+                update(index, len(selected), f"{label} complete")
+
+        label = "Refetch all platforms" if platform == "all" else commands[platform][0]
+        job = app.extensions["job_manager"].start(label, len(selected), worker)
+        return jsonify(app.extensions["job_manager"].get(job.job_id)), 202
+
+    @app.post("/jobs/sync/<platform>")
+    def run_sync_job(platform: str):
+        return start_sync_job(platform)
+
+    @app.post("/jobs/classify")
+    def run_classification_job():
+        with closing(connect_database(app.config["DATABASE"])) as connection:
+            comment_ids = [
+                comment.comment_id
+                for comment in CommentRepository(
+                    connection
+                ).list_unclassified_inbox_comments()
+            ]
+
+        def worker(update: ProgressCallback) -> None:
+            with closing(connect_database(app.config["DATABASE"])) as connection:
+                job_repository = CommentRepository(connection)
+                for index, comment_id in enumerate(comment_ids, start=1):
+                    comment = job_repository.get_comment(comment_id)
+                    update(
+                        index - 1,
+                        len(comment_ids),
+                        f"Classifying {comment.author_display_name if comment else comment_id}",
+                    )
+                    classify_stored_comment(
+                        job_repository,
+                        classification_service(),
+                        comment_id,
+                        persist=not app.config["CLASSIFICATION_DRY_RUN"],
+                    )
+                    update(index, len(comment_ids), "Classification saved")
+
+        job = app.extensions["job_manager"].start(
+            "Classify comments", len(comment_ids), worker
+        )
+        return jsonify(app.extensions["job_manager"].get(job.job_id)), 202
+
+    @app.post("/jobs/generate")
+    def run_generation_job():
+        rated_only = request.form.get("rated_only") == "1"
+        with closing(connect_database(app.config["DATABASE"])) as connection:
+            candidates = [
+                comment
+                for comment in CommentRepository(connection).list_active_inbox_comments()
+                if not comment.draft_reply
+                and (
+                    not rated_only
+                    or (
+                        comment.priority is not None
+                        and comment.priority > BULK_REPLY_PRIORITY_THRESHOLD
+                    )
+                )
+            ]
+        comment_ids = [comment.comment_id for comment in candidates]
+
+        def worker(update: ProgressCallback) -> None:
+            with closing(connect_database(app.config["DATABASE"])) as connection:
+                job_repository = CommentRepository(connection)
+                for index, comment_id in enumerate(comment_ids, start=1):
+                    comment = job_repository.get_comment(comment_id)
+                    if comment is None:
+                        continue
+                    update(
+                        index - 1,
+                        len(comment_ids),
+                        f"Drafting for {comment.author_display_name}",
+                    )
+                    draft = reply_generation_service().generate_for_comment(comment)
+                    job_repository.save_generated_reply(comment_id, draft)
+                    update(index, len(comment_ids), "Draft saved")
+
+        job = app.extensions["job_manager"].start(
+            "Generate replies", len(comment_ids), worker
+        )
+        return jsonify(app.extensions["job_manager"].get(job.job_id)), 202
+
+    @app.get("/jobs/<job_id>")
+    def job_status(job_id: str):
+        job = app.extensions["job_manager"].get(job_id)
+        if job is None:
+            abort(404)
+        return jsonify(job)
 
     @app.get("/comments/<comment_id>")
     def comment_detail(comment_id: str) -> str:

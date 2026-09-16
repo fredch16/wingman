@@ -162,7 +162,124 @@ summary:focus-visible {
 .sidebar-footer {
   border-color: rgb(237 234 225 / 14%);
   gap: 14px;
+  margin-top: 10px;
   padding: 17px 6px 2px;
+}
+
+.sync-controls {
+  border-top: 1px solid rgb(237 234 225 / 14%);
+  margin-top: auto;
+  padding: 16px 6px 0;
+}
+
+.sync-controls > span {
+  color: rgb(237 234 225 / 48%);
+  display: block;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  margin-bottom: 9px;
+  text-transform: uppercase;
+}
+
+.sync-controls > div {
+  display: grid;
+  gap: 5px;
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.sync-controls form,
+.sync-controls button {
+  width: 100%;
+}
+
+.sync-controls button {
+  background: transparent;
+  border: 1px solid rgb(237 234 225 / 25%);
+  border-radius: var(--radius-sm);
+  color: var(--paper-on-dark);
+  cursor: pointer;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  font-weight: 600;
+  min-height: 31px;
+  text-transform: uppercase;
+}
+
+.sync-controls button:hover {
+  background: rgb(23 107 82 / 45%);
+  border-color: #579681;
+}
+
+.sync-controls button:disabled {
+  cursor: wait;
+  opacity: 0.45;
+}
+
+.job-progress {
+  background: rgb(237 234 225 / 5%);
+  border: 1px solid rgb(237 234 225 / 14%);
+  border-radius: var(--radius-sm);
+  margin: 10px 6px 0;
+  padding: 10px;
+}
+
+.job-progress[hidden] {
+  display: none;
+}
+
+.job-progress-heading {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.job-progress-heading strong,
+.job-progress-heading span,
+.job-progress small {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.job-progress-heading strong {
+  color: var(--paper-on-dark);
+  font-size: 9px;
+}
+
+.job-progress-heading span {
+  color: #75b39d;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.job-progress-track {
+  background: rgb(237 234 225 / 12%);
+  height: 4px;
+  margin: 8px 0 7px;
+  overflow: hidden;
+}
+
+.job-progress-track span {
+  background: #75b39d;
+  display: block;
+  height: 100%;
+  transition: width 180ms ease;
+  width: 0;
+}
+
+.job-progress small {
+  color: rgb(237 234 225 / 55%);
+  display: block;
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+.job-progress.job-failed .job-progress-track span {
+  background: #d85a52;
+}
+
+.job-progress.job-failed small {
+  color: #ef8f87;
 }
 
 .developer-toggle strong {
@@ -1198,6 +1315,8 @@ input::placeholder {
   .brand-copy,
   .primary-nav::before,
   .primary-nav a span,
+  .sync-controls,
+  .job-progress,
   .sidebar-footer {
     display: none;
   }

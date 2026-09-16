@@ -4,6 +4,97 @@
   const detailPanel = document.querySelector("#conversation-panel");
   const cards = [...document.querySelectorAll(".conversation-card")];
   const conversationCount = document.querySelector("#conversation-count");
+  const jobProgress = document.querySelector("#job-progress");
+  const jobStorageKey = "wingman-active-job";
+
+  function renderJob(job) {
+    if (!jobProgress) return;
+    const total = Math.max(Number(job.total) || 1, 1);
+    const completed = Math.min(Number(job.completed) || 0, total);
+    const percent = Math.round((completed / total) * 100);
+    jobProgress.hidden = false;
+    jobProgress.querySelector("[data-job-label]").textContent = job.label;
+    jobProgress.querySelector("[data-job-count]").textContent = `${completed} / ${total}`;
+    jobProgress.querySelector("[data-job-current]").textContent = job.error || job.current;
+    jobProgress.querySelector("[data-job-bar]").style.width = `${percent}%`;
+    jobProgress.classList.toggle("job-failed", job.status === "failed");
+  }
+
+  function setJobButtonsDisabled(disabled) {
+    document.querySelectorAll(".background-job-form button").forEach((button) => {
+      button.disabled = disabled;
+    });
+  }
+
+  async function pollJob(jobId) {
+    try {
+      const response = await fetch(`/jobs/${encodeURIComponent(jobId)}`);
+      if (!response.ok) throw new Error(`Progress unavailable (${response.status})`);
+      const job = await response.json();
+      renderJob(job);
+      if (job.status === "running") {
+        setTimeout(() => pollJob(jobId), 500);
+        return;
+      }
+      sessionStorage.removeItem(jobStorageKey);
+      setJobButtonsDisabled(false);
+      if (job.status === "complete") {
+        setTimeout(() => location.reload(), 450);
+      }
+    } catch (error) {
+      sessionStorage.removeItem(jobStorageKey);
+      setJobButtonsDisabled(false);
+      renderJob({
+        label: "Workflow failed",
+        completed: 0,
+        total: 1,
+        current: "Failed",
+        status: "failed",
+        error: error.message,
+      });
+    }
+  }
+
+  document.querySelectorAll(".background-job-form").forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      setJobButtonsDisabled(true);
+      renderJob({
+        label: event.submitter?.textContent.trim() || "Working",
+        completed: 0,
+        total: 1,
+        current: "Starting…",
+        status: "running",
+      });
+      try {
+        const response = await fetch(form.action, {
+          method: form.method,
+          body: new FormData(form),
+        });
+        if (!response.ok) throw new Error(`Could not start (${response.status})`);
+        const job = await response.json();
+        sessionStorage.setItem(jobStorageKey, job.job_id);
+        renderJob(job);
+        pollJob(job.job_id);
+      } catch (error) {
+        setJobButtonsDisabled(false);
+        renderJob({
+          label: "Workflow failed",
+          completed: 0,
+          total: 1,
+          current: "Failed",
+          status: "failed",
+          error: error.message,
+        });
+      }
+    });
+  });
+
+  const activeJobId = sessionStorage.getItem(jobStorageKey);
+  if (activeJobId) {
+    setJobButtonsDisabled(true);
+    pollJob(activeJobId);
+  }
 
   const developerMode = localStorage.getItem("wingman-developer-mode") === "true";
   root.classList.toggle("developer-mode-on", developerMode);

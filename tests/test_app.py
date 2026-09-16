@@ -2,6 +2,7 @@
 
 import sqlite3
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -206,6 +207,16 @@ class InboxRouteTests(unittest.TestCase):
         finally:
             connection.close()
 
+    def wait_for_job(self, job_id: str) -> dict[str, object]:
+        for _ in range(200):
+            response = self.client.get(f"/jobs/{job_id}")
+            self.assertEqual(response.status_code, 200)
+            result = response.get_json()
+            if result["status"] != "running":
+                return result
+            time.sleep(0.01)
+        self.fail("Background job did not finish")
+
     def test_inbox_lists_ranked_classified_comments_and_debug_fields(self) -> None:
         response = self.client.get("/")
 
@@ -238,11 +249,55 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn(b"Unclassified", response.data)
         self.assertIn(b"Full text for comment-unclassified", response.data)
         self.assertIn(b"Classify comment", response.data)
-        self.assertIn(b'action="/inbox/classify-all"', response.data)
-        self.assertIn(b'action="/inbox/generate-all"', response.data)
+        self.assertIn(b'action="/jobs/classify"', response.data)
+        self.assertIn(b'action="/jobs/generate"', response.data)
+        self.assertIn(b'action="/jobs/sync/all"', response.data)
+        self.assertIn(b'action="/jobs/sync/youtube"', response.data)
+        self.assertIn(b'action="/jobs/sync/instagram"', response.data)
         self.assertIn(b"Only rated above 0.2", response.data)
         self.assertNotIn('aria-label="Inbox actions">•••'.encode(), response.data)
         self.assertIn(b'data-count="3"', response.data)
+
+    def test_refetch_all_runs_both_platforms_with_forced_refresh(self) -> None:
+        calls: list[tuple[str, list[str] | None]] = []
+        self.client.application.config.update(
+            YOUTUBE_SYNC_COMMAND=lambda arguments: (
+                calls.append(("youtube", arguments)) or 0
+            ),
+            INSTAGRAM_SYNC_COMMAND=lambda arguments: (
+                calls.append(("instagram", arguments)) or 0
+            ),
+        )
+
+        started = self.client.post("/jobs/sync/all")
+        self.assertEqual(started.status_code, 202)
+        result = self.wait_for_job(started.get_json()["job_id"])
+
+        self.assertEqual(result["status"], "complete")
+        self.assertEqual(result["completed"], 2)
+        self.assertEqual(result["total"], 2)
+        self.assertEqual(
+            calls,
+            [("youtube", ["--refresh"]), ("instagram", ["--refresh"])],
+        )
+
+    def test_background_classification_reports_comment_progress(self) -> None:
+        started = self.client.post("/jobs/classify")
+        result = self.wait_for_job(started.get_json()["job_id"])
+
+        self.assertEqual(result["status"], "complete")
+        self.assertEqual(result["completed"], 1)
+        self.assertEqual(result["total"], 1)
+        self.assertIsNotNone(self.row("comment-unclassified")["classified_at"])
+
+    def test_background_generation_reports_comment_progress(self) -> None:
+        started = self.client.post("/jobs/generate")
+        result = self.wait_for_job(started.get_json()["job_id"])
+
+        self.assertEqual(result["status"], "complete")
+        self.assertEqual(result["completed"], 3)
+        self.assertEqual(result["total"], 3)
+        self.assertIsNotNone(self.row("comment-unclassified")["draft_reply"])
 
     def test_comment_detail_and_missing_comment(self) -> None:
         response = self.client.get("/comments/comment-new")
