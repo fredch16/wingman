@@ -166,6 +166,8 @@ class InstagramIntegrationTests(unittest.TestCase):
         )
         detail = app.test_client().get("/comments/viewer-open")
         self.assertIn(b"Post to Instagram", detail.data)
+        self.assertIn(b"platform-action-instagram", detail.data)
+        self.assertIn(b"source-platform-instagram", detail.data)
         self.assertIn(
             b"Ctrl+Enter to post directly to Instagram",
             detail.data,
