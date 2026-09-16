@@ -23,14 +23,14 @@
         </div>
         {% if view == "inbox" and all_comments %}
           <div class="inbox-batch-controls" aria-label="Inbox actions">
-            <form method="post" action="{{ url_for('classify_all_unclassified') }}">
+            <form class="background-job-form" method="post" action="{{ url_for('run_classification_job') }}">
               <button class="batch-button batch-button-secondary" type="submit">
                 Classify
               </button>
             </form>
-            <form class="generate-batch-form"
+            <form class="generate-batch-form background-job-form"
                   method="post"
-                  action="{{ url_for('generate_all_replies') }}">
+                  action="{{ url_for('run_generation_job') }}">
               <label class="generation-scope">
                 <input type="checkbox" name="rated_only" value="1">
                 <span>Only rated above 0.2</span>
