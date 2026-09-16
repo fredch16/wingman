@@ -151,6 +151,15 @@
       </form>
     {% else %}
       <div class="manual-reply-workspace">
+        {% if comment.automation_reply %}
+          <div class="automation-match-banner">
+            <span class="automation-match-icon">⌁</span>
+            <span>
+              <strong>Automation matched “{{ comment.automation_keyword }}”</strong>
+              <small>Review the prefilled response, then press Ctrl+Enter to post.</small>
+            </span>
+          </div>
+        {% endif %}
         <form class="reply-editor manual-reply-editor"
               method="post"
               action="{{ url_for('approve_and_post_reply', comment_id=comment.comment_id) }}">
@@ -160,7 +169,7 @@
                     rows="8"
                     required
                     autofocus
-                    placeholder="Write a reply to {{ comment.author_display_name }}…"></textarea>
+                    placeholder="Write a reply to {{ comment.author_display_name }}…">{{ comment.automation_reply or "" }}</textarea>
           <div class="editor-footer">
             <span class="save-hint">Ctrl+Enter to post directly to {{ comment.platform_label }}</span>
             <div class="editor-actions">

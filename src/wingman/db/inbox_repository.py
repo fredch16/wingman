@@ -45,6 +45,9 @@ class Comment:
     creator_replied_at: str | None
     reply_status_checked_at: str | None
     reply_approved_at: str | None
+    automation_id: int | None = None
+    automation_keyword: str | None = None
+    automation_reply: str | None = None
 
     @property
     def source_url(self) -> str:

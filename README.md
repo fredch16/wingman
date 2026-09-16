@@ -22,6 +22,7 @@ reusable preferences, and posts approved text directly to YouTube or Instagram.
   conversations immediately.
 - Learns durable voice preferences from changes to AI drafts.
 - Learns video-specific model answers for recurring questions.
+- Prefills review-ready replies with video-specific keyword automations.
 - Preserves ignored conversations in a separate view.
 - Supports a fast keyboard-driven review workflow.
 
@@ -60,6 +61,23 @@ it first. **Generate Draft** remains available beside the direct post action.
 | `Esc` | Leave the reply editor |
 
 Shortcuts are inactive while typing, apart from `Ctrl+Enter` and `Esc`.
+
+## Keyword automations
+
+Open **Automations** in the sidebar to create a review-first response rule:
+
+1. Select one stored YouTube video or Instagram post. Available thumbnails are
+   shown beside each item.
+2. Enter comma-separated, case-sensitive keyword variations such as
+   `PCB, pcb, Pcb`.
+3. Enter the response Wingman should prefill.
+
+When a comment on that specific video contains any configured string, Wingman
+places the default response in the normal reply editor and identifies the
+matched keyword. Matching is a simple case-sensitive substring comparison. The
+response remains fully editable and is never posted automatically; review it,
+then use `Ctrl+Enter` or the platform post button. Automations can be edited,
+paused, enabled, or deleted from the same page.
 
 ## Setup
 

@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Automations · Wingman{% endblock %}
+{% block content %}
+  <div class="automations-page">
+    <header class="page-heading automation-heading">
+      <div>
+        <span class="eyebrow">Review-first workflows</span>
+        <h1>Automations</h1>
+        <p>Prefill a response when a comment on one video contains a keyword. Wingman never posts automatically.</p>
+      </div>
+    </header>
+
+    {% if automation_error %}
+      <p class="automation-error">{{ automation_error }}</p>
+    {% endif %}
+
+    <section class="automation-builder">
+      <div class="automation-builder-copy">
+        <span class="automation-step">01</span>
+        <div>
+          <h2>Create an automation</h2>
+          <p>Select a video, add exact keyword variations, and write the response you want waiting in the inbox.</p>
+        </div>
+      </div>
+      <form method="post" action="{{ url_for('create_automation') }}">
+        <fieldset class="video-picker">
+          <legend>Select a video</legend>
+          <div class="video-picker-grid">
+            {% for video in videos %}
+              <label class="video-option">
+                <input type="radio" name="video_id" value="{{ video.video_id }}" required>
+                <span class="video-option-card">
+                  <span class="video-thumbnail">
+                    {% if video.thumbnail_url %}
+                      <img src="{{ video.thumbnail_url }}" alt="" loading="lazy">
+                    {% else %}
+                      <span aria-hidden="true">▶</span>
+                    {% endif %}
+                  </span>
+                  <span class="video-option-copy">
+                    <strong>{{ video.title }}</strong>
+                    <small>{{ video.platform|title }} · {{ video.published_at[:10] if video.published_at else "Unknown date" }}</small>
+                  </span>
+                  <span class="video-selected-mark">✓</span>
+                </span>
+              </label>
+            {% else %}
+              <p class="empty-state">Sync your channels before creating an automation.</p>
+            {% endfor %}
+          </div>
+        </fieldset>
+
+        <div class="automation-fields">
+          <label>
+            <span>Keyword variations</span>
+            <input name="keywords" required placeholder="PCB, pcb, Pcb">
+            <small>Comma-separated and case-sensitive. A simple substring match is used.</small>
+          </label>
+          <label>
+            <span>Default response</span>
+            <textarea name="default_reply" rows="4" required placeholder="Thanks, I’ll send you the link now."></textarea>
+            <small>This is prefilled for review. It is never posted automatically.</small>
+          </label>
+        </div>
+        <button class="button primary" type="submit" {% if not videos %}disabled{% endif %}>Create automation</button>
+      </form>
+    </section>
+
+    <section class="automation-list-section">
+      <div class="automation-list-heading">
+        <div>
+          <span class="eyebrow">Active library</span>
+          <h2>Your automations</h2>
+        </div>
+        <span class="automation-count">{{ automations|length }}</span>
+      </div>
+      <div class="automation-list">
+        {% for automation in automations %}
+          <article class="automation-card {{ 'automation-disabled' if not automation.is_enabled }}">
+            <div class="automation-card-video">
+              <span class="automation-card-thumb">
+                {% if automation.thumbnail_url %}
+                  <img src="{{ automation.thumbnail_url }}" alt="" loading="lazy">
+                {% else %}
+                  <span aria-hidden="true">▶</span>
+                {% endif %}
+              </span>
+              <div>
+                <span class="automation-status {{ 'enabled' if automation.is_enabled else 'disabled' }}">
+                  {{ 'Enabled' if automation.is_enabled else 'Paused' }}
+                </span>
+                <h3>{{ automation.video_title }}</h3>
+                <small>{{ automation.platform|title }}</small>
+              </div>
+            </div>
+            <form class="automation-edit-form" method="post" action="{{ url_for('update_automation', automation_id=automation.automation_id) }}">
+              <label>
+                <span>Matches</span>
+                <input name="keywords" value="{{ automation.keywords|join(', ') }}" required>
+              </label>
+              <label>
+                <span>Prefilled response</span>
+                <textarea name="default_reply" rows="3" required>{{ automation.default_reply }}</textarea>
+              </label>
+              <button class="button" type="submit">Save changes</button>
+            </form>
+            <div class="automation-card-actions">
+              <form method="post" action="{{ url_for('toggle_automation', automation_id=automation.automation_id) }}">
+                <input type="hidden" name="is_enabled" value="{{ 'false' if automation.is_enabled else 'true' }}">
+                <button class="button quiet" type="submit">{{ 'Pause' if automation.is_enabled else 'Enable' }}</button>
+              </form>
+              <form method="post" action="{{ url_for('delete_automation', automation_id=automation.automation_id) }}">
+                <button class="button quiet danger" type="submit">Delete</button>
+              </form>
+            </div>
+          </article>
+        {% else %}
+          <div class="automation-empty">
+            <span>⌁</span>
+            <h3>No automations yet</h3>
+            <p>Your first keyword response will appear here.</p>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+{% endblock %}

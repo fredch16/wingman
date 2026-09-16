@@ -416,6 +416,86 @@ class InboxRouteTests(unittest.TestCase):
         self.assertEqual(self.row("comment-new")["status"], "replied")
         self.assertIn(b"Reply published", response.data)
 
+    def test_automation_prefills_matching_comment_for_review_and_posting(self) -> None:
+        created = self.client.post(
+            "/automations",
+            data={
+                "video_id": "abcdefghijk",
+                "keywords": "Full, FULL",
+                "default_reply": "Thanks, I’ll send you the link now.",
+            },
+            follow_redirects=True,
+        )
+
+        self.assertEqual(created.status_code, 200)
+        self.assertIn(b"Your automations", created.data)
+        self.assertIn(b"PID Explained in 60 Seconds", created.data)
+        self.assertIn(b"https://img/video.jpg", created.data)
+
+        detail = self.client.get("/comments/comment-new")
+        self.assertIn(b"Automation matched", detail.data)
+        self.assertIn(b"Full", detail.data)
+        self.assertIn(
+            "Thanks, I’ll send you the link now.".encode(),
+            detail.data,
+        )
+        self.assertIsNone(self.row("comment-new")["draft_reply"])
+
+        posted = self.client.post(
+            "/comments/comment-new/approve-and-post",
+            data={"draft_reply": "Thanks, I’ll send you the link now."},
+            follow_redirects=True,
+        )
+        self.assertEqual(posted.status_code, 200)
+        self.assertEqual(
+            self.reply_calls[-1],
+            (
+                self.youtube,
+                "comment-new",
+                "Thanks, I’ll send you the link now.",
+            ),
+        )
+
+    def test_automation_can_be_updated_paused_and_deleted(self) -> None:
+        self.client.post(
+            "/automations",
+            data={
+                "video_id": "abcdefghijk",
+                "keywords": "Full",
+                "default_reply": "Initial response",
+            },
+        )
+        connection = connect_database(self.database_path)
+        try:
+            automation_id = connection.execute(
+                "SELECT automation_id FROM automations"
+            ).fetchone()["automation_id"]
+        finally:
+            connection.close()
+
+        updated = self.client.post(
+            f"/automations/{automation_id}/update",
+            data={"keywords": "text", "default_reply": "Updated response"},
+            follow_redirects=True,
+        )
+        self.assertIn(b"Updated response", updated.data)
+
+        paused = self.client.post(
+            f"/automations/{automation_id}/toggle",
+            data={"is_enabled": "false"},
+            follow_redirects=True,
+        )
+        self.assertIn(b"Paused", paused.data)
+        self.assertNotIn(b"Automation matched", self.client.get(
+            "/comments/comment-new"
+        ).data)
+
+        deleted = self.client.post(
+            f"/automations/{automation_id}/delete",
+            follow_redirects=True,
+        )
+        self.assertIn(b"No automations yet", deleted.data)
+
     def test_generates_edits_and_locally_approves_reply(self) -> None:
         detail = self.client.get("/comments/comment-new")
         self.assertIn(b"Generate Draft", detail.data)
