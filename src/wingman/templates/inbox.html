@@ -22,25 +22,24 @@
           </p>
         </div>
         {% if view == "inbox" and all_comments %}
-          <details class="more-menu">
-            <summary aria-label="Inbox actions">•••</summary>
-            <div>
-              {% if unclassified_comments %}
-                <form method="post" action="{{ url_for('classify_top_10') }}">
-                  <button type="submit">Classify next 10</button>
-                </form>
-              {% endif %}
-              <form method="post" action="{{ url_for('reclassify_all') }}">
-                <button type="submit">Classify all comments</button>
-              </form>
-              <form method="post" action="{{ url_for('generate_all_replies') }}">
-                <button type="submit">Generate drafts above 0.2</button>
-              </form>
-              <form method="post" action="{{ url_for('regenerate_all_replies') }}">
-                <button type="submit">Regenerate drafts above 0.2</button>
-              </form>
-            </div>
-          </details>
+          <div class="inbox-batch-controls" aria-label="Inbox actions">
+            <form method="post" action="{{ url_for('classify_all_unclassified') }}">
+              <button class="batch-button batch-button-secondary" type="submit">
+                Classify
+              </button>
+            </form>
+            <form class="generate-batch-form"
+                  method="post"
+                  action="{{ url_for('generate_all_replies') }}">
+              <label class="generation-scope">
+                <input type="checkbox" name="rated_only" value="1">
+                <span>Only rated above 0.2</span>
+              </label>
+              <button class="batch-button batch-button-primary" type="submit">
+                Generate
+              </button>
+            </form>
+          </div>
         {% endif %}
       </header>
 

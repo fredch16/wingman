@@ -335,13 +335,16 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
 
     @app.post("/inbox/generate-all")
     def generate_all_replies():
+        rated_only = request.form.get("rated_only") == "1"
         for comment in repository().list_active_inbox_comments():
-            if (
-                comment.priority is not None
-                and comment.priority > BULK_REPLY_PRIORITY_THRESHOLD
-                and not comment.draft_reply
+            if comment.draft_reply:
+                continue
+            if rated_only and (
+                comment.priority is None
+                or comment.priority <= BULK_REPLY_PRIORITY_THRESHOLD
             ):
-                generate_reply_for_comment(comment.comment_id)
+                continue
+            generate_reply_for_comment(comment.comment_id)
         return redirect(url_for("inbox"))
 
     @app.post("/inbox/regenerate-all")

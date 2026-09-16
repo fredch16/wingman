@@ -35,8 +35,9 @@ The main screen is a two-pane inbox. Conversations are ranked on the left; the
 selected comment, context, and editable reply are shown on the right.
 
 1. Synchronize the latest comments.
-2. Classify new conversations, individually or in bulk.
-3. Generate missing drafts above priority `0.2` from the inbox menu.
+2. Optionally classify new conversations individually or with **Classify**.
+3. Use **Generate** to create every missing draft, or select **Only rated above
+   0.2** first to limit generation to higher-priority classified comments.
 4. Review or edit the selected reply.
 5. Optionally teach Wingman a creator-wide preference or video-specific answer.
 6. Post the reply. The completed conversation fades out and the next one opens.
