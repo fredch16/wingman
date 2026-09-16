@@ -146,7 +146,7 @@
                     formaction="{{ url_for('learn_video_context', comment_id=comment.comment_id) }}">
               Learn for This Video
             </button>
-            <button class="button primary post-button"
+            <button class="button primary post-button platform-action-{{ comment.platform }}"
                     type="submit"
                     formaction="{{ url_for('approve_and_post_reply', comment_id=comment.comment_id) }}">
               Post to {{ comment.platform_label }}
@@ -189,7 +189,7 @@
                       formaction="{{ url_for('generate_reply', comment_id=comment.comment_id) }}">
                 Generate Draft
               </button>
-              <button class="button primary post-button" type="submit">
+              <button class="button primary post-button platform-action-{{ comment.platform }}" type="submit">
                 Post to {{ comment.platform_label }}
               </button>
             </div>

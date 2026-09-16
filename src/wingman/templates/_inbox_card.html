@@ -23,7 +23,6 @@
     <span class="card-header">
       <span class="card-identity">
         <strong>{{ comment.author_display_name }}</strong>
-        {% include "_platform_badge.html" %}
       </span>
       <span class="priority priority-{{ priority_class }}">
         <span class="priority-dot"></span>{{ priority_label }}
@@ -35,12 +34,8 @@
     <span class="card-comment">{{ comment.text }}</span>
     <span class="card-footer">
       <span class="card-context">
-        {% if comment.category %}
-          <span class="category-chip category-{{ comment.category }}">
-            {{ comment.category|replace("_", " ") }}
-          </span>
-        {% endif %}
         <span class="video-name">{{ comment.video_title }}</span>
+        {% include "_platform_badge.html" %}
       </span>
       <span class="reply-state {% if comment.reply_approved_at %}reply-approved{% elif comment.draft_reply %}reply-draft{% else %}reply-needed{% endif %}">
         <span class="reply-state-dot"></span>
