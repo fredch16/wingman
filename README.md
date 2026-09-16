@@ -41,6 +41,11 @@ selected comment, context, and editable reply are shown on the right.
 6. Post the reply. The completed conversation fades out and the next one opens.
 7. Hide conversations that do not need a response.
 
+AI is optional for replying. Every conversation opens with an empty response
+editor, so you can type a manual reply and press `Ctrl+Enter` to post it
+directly to YouTube or Instagram without classifying, generating, or approving
+it first. **Generate Draft** remains available beside the direct post action.
+
 ### Keyboard controls
 
 | Key | Action |

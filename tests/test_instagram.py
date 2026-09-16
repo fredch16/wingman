@@ -164,6 +164,12 @@ class InstagramIntegrationTests(unittest.TestCase):
                 "INSTAGRAM_REPLY_SERVICE": post_reply,
             }
         )
+        detail = app.test_client().get("/comments/viewer-open")
+        self.assertIn(b"Post to Instagram", detail.data)
+        self.assertIn(
+            b"Ctrl+Enter to post directly to Instagram",
+            detail.data,
+        )
         response = app.test_client().post(
             "/comments/viewer-open/reply",
             data={"draft_reply": "Yes — use a non-blocking timer."},
