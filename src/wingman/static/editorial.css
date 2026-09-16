@@ -348,8 +348,31 @@ button.primary:hover,
 }
 
 .conversation-card.selected {
-  background: var(--surface-raised);
-  box-shadow: inset 3px 0 var(--signal);
+  background: var(--signal);
+  box-shadow: inset 5px 0 #0d4938;
+  color: white;
+}
+
+.conversation-card.selected:hover {
+  background: #145f49;
+}
+
+.conversation-card.selected .card-identity strong,
+.conversation-card.selected .card-comment,
+.conversation-card.selected .video-name,
+.conversation-card.selected .priority,
+.conversation-card.selected .reply-state {
+  color: white;
+}
+
+.conversation-card.selected .card-footer {
+  border-color: rgb(255 255 255 / 35%);
+}
+
+.conversation-card.selected .priority-dot,
+.conversation-card.selected .reply-state-dot {
+  background: white;
+  box-shadow: none;
 }
 
 .card-content {
