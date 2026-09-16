@@ -114,7 +114,7 @@
     const empty = document.createElement("div");
     empty.className = "detail-empty";
     const mark = document.createElement("span");
-    mark.className = "brand-mark";
+    mark.className = "empty-state-mark";
     mark.textContent = "✓";
     const heading = document.createElement("h2");
     heading.textContent = "You're all caught up";
