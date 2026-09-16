@@ -431,7 +431,8 @@ button.primary:hover,
   background: transparent;
   border: 0;
   border-radius: 0;
-  font-size: 10px;
+  font-size: 12px;
+  font-weight: 600;
   letter-spacing: 0.08em;
   padding: 0;
   text-transform: uppercase;
@@ -447,8 +448,8 @@ button.primary:hover,
 .priority-dot,
 .reply-state-dot {
   border-radius: 50%;
-  height: 6px;
-  width: 6px;
+  height: 7px;
+  width: 7px;
 }
 
 .priority-critical { color: var(--critical); }
@@ -489,10 +490,39 @@ button.primary:hover,
 }
 
 .original-comment {
-  border-bottom: 2px solid var(--border);
+  align-items: start;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 22px;
+  grid-template-columns: 132px minmax(0, 1fr);
+  margin: 24px 0 0;
+  padding: 22px;
+}
+
+.original-comment:not(:has(.comment-video-thumbnail)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.comment-video-thumbnail {
+  background: #dedbd1;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-xs);
   display: block;
-  margin: 0;
-  padding: 28px 0 26px;
+  overflow: hidden;
+  width: 132px;
+}
+
+.comment-video-thumbnail img {
+  aspect-ratio: 16 / 9;
+  display: block;
+  object-fit: cover;
+  width: 100%;
+}
+
+.original-comment-copy {
+  min-width: 0;
 }
 
 .comment-byline {
@@ -502,12 +532,12 @@ button.primary:hover,
 
 .comment-byline strong {
   color: var(--foreground);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .comment-byline time {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.04em;
 }
 
@@ -517,21 +547,34 @@ button.primary:hover,
   font-weight: 430;
   letter-spacing: -0.018em;
   line-height: 1.52;
-  margin: 12px 0 15px;
+  margin: 13px 0 18px;
 }
 
 .video-link {
-  color: var(--signal);
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 10px;
-  letter-spacing: 0.03em;
+  align-items: baseline;
+  color: var(--foreground);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   text-decoration: none;
-  text-transform: uppercase;
 }
 
 .video-link:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  color: var(--signal);
+}
+
+.source-video-title {
+  font-size: 15px;
+  font-weight: 680;
+  letter-spacing: -0.015em;
+}
+
+.source-platform {
+  color: var(--signal);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .ranking-explanation {
@@ -620,7 +663,7 @@ button.primary:hover,
 
 .reply-editor textarea {
   border: 0;
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1.62;
   min-height: 190px;
   padding: 20px;
@@ -1157,7 +1200,14 @@ input::placeholder {
   }
 
   .original-comment {
-    padding: 28px 0;
+    gap: 16px;
+    grid-template-columns: 100px minmax(0, 1fr);
+    margin-top: 18px;
+    padding: 17px;
+  }
+
+  .comment-video-thumbnail {
+    width: 100px;
   }
 
   .original-comment p {

@@ -34,16 +34,29 @@
   </header>
 
   <section class="original-comment">
-    <div>
+    {% if comment.video_thumbnail_url %}
+      <a class="comment-video-thumbnail"
+         href="{{ comment.source_url }}"
+         target="_blank"
+         rel="noopener noreferrer"
+         aria-label="Open comment on {{ comment.platform_label }}">
+        <img src="{{ comment.video_thumbnail_url }}" alt="" loading="lazy">
+      </a>
+    {% endif %}
+    <div class="original-comment-copy">
+      <span class="eyebrow">Original comment</span>
       <div class="comment-byline">
         <strong>{{ comment.author_display_name }}</strong>
         <time datetime="{{ comment.published_at }}">{{ comment.published_at[:10] }}</time>
       </div>
       <p>{{ comment.text }}</p>
       <a class="video-link"
-         href="{% if comment.platform == 'instagram' %}{{ comment.permalink }}{% else %}https://www.youtube.com/watch?v={{ comment.video_id }}&lc={{ comment.comment_id }}{% endif %}"
+         href="{{ comment.source_url }}"
          target="_blank"
-         rel="noopener noreferrer">{{ comment.video_title }} · {{ comment.platform_label }} ↗</a>
+         rel="noopener noreferrer">
+        <span class="source-video-title">{{ comment.video_title }}</span>
+        <span class="source-platform">{{ comment.platform_label }} ↗</span>
+      </a>
     </div>
   </section>
 

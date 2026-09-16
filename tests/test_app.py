@@ -251,9 +251,11 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn(b"Full text for comment-new", response.data)
         self.assertIn(b"PID Explained in 60 Seconds", response.data)
         self.assertIn(
-            b"https://www.youtube.com/watch?v=abcdefghijk&lc=comment-new",
+            b"https://www.youtube.com/watch?v=abcdefghijk&amp;lc=comment-new",
             response.data,
         )
+        self.assertIn(b"https://img/video.jpg", response.data)
+        self.assertIn(b"Original comment", response.data)
         self.assertIn(b"platform-badge-youtube", response.data)
         self.assertIn(b"YouTube comment", response.data)
         self.assertEqual(self.client.get("/comments/missing").status_code, 404)
