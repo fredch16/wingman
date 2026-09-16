@@ -220,7 +220,7 @@ main {
   backdrop-filter: blur(14px);
   background: rgb(249 248 243 / 92%);
   border-bottom: 2px solid var(--border);
-  padding: 20px 24px 16px;
+  padding: 16px 22px 13px;
 }
 
 .eyebrow {
@@ -338,8 +338,8 @@ button.primary:hover,
   border: 0;
   box-shadow: none;
   display: block;
-  min-height: 138px;
-  padding: 18px 24px;
+  min-height: 122px;
+  padding: 14px 22px;
   transition: background 120ms ease, box-shadow 120ms ease;
 }
 
@@ -353,12 +353,17 @@ button.primary:hover,
 }
 
 .card-content {
-  gap: 9px;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+  width: 100%;
 }
 
 .card-header,
 .card-footer {
   align-items: center;
+  min-width: 0;
+  width: 100%;
 }
 
 .card-identity strong {
@@ -372,7 +377,9 @@ button.primary:hover,
   background: transparent;
   border: 0;
   color: var(--muted);
-  font-size: 10px;
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 600;
   letter-spacing: 0.08em;
   padding: 0;
   text-transform: uppercase;
@@ -393,27 +400,37 @@ button.primary:hover,
 
 .card-comment {
   color: #353936;
-  font-size: 16px;
-  font-weight: 440;
-  line-height: 1.48;
+  font-size: 17px;
+  font-weight: 470;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
   -webkit-line-clamp: 3;
 }
 
 .card-footer {
   border-top: 1px solid var(--border);
-  margin-top: 2px;
-  padding-top: 10px;
+  margin-top: 1px;
+  padding-top: 8px;
 }
 
 .card-context {
+  align-items: center;
+  display: flex;
+  flex: 1 1 auto;
+  gap: 10px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .video-name {
-  color: var(--muted);
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 10px;
-  letter-spacing: 0.01em;
+  color: var(--foreground);
+  font-family: "Instrument Sans", Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .category-chip {
@@ -431,8 +448,9 @@ button.primary:hover,
   background: transparent;
   border: 0;
   border-radius: 0;
-  font-size: 12px;
-  font-weight: 600;
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 700;
   letter-spacing: 0.08em;
   padding: 0;
   text-transform: uppercase;
@@ -448,8 +466,8 @@ button.primary:hover,
 .priority-dot,
 .reply-state-dot {
   border-radius: 50%;
-  height: 7px;
-  width: 7px;
+  height: 9px;
+  width: 9px;
 }
 
 .priority-critical { color: var(--critical); }
@@ -469,14 +487,14 @@ button.primary:hover,
   color: var(--foreground);
   margin: 0 auto;
   max-width: 860px;
-  padding: 0 46px 48px;
+  padding: 0 40px 38px;
 }
 
 .conversation-header {
   background: rgb(255 254 250 / 94%);
   border-bottom: 2px solid var(--border);
-  margin: 0 -46px 0;
-  padding: 22px 46px 17px;
+  margin: 0 -40px 0;
+  padding: 17px 40px 14px;
   top: 0;
 }
 
@@ -497,8 +515,8 @@ button.primary:hover,
   display: grid;
   gap: 22px;
   grid-template-columns: 132px minmax(0, 1fr);
-  margin: 24px 0 0;
-  padding: 22px;
+  margin: 18px 0 0;
+  padding: 18px;
 }
 
 .original-comment:not(:has(.comment-video-thumbnail)) {
@@ -616,7 +634,7 @@ button.primary:hover,
 }
 
 .reply-workspace {
-  margin-top: 27px;
+  margin-top: 20px;
 }
 
 .section-heading {
@@ -663,9 +681,10 @@ button.primary:hover,
 
 .reply-editor textarea {
   border: 0;
-  font-size: 18px;
+  font-size: 19px;
+  height: 220px;
   line-height: 1.62;
-  min-height: 190px;
+  min-height: 170px;
   padding: 20px;
 }
 
@@ -706,6 +725,28 @@ input::placeholder {
 
 .button.quiet:hover {
   color: var(--signal);
+}
+
+.post-button.platform-action-youtube {
+  background: #d93a32;
+  border-color: #d93a32;
+  color: white;
+}
+
+.post-button.platform-action-youtube:hover {
+  background: #b92e28;
+  border-color: #b92e28;
+}
+
+.post-button.platform-action-instagram {
+  background: linear-gradient(120deg, #6f3cc3 0%, #d83265 48%, #ed8d2f 100%);
+  border-color: #b43c69;
+  color: white;
+}
+
+.post-button.platform-action-instagram:hover {
+  background: linear-gradient(120deg, #5e2eaf 0%, #c72758 48%, #de7b20 100%);
+  border-color: #9e305c;
 }
 
 .button.danger:hover {
@@ -1164,7 +1205,7 @@ input::placeholder {
   }
 
   .inbox-toolbar {
-    padding: 20px 18px 16px;
+    padding: 16px 18px 13px;
   }
 
   .inbox-batch-controls,
@@ -1179,8 +1220,21 @@ input::placeholder {
   }
 
   .conversation-card {
-    min-height: 132px;
-    padding: 17px 18px;
+    min-height: 118px;
+    padding: 13px 18px;
+  }
+
+  .card-context {
+    gap: 7px;
+  }
+
+  .video-name {
+    font-size: 13px;
+  }
+
+  .priority,
+  .reply-state {
+    font-size: 12px;
   }
 
   .conversation-shell {
@@ -1212,6 +1266,10 @@ input::placeholder {
 
   .original-comment p {
     font-size: 18px;
+  }
+
+  .reply-editor textarea {
+    height: 210px;
   }
 
   .editor-footer,
