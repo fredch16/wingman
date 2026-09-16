@@ -150,13 +150,34 @@
         </button>
       </form>
     {% else %}
-      <div class="draft-empty">
-        <span class="sparkle">✦</span>
-        <p>Wingman will draft a reply in your voice using this video’s context.</p>
-        <form class="async-form"
+      <div class="manual-reply-workspace">
+        <form class="reply-editor manual-reply-editor"
               method="post"
-              action="{{ url_for('generate_reply', comment_id=comment.comment_id) }}">
-          <button class="button primary button-large" type="submit">Generate Draft</button>
+              action="{{ url_for('approve_and_post_reply', comment_id=comment.comment_id) }}">
+          <label class="sr-only" for="manual-draft-{{ comment.comment_id }}">Write your response</label>
+          <textarea id="manual-draft-{{ comment.comment_id }}"
+                    name="draft_reply"
+                    rows="8"
+                    required
+                    autofocus
+                    placeholder="Write a reply to {{ comment.author_display_name }}…"></textarea>
+          <div class="editor-footer">
+            <span class="save-hint">Ctrl+Enter to post directly to {{ comment.platform_label }}</span>
+            <div class="editor-actions">
+              <button class="button secondary"
+                      type="submit"
+                      formnovalidate
+                      formaction="{{ url_for('generate_reply', comment_id=comment.comment_id) }}">
+                Generate Draft
+              </button>
+              <button class="button primary post-button" type="submit">
+                Post to {{ comment.platform_label }}
+              </button>
+            </div>
+          </div>
+          <button class="sr-only shortcut-approve-post" type="submit">
+            Post reply
+          </button>
         </form>
       </div>
     {% endif %}

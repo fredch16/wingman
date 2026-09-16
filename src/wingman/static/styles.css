@@ -1024,6 +1024,24 @@ main {
   max-width: 420px;
 }
 
+.manual-reply-workspace {
+  background:
+    radial-gradient(circle at 50% 110%, rgb(255 91 98 / 6%), transparent 42%),
+    var(--panel-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.manual-reply-editor {
+  border: 0;
+  box-shadow: none;
+}
+
+.manual-reply-editor textarea {
+  min-height: 220px;
+}
+
 .reply-editor {
   background: var(--panel-raised);
   border: 1px solid var(--border);

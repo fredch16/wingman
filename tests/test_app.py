@@ -386,10 +386,40 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn(b"Classify comment", restarted_page.data)
         self.assertNotIn(b"0.88", restarted_page.data)
 
+    def test_manual_reply_can_be_posted_before_generation(self) -> None:
+        detail = self.client.get("/comments/comment-new")
+        self.assertIn(b"Generate Draft", detail.data)
+        self.assertIn(b"Post to YouTube", detail.data)
+        self.assertIn(b"Ctrl+Enter to post directly to YouTube", detail.data)
+        self.assertIn(
+            b'action="/comments/comment-new/approve-and-post"',
+            detail.data,
+        )
+        self.assertIn(b"shortcut-approve-post", detail.data)
+        self.assertIn(b"formnovalidate", detail.data)
+
+        response = self.client.post(
+            "/comments/comment-new/approve-and-post",
+            data={"draft_reply": "Manual reply typed by Fred."},
+            follow_redirects=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            self.reply_calls,
+            [(self.youtube, "comment-new", "Manual reply typed by Fred.")],
+        )
+        self.assertEqual(
+            self.row("comment-new")["final_reply"],
+            "Manual reply typed by Fred.",
+        )
+        self.assertEqual(self.row("comment-new")["status"], "replied")
+        self.assertIn(b"Reply published", response.data)
+
     def test_generates_edits_and_locally_approves_reply(self) -> None:
         detail = self.client.get("/comments/comment-new")
         self.assertIn(b"Generate Draft", detail.data)
-        self.assertNotIn(b"Post to YouTube", detail.data)
+        self.assertIn(b"Post to YouTube", detail.data)
 
         response = self.client.post(
             "/comments/comment-new/generate-reply",
