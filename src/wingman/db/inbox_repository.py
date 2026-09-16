@@ -45,6 +45,7 @@ class Comment:
     creator_replied_at: str | None
     reply_status_checked_at: str | None
     reply_approved_at: str | None
+    video_thumbnail_url: str = ""
     automation_id: int | None = None
     automation_keyword: str | None = None
     automation_reply: str | None = None
@@ -159,6 +160,7 @@ class CommentRepository:
                 comments.video_id,
                 COALESCE(videos.title, comments.video_id) AS video_title,
                 videos.summary AS video_summary,
+                COALESCE(videos.thumbnail_url, '') AS video_thumbnail_url,
                 comments.thread_id,
                 comments.total_reply_count,
                 comments.author_display_name,
@@ -210,6 +212,7 @@ class CommentRepository:
                 comments.video_id,
                 COALESCE(videos.title, comments.video_id) AS video_title,
                 videos.summary AS video_summary,
+                COALESCE(videos.thumbnail_url, '') AS video_thumbnail_url,
                 comments.thread_id,
                 comments.total_reply_count,
                 comments.author_display_name,
@@ -407,6 +410,7 @@ class CommentRepository:
             video_id=row["video_id"],
             video_title=row["video_title"],
             video_summary=row["video_summary"],
+            video_thumbnail_url=row["video_thumbnail_url"],
             thread_id=row["thread_id"],
             total_reply_count=row["total_reply_count"],
             author_display_name=row["author_display_name"],
@@ -449,6 +453,7 @@ class CommentRepository:
                 comments.video_id,
                 COALESCE(videos.title, comments.video_id) AS video_title,
                 videos.summary AS video_summary,
+                COALESCE(videos.thumbnail_url, '') AS video_thumbnail_url,
                 comments.thread_id,
                 comments.total_reply_count,
                 comments.author_display_name,
