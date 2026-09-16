@@ -513,30 +513,6 @@ main {
   }
 }
 
-.avatar {
-  align-items: center;
-  background:
-    linear-gradient(145deg, rgb(255 255 255 / 10%), rgb(255 255 255 / 3%)),
-    #282a31;
-  border: 1px solid #373942;
-  border-radius: 12px;
-  box-shadow: var(--shadow-sm);
-  color: var(--text-soft);
-  display: flex;
-  flex: 0 0 auto;
-  font-size: 16px;
-  font-weight: 700;
-  height: 56px;
-  justify-content: center;
-  width: 56px;
-}
-
-.avatar-large {
-  border-radius: 15px;
-  height: 58px;
-  width: 58px;
-}
-
 .card-content {
   display: grid;
   gap: 15px;
