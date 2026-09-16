@@ -94,6 +94,10 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"Compressed size: {_format_bytes(info.compressed_bytes)}")
                 print(f"Created: {info.created_at}")
                 print(
+                    f"Manual video contexts included: "
+                    f"{info.video_context_count or 0}"
+                )
+                print(
                     "Privacy warning: this snapshot contains comments, usernames, "
                     "drafts, and classifications."
                 )
@@ -103,6 +107,10 @@ def main(argv: list[str] | None = None) -> int:
                     args.snapshot,
                 )
                 print(f"Restored Wingman state from: {result.snapshot.path}")
+                print(
+                    f"Manual video contexts restored: "
+                    f"{result.snapshot.video_context_count or 0}"
+                )
                 if result.recovery_path:
                     print(
                         f"Previous local database backed up to: "
@@ -114,6 +122,10 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"Created: {info.created_at}")
                 print(f"Compressed size: {_format_bytes(info.compressed_bytes)}")
                 print(f"SHA-256: {info.sha256}")
+                print(
+                    f"Manual video contexts: "
+                    f"{info.video_context_count or 0}"
+                )
         except (OSError, sqlite3.Error, StateSnapshotError) as error:
             print(f"State error: {error}", file=sys.stderr)
             return 1
