@@ -1,4 +1,4 @@
-/* C Labs editorial system. This theme intentionally overrides the legacy
+/* Editorial design system. This theme intentionally overrides the legacy
    component layer without changing Wingman's application behaviour. */
 :root {
   color-scheme: light;
@@ -7,8 +7,8 @@
   --surface-raised: #fffefa;
   --foreground: #202321;
   --muted: #656a66;
-  --border: #d8d5cb;
-  --border-strong: #aaa79e;
+  --border: #c8c4b9;
+  --border-strong: #8f8c83;
   --signal: #176b52;
   --charcoal: #151715;
   --paper-on-dark: #edeae1;
@@ -79,52 +79,25 @@ summary:focus-visible {
   background: var(--charcoal);
   border: 0;
   color: var(--paper-on-dark);
-  padding: 22px 14px 16px;
+  padding: 18px 14px 14px;
 }
 
 .brand {
   border-bottom: 1px solid rgb(237 234 225 / 16%);
   color: var(--paper-on-dark);
-  gap: 11px;
-  margin: 0 4px 26px;
-  padding: 0 4px 22px;
+  margin: 0 4px 20px;
+  padding: 2px 4px 17px;
 }
 
 .brand:hover {
   color: white;
 }
 
-.brand-mark {
-  background: var(--paper-on-dark);
-  border: 0;
-  border-radius: var(--radius-xs);
-  box-shadow: none;
-  color: var(--charcoal);
-  height: 31px;
-  transform: none;
-  width: 31px;
-}
-
-.brand-mark::after {
-  border-color: var(--signal);
-  border-radius: 0;
-  inset: 4px;
-}
-
-.brand-mark span {
-  color: var(--charcoal);
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 15px;
-  font-weight: 600;
-  transform: none;
-}
-
 .brand-copy strong {
-  font-size: 15px;
+  font-size: 17px;
   letter-spacing: -0.025em;
 }
 
-.brand-copy small,
 .eyebrow,
 .model-label,
 .scenario,
@@ -141,13 +114,6 @@ summary:focus-visible {
 .automation-card small,
 .quiet-link {
   font-family: "IBM Plex Mono", monospace;
-}
-
-.brand-copy small {
-  color: rgb(237 234 225 / 54%);
-  font-size: 8px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .primary-nav {
@@ -240,7 +206,7 @@ main {
 
 .inbox-layout {
   background: var(--border);
-  gap: 1px;
+  gap: 2px;
   grid-template-columns: minmax(430px, 46%) minmax(520px, 1fr);
 }
 
@@ -253,13 +219,13 @@ main {
   align-items: center;
   backdrop-filter: blur(14px);
   background: rgb(249 248 243 / 92%);
-  border-color: var(--border);
-  padding: 25px 26px 20px;
+  border-bottom: 2px solid var(--border);
+  padding: 20px 24px 16px;
 }
 
 .eyebrow {
   color: var(--muted);
-  font-size: 9px !important;
+  font-size: 10px !important;
   font-weight: 600;
   letter-spacing: 0.14em;
   margin-bottom: 7px !important;
@@ -277,7 +243,7 @@ main {
 
 .inbox-toolbar p {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
   margin-top: 4px;
 }
 
@@ -352,7 +318,7 @@ button.primary:hover,
 .generation-scope {
   color: var(--muted);
   font-family: "IBM Plex Mono", monospace;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.03em;
 }
 
@@ -363,7 +329,7 @@ button.primary:hover,
 
 .conversation-list {
   background: var(--border);
-  gap: 1px;
+  gap: 2px;
   padding: 0;
 }
 
@@ -371,10 +337,9 @@ button.primary:hover,
   background: var(--surface);
   border: 0;
   box-shadow: none;
-  gap: 15px;
-  grid-template-columns: 40px minmax(0, 1fr);
-  min-height: 166px;
-  padding: 23px 25px;
+  display: block;
+  min-height: 138px;
+  padding: 18px 24px;
   transition: background 120ms ease, box-shadow 120ms ease;
 }
 
@@ -387,20 +352,8 @@ button.primary:hover,
   box-shadow: inset 3px 0 var(--signal);
 }
 
-.avatar {
-  background: transparent;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-xs);
-  color: var(--foreground);
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 12px;
-  font-weight: 600;
-  height: 38px;
-  width: 38px;
-}
-
 .card-content {
-  gap: 11px;
+  gap: 9px;
 }
 
 .card-header,
@@ -419,7 +372,7 @@ button.primary:hover,
   background: transparent;
   border: 0;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: 0.08em;
   padding: 0;
   text-transform: uppercase;
@@ -459,7 +412,7 @@ button.primary:hover,
 .video-name {
   color: var(--muted);
   font-family: "IBM Plex Mono", monospace;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.01em;
 }
 
@@ -467,7 +420,7 @@ button.primary:hover,
   background: transparent;
   border: 0;
   color: var(--signal);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: 0.06em;
   padding: 0;
   text-transform: uppercase;
@@ -478,7 +431,7 @@ button.primary:hover,
   background: transparent;
   border: 0;
   border-radius: 0;
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: 0.08em;
   padding: 0;
   text-transform: uppercase;
@@ -515,14 +468,14 @@ button.primary:hover,
   color: var(--foreground);
   margin: 0 auto;
   max-width: 860px;
-  padding: 0 54px 70px;
+  padding: 0 46px 48px;
 }
 
 .conversation-header {
   background: rgb(255 254 250 / 94%);
-  border-color: var(--border);
-  margin: 0 -54px 0;
-  padding: 29px 54px 22px;
+  border-bottom: 2px solid var(--border);
+  margin: 0 -46px 0;
+  padding: 22px 46px 17px;
   top: 0;
 }
 
@@ -536,15 +489,15 @@ button.primary:hover,
 }
 
 .original-comment {
-  border-bottom: 1px solid var(--border);
-  gap: 18px;
+  border-bottom: 2px solid var(--border);
+  display: block;
   margin: 0;
-  padding: 38px 0 34px;
+  padding: 28px 0 26px;
 }
 
-.avatar-large {
-  height: 44px;
-  width: 44px;
+.comment-byline {
+  justify-content: flex-start;
+  gap: 12px;
 }
 
 .comment-byline strong {
@@ -554,7 +507,7 @@ button.primary:hover,
 
 .comment-byline time {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.04em;
 }
 
@@ -564,13 +517,13 @@ button.primary:hover,
   font-weight: 430;
   letter-spacing: -0.018em;
   line-height: 1.52;
-  margin: 16px 0 18px;
+  margin: 12px 0 15px;
 }
 
 .video-link {
   color: var(--signal);
   font-family: "IBM Plex Mono", monospace;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.03em;
   text-decoration: none;
   text-transform: uppercase;
@@ -583,12 +536,12 @@ button.primary:hover,
 
 .ranking-explanation {
   background: #f0f3ee;
-  border: 1px solid #c9d4cd;
+  border: 2px solid #c1cec6;
   border-radius: var(--radius-sm);
   box-shadow: none;
   gap: 15px;
-  margin: 27px 0 0;
-  padding: 18px 20px;
+  margin: 21px 0 0;
+  padding: 15px 17px;
 }
 
 .ranking-icon {
@@ -614,13 +567,13 @@ button.primary:hover,
 .ranking-meta span {
   color: var(--signal);
   font-family: "IBM Plex Mono", monospace;
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 
 .reply-workspace {
-  margin-top: 35px;
+  margin-top: 27px;
 }
 
 .section-heading {
@@ -641,7 +594,7 @@ button.primary:hover,
 
 .reply-editor {
   background: var(--surface-raised);
-  border: 1px solid var(--border-strong);
+  border: 2px solid var(--border-strong);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
@@ -669,8 +622,8 @@ button.primary:hover,
   border: 0;
   font-size: 16px;
   line-height: 1.62;
-  min-height: 220px;
-  padding: 24px;
+  min-height: 190px;
+  padding: 20px;
 }
 
 .reply-editor textarea::placeholder,
@@ -692,7 +645,7 @@ input::placeholder {
 .save-hint {
   color: var(--muted);
   font-family: "IBM Plex Mono", monospace;
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: 0.025em;
 }
 
@@ -749,7 +702,7 @@ input::placeholder {
 }
 
 .conversation-actions {
-  border-color: var(--border);
+  border-bottom: 2px solid var(--border);
 }
 
 .learning-review {
@@ -782,7 +735,7 @@ input::placeholder {
 .developer-panel summary {
   color: var(--muted);
   font-family: "IBM Plex Mono", monospace;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -795,7 +748,7 @@ input::placeholder {
 .developer-content dd {
   color: var(--muted);
   font-family: "IBM Plex Mono", monospace;
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .developer-content dd {
@@ -864,7 +817,7 @@ input::placeholder {
 .video-context-card,
 .playground-card {
   background: var(--surface-raised);
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   border-radius: var(--radius-sm);
   box-shadow: none;
 }
@@ -896,7 +849,7 @@ input::placeholder {
 
 .video-option-card {
   background: var(--surface);
-  border-color: var(--border);
+  border: 2px solid var(--border);
   border-radius: var(--radius-sm);
 }
 
@@ -946,7 +899,7 @@ input::placeholder {
 
 .automation-card {
   background: var(--surface);
-  border-color: var(--border);
+  border: 2px solid var(--border);
   border-radius: var(--radius-sm);
 }
 
@@ -978,7 +931,20 @@ input::placeholder {
 
 .video-context-card,
 .playground-card {
-  padding: 26px;
+  padding: 22px;
+}
+
+.empty-state-mark {
+  align-items: center;
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius-xs);
+  color: var(--signal);
+  display: inline-flex;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 14px;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
 }
 
 .model-label,
@@ -1102,11 +1068,7 @@ input::placeholder {
   }
 
   .brand {
-    justify-content: center;
-    margin-left: 0;
-    margin-right: 0;
-    padding-left: 0;
-    padding-right: 0;
+    display: none;
   }
 
   .brand-copy,
@@ -1140,13 +1102,13 @@ input::placeholder {
 
   .brand {
     border: 0;
+    display: flex;
     margin: 0;
     padding: 0;
   }
 
-  .brand-mark {
-    height: 29px;
-    width: 29px;
+  .brand-copy {
+    display: block;
   }
 
   .primary-nav a:nth-child(1),
@@ -1174,8 +1136,8 @@ input::placeholder {
   }
 
   .conversation-card {
-    min-height: 150px;
-    padding: 20px 18px;
+    min-height: 132px;
+    padding: 17px 18px;
   }
 
   .conversation-shell {
@@ -1185,6 +1147,13 @@ input::placeholder {
   .conversation-header {
     margin: 0 -20px;
     padding: 18px 20px;
+    position: relative;
+  }
+
+  .conversation-header > .priority {
+    position: absolute;
+    right: 20px;
+    top: 20px;
   }
 
   .original-comment {
