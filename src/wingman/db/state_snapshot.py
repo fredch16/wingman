@@ -5,6 +5,7 @@ from __future__ import annotations
 import gzip
 import hashlib
 import io
+import json
 import os
 import sqlite3
 import tempfile
@@ -29,6 +30,8 @@ class SnapshotInfo:
     sha256: str
     compressed_bytes: int
     uncompressed_bytes: int
+    video_context_count: int | None = None
+    video_context_sha256: str | None = None
 
 
 @dataclass(frozen=True)
@@ -69,6 +72,7 @@ def save_state_snapshot(
         with closing(sqlite3.connect(raw_snapshot)) as compact:
             compact.execute("VACUUM")
         raw_bytes = raw_snapshot.read_bytes()
+        context_count, context_digest = _video_context_fingerprint(raw_snapshot)
 
     compressed = gzip.compress(raw_bytes, compresslevel=9, mtime=0)
     digest = hashlib.sha256(compressed).hexdigest()
@@ -79,6 +83,8 @@ def save_state_snapshot(
         sha256=digest,
         compressed_bytes=len(compressed),
         uncompressed_bytes=len(raw_bytes),
+        video_context_count=context_count,
+        video_context_sha256=context_digest,
     )
     _atomic_write(snapshot, compressed)
     _atomic_write(metadata_path(snapshot), _format_metadata(info).encode())
@@ -110,6 +116,28 @@ def inspect_state_snapshot(
         raw_snapshot = Path(directory) / "wingman-state.db"
         raw_snapshot.write_bytes(raw_bytes)
         _validate_sqlite(raw_snapshot)
+        context_count, context_digest = _video_context_fingerprint(raw_snapshot)
+
+    expected_context_count = metadata.get("video_context_count")
+    expected_context_digest = metadata.get("video_context_sha256")
+    if expected_context_count is not None:
+        try:
+            parsed_context_count = int(expected_context_count)
+        except ValueError as error:
+            raise StateSnapshotError(
+                "State metadata has an invalid video context count."
+            ) from error
+        if parsed_context_count != context_count:
+            raise StateSnapshotError(
+                "State snapshot video context count does not match metadata."
+            )
+    if (
+        expected_context_digest is not None
+        and expected_context_digest != context_digest
+    ):
+        raise StateSnapshotError(
+            "State snapshot video context checksum does not match metadata."
+        )
 
     return SnapshotInfo(
         path=snapshot,
@@ -117,6 +145,8 @@ def inspect_state_snapshot(
         sha256=digest,
         compressed_bytes=len(compressed),
         uncompressed_bytes=len(raw_bytes),
+        video_context_count=context_count,
+        video_context_sha256=context_digest,
     )
 
 
@@ -149,6 +179,21 @@ def restore_state_snapshot(
         try:
             _backup_database(raw_snapshot, database)
             _validate_sqlite(database)
+            restored_count, restored_digest = _video_context_fingerprint(database)
+            if (
+                snapshot_info.video_context_count is not None
+                and restored_count != snapshot_info.video_context_count
+            ):
+                raise StateSnapshotError(
+                    "Restored database is missing saved video context."
+                )
+            if (
+                snapshot_info.video_context_sha256 is not None
+                and restored_digest != snapshot_info.video_context_sha256
+            ):
+                raise StateSnapshotError(
+                    "Restored video context does not match the saved state."
+                )
         except Exception:
             if recovery_path is not None:
                 _backup_database(recovery_path, database)
@@ -177,6 +222,41 @@ def _validate_sqlite(database_path: Path) -> None:
     if result is None or result[0] != "ok":
         detail = result[0] if result else "no integrity result"
         raise StateSnapshotError(f"SQLite integrity check failed: {detail}")
+
+
+def _video_context_fingerprint(database_path: Path) -> tuple[int, str]:
+    """Return a stable count and digest of manually maintained video context."""
+    uri = f"{database_path.resolve().as_uri()}?mode=ro"
+    with closing(sqlite3.connect(uri, uri=True)) as connection:
+        videos_table = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'videos'"
+        ).fetchone()
+        if videos_table is None:
+            contexts: list[tuple[str, str]] = []
+        else:
+            columns = {
+                row[1] for row in connection.execute("PRAGMA table_info(videos)")
+            }
+            if "summary" not in columns:
+                contexts = []
+            else:
+                contexts = [
+                    (str(row[0]), str(row[1]))
+                    for row in connection.execute(
+                        """
+                        SELECT video_id, summary
+                        FROM videos
+                        WHERE summary IS NOT NULL AND TRIM(summary) != ''
+                        ORDER BY video_id
+                        """
+                    )
+                ]
+    serialized = json.dumps(
+        contexts,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return len(contexts), hashlib.sha256(serialized).hexdigest()
 
 
 def _decompress_snapshot(compressed: bytes) -> bytes:
@@ -215,6 +295,8 @@ def _format_metadata(info: SnapshotInfo) -> str:
         f"sha256={info.sha256}\n"
         f"compressed_bytes={info.compressed_bytes}\n"
         f"uncompressed_bytes={info.uncompressed_bytes}\n"
+        f"video_context_count={info.video_context_count or 0}\n"
+        f"video_context_sha256={info.video_context_sha256 or ''}\n"
     )
 
 

@@ -288,8 +288,11 @@ state/wingman-state.db.gz.meta
 ```
 
 The save operation uses SQLite's backup mechanism, compacts the result, and
-records a SHA-256 checksum. It does not copy `.env`, API keys, OAuth tokens, or
-`creator.md`.
+records a SHA-256 checksum. Manually entered video summaries and learned
+`## Response Guidance` are included with the database state. Wingman records a
+separate count and checksum for those contexts and verifies them during status
+checks and restoration, so a restore cannot silently lose or alter them. It
+does not copy `.env`, API keys, OAuth tokens, or `creator.md`.
 
 On the device with the newest state:
 

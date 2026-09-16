@@ -29,6 +29,26 @@ class StateSnapshotTests(unittest.TestCase):
             connection.execute(
                 "INSERT INTO workflow (value) VALUES ('saved value')"
             )
+            connection.execute(
+                """
+                CREATE TABLE videos (
+                    video_id TEXT PRIMARY KEY,
+                    summary TEXT
+                )
+                """
+            )
+            connection.execute(
+                """
+                INSERT INTO videos (video_id, summary)
+                VALUES (?, ?)
+                """,
+                (
+                    "video-with-context",
+                    "Manual explanation of the project.\n\n"
+                    "## Response Guidance\n\n"
+                    "- Mention that the debounce interval is configurable.",
+                ),
+            )
             connection.commit()
 
     def tearDown(self) -> None:
@@ -55,6 +75,12 @@ class StateSnapshotTests(unittest.TestCase):
         self.assertEqual(inspected.created_at, "2026-07-27T14:00:00Z")
         self.assertEqual(inspected.sha256, saved.sha256)
         self.assertLess(inspected.compressed_bytes, inspected.uncompressed_bytes)
+        self.assertEqual(saved.video_context_count, 1)
+        self.assertEqual(inspected.video_context_count, 1)
+        self.assertEqual(
+            inspected.video_context_sha256,
+            saved.video_context_sha256,
+        )
 
     def test_restore_preserves_recovery_copy_of_current_database(self) -> None:
         save_state_snapshot(self.database, self.snapshot)
@@ -78,6 +104,29 @@ class StateSnapshotTests(unittest.TestCase):
             self.value(result.recovery_path),
             "newer local value",
         )
+        with closing(sqlite3.connect(self.database)) as connection:
+            restored_context = connection.execute(
+                "SELECT summary FROM videos WHERE video_id = ?",
+                ("video-with-context",),
+            ).fetchone()
+        assert restored_context is not None
+        self.assertIn("Manual explanation", restored_context[0])
+        self.assertIn("## Response Guidance", restored_context[0])
+
+    def test_context_metadata_tampering_is_rejected(self) -> None:
+        save_state_snapshot(self.database, self.snapshot)
+        sidecar = metadata_path(self.snapshot)
+        metadata = sidecar.read_text(encoding="utf-8")
+        sidecar.write_text(
+            metadata.replace("video_context_count=1", "video_context_count=2"),
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(
+            StateSnapshotError,
+            "video context count does not match",
+        ):
+            inspect_state_snapshot(self.snapshot)
 
     def test_checksum_failure_does_not_modify_current_database(self) -> None:
         save_state_snapshot(self.database, self.snapshot)
