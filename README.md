@@ -108,7 +108,7 @@ start this flow automatically. The webhook currently runs in the Flask request;
 a persistent background worker is not included yet.
 
 To enable the button follow-up, set `META_APP_SECRET` and
-`INSTAGRAM_WEBHOOK_VERIFY_TOKEN` in `.env`, expose the Flask app securely over
+`INSTAGRAM_WEBHOOK_VERIFY_TOKEN` in `.env`, expose the webhook-only listener over
 HTTPS, and configure Meta's Instagram **comments** and **messages** webhook callback as
 `https://YOUR_HOST/webhooks/instagram` using that verify token. Meta must send
 `X-Hub-Signature-256`; unsigned events are rejected. When the viewer taps **Yes
@@ -118,6 +118,16 @@ of the original DM, and sends the follow-up once. The follow-up requires the
 publicly without access controls for its dashboard. Test the button with a new
 comment first: accepting a private reply at the API does not by itself prove
 that Instagram rendered the quick-reply button or delivered the message.
+
+For a local webhook test, run
+`.venv/bin/python -m wingman.instagram.webhook_server` in one terminal. This separate
+listener binds to `127.0.0.1:5001` (or `WINGMAN_WEBHOOK_PORT`) and returns 404
+for every dashboard route. In another terminal run
+`cloudflared tunnel --url http://127.0.0.1:5001`. Copy the generated HTTPS
+hostname and add `/webhooks/instagram` for Meta's callback URL. The quick-tunnel
+hostname changes when restarted; update the Meta callback each time. Keep both
+processes running while testing. For always-on use, use a stable hostname and
+supervised services instead of a quick tunnel.
 
 ## Setup
 

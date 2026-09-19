@@ -17,6 +17,9 @@ from wingman.instagram.automation import deliver_comment, handle_opt_in
 from wingman.instagram.client import PostedReply
 from wingman.db.comment_store import connect_database
 from wingman.web import create_app
+from wingman.instagram.webhook_server import webhook_only_app
+from werkzeug.test import Client
+from werkzeug.wrappers import Response
 
 
 class FakeClient:
@@ -101,6 +104,17 @@ class InstagramAutomationTests(unittest.TestCase):
 
 
 class InstagramWebhookTests(unittest.TestCase):
+    def test_public_listener_exposes_no_dashboard_routes(self):
+        with patch.dict(os.environ, {"INSTAGRAM_WEBHOOK_VERIFY_TOKEN": "test-verify"}):
+            client = Client(webhook_only_app(), Response)
+            self.assertEqual(client.get("/").status_code, 404)
+            self.assertEqual(client.get("/automations").status_code, 404)
+            response = client.get(
+                "/webhooks/instagram?hub.mode=subscribe&hub.challenge=ok&hub.verify_token=test-verify"
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.get_data(as_text=True), "ok")
+
     def test_verification_requires_configured_matching_token(self):
         app = create_app({"TESTING": True})
         with patch.dict(os.environ, {"INSTAGRAM_WEBHOOK_VERIFY_TOKEN": "test-verify"}):

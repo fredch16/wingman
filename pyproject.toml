@@ -23,6 +23,7 @@ wingman-daily = "wingman.daily:main"
 wingman-sync = "wingman.youtube.sync:main"
 wingman-instagram = "wingman.instagram.sync:main"
 wingman-web = "wingman.web:main"
+wingman-webhook = "wingman.instagram.webhook_server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
