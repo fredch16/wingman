@@ -152,7 +152,7 @@ class InstagramWebhookTests(unittest.TestCase):
             app = create_app({"TESTING": True, "DATABASE": path, "INSTAGRAM_CLIENT": fake})
             body = json.dumps({"entry": [{"changes": [{"field": "comments", "value": {"id": "new-comment", "text": "PCB please", "media": {"id": "reel"}, "from": {"id": "viewer"}}}]}]}).encode()
             signature = "sha256=" + hmac.new(b"test-secret", body, hashlib.sha256).hexdigest()
-            with patch.dict(os.environ, {"META_APP_SECRET": "test-secret", "INSTAGRAM_ACCOUNT_ID": "creator"}):
+            with patch.dict(os.environ, {"INSTAGRAM_APP_SECRET": "test-secret", "INSTAGRAM_ACCOUNT_ID": "creator"}):
                 client = app.test_client()
                 for _ in range(2):
                     self.assertEqual(client.post("/webhooks/instagram", data=body, content_type="application/json", headers={"X-Hub-Signature-256": signature}).status_code, 200)
@@ -173,7 +173,7 @@ class InstagramWebhookTests(unittest.TestCase):
             app = create_app({"TESTING": True, "DATABASE": path, "INSTAGRAM_CLIENT": fake})
             body = json.dumps({"entry": [{"messaging": [{"sender": {"id": "ig-scoped-viewer"}, "message": {"quick_reply": {"payload": "wingman_yes:c-1"}}}]}]}).encode()
             signature = "sha256=" + hmac.new(b"test-secret", body, hashlib.sha256).hexdigest()
-            with patch.dict(os.environ, {"META_APP_SECRET": "test-secret", "INSTAGRAM_ACCOUNT_ID": "creator"}):
+            with patch.dict(os.environ, {"INSTAGRAM_APP_SECRET": "test-secret", "INSTAGRAM_ACCOUNT_ID": "creator"}):
                 client = app.test_client()
                 self.assertEqual(client.post("/webhooks/instagram", data=body, content_type="application/json").status_code, 403)
                 self.assertEqual(client.post("/webhooks/instagram", data=body, content_type="application/json", headers={"X-Hub-Signature-256": signature}).status_code, 200)
