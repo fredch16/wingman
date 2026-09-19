@@ -69,7 +69,12 @@ class InstagramAutomationTests(unittest.TestCase):
     def test_private_first_then_public_and_deduplicated(self):
         self.assertEqual(deliver_comment(self.repo, self.client, "creator", self.rule, self.comment), "sent")
         self.assertEqual(self.client.messages[0][1], {"comment_id": "comment-1"})
-        self.assertEqual(self.client.messages[0][2]["quick_replies"][0]["title"], "Yes please")
+        template = self.client.messages[0][2]["attachment"]["payload"]
+        self.assertEqual(template["template_type"], "button")
+        self.assertEqual(template["text"], "Would you like the PCB guide?")
+        self.assertEqual(template["buttons"], [{
+            "type": "postback", "title": "Yes please", "payload": "wingman_yes:comment-1",
+        }])
         self.assertEqual(len(self.client.public_replies), 1)
         self.assertEqual(deliver_comment(self.repo, self.client, "creator", self.rule, self.comment), "skipped")
         self.assertEqual(len(self.client.messages), 1)
@@ -178,6 +183,26 @@ class InstagramWebhookTests(unittest.TestCase):
                 self.assertEqual(client.post("/webhooks/instagram", data=body, content_type="application/json").status_code, 403)
                 self.assertEqual(client.post("/webhooks/instagram", data=body, content_type="application/json", headers={"X-Hub-Signature-256": signature}).status_code, 200)
                 self.assertEqual(client.post("/webhooks/instagram", data=body, content_type="application/json", headers={"X-Hub-Signature-256": signature}).status_code, 200)
+            self.assertEqual(len(fake.messages), 2)
+
+    def test_signed_postback_button_event_sends_followup_once(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = str(Path(directory) / "test.db")
+            db = connect_database(path)
+            store_discovered_videos(db, [Video("reel", "Test", "2026-09-19T00:00:00Z", "", platform="instagram")])
+            repo = AutomationRepository(db)
+            rule_id = repo.create("reel", "pcb", "Check your DMs", mode="instagram_dm", initial_dm="Want it?", followup_dm="https://example.test")
+            fake = FakeClient()
+            comment = {"comment_id": "c-1", "text": "pcb", "author_channel_id": "viewer", "published_at": datetime.now(timezone.utc).isoformat()}
+            self.assertEqual(deliver_comment(repo, fake, "creator", repo.get(rule_id), comment), "sent")
+            db.close()
+            app = create_app({"TESTING": True, "DATABASE": path, "INSTAGRAM_CLIENT": fake})
+            body = json.dumps({"entry": [{"messaging": [{"sender": {"id": "ig-scoped-viewer"}, "postback": {"payload": "wingman_yes:c-1"}}]}]}).encode()
+            signature = "sha256=" + hmac.new(b"test-secret", body, hashlib.sha256).hexdigest()
+            with patch.dict(os.environ, {"INSTAGRAM_APP_SECRET": "test-secret", "INSTAGRAM_ACCOUNT_ID": "creator"}):
+                client = app.test_client()
+                for _ in range(2):
+                    self.assertEqual(client.post("/webhooks/instagram", data=body, content_type="application/json", headers={"X-Hub-Signature-256": signature}).status_code, 200)
             self.assertEqual(len(fake.messages), 2)
 
 
