@@ -14,8 +14,9 @@ from wingman.web import create_app
 
 class WebhookRequestHandler(WSGIRequestHandler):
     def log_request(self, code="-", size="-") -> None:
-        # Meta's verification token is in the query string: never log the URL.
-        pass
+        # Meta's verification token is in the query string: log the path only.
+        path = self.path.partition("?")[0]
+        print(f"Webhook HTTP {self.command} {path} {code}", flush=True)
 
 
 def webhook_only_app() -> Callable:

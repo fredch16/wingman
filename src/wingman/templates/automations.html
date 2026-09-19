@@ -65,6 +65,7 @@
             <textarea name="default_reply" rows="4" required placeholder="Thanks, I’ll send you the link now."></textarea>
             <small>For DM workflows, this is posted publicly only after the opening DM succeeds. Do not claim the link was sent yet.</small>
           </label>
+          <label><span>More public replies (optional)</span><textarea name="public_reply_variants" rows="3" placeholder="Another public reply, one per line"></textarea><small>Wingman cycles through this first reply and each additional line.</small></label>
           <label><span>Opening DM (Instagram only)</span><textarea name="initial_dm" rows="3" placeholder="Hi! Got your comment. Would you like the guide?"></textarea></label>
           <label><span>Message after “Yes please”</span><textarea name="followup_dm" rows="3" placeholder="Here is the guide: https://…"></textarea></label>
         </div>
@@ -111,6 +112,7 @@
                 <span>Prefilled response</span>
                 <textarea name="default_reply" rows="3" required>{{ automation.default_reply }}</textarea>
               </label>
+              <label><span>More public replies (optional)</span><textarea name="public_reply_variants" rows="3">{{ automation.public_reply_variants|join('\n') }}</textarea><small>One per line; sent in rotation after the opening DM succeeds.</small></label>
               <label><span>Opening DM</span><textarea name="initial_dm" rows="3">{{ automation.initial_dm }}</textarea></label>
               <label><span>“Yes please” follow-up with link</span><textarea name="followup_dm" rows="3">{{ automation.followup_dm }}</textarea></label>
               <button class="button" type="submit">Save changes</button>

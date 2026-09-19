@@ -95,6 +95,8 @@ resource, and a follow-up DM containing the resource text and link. DM keyword
 matching is case-insensitive by default; **Exact comment** instead requires
 the full comment to match the keyword, including case. Existing review-first
 rules are unchanged.
+Add optional public-reply variants, one per line; Wingman cycles through the
+main public reply and those variants for successive matching comments.
 
 Click **Run on new matching comments** on the rule to process comments that
 arrived after the rule was created. Wingman sends the opening private reply with
@@ -118,6 +120,11 @@ of the original DM, and sends the follow-up once. The follow-up requires the
 publicly without access controls for its dashboard. Test the button with a new
 comment first: accepting a private reply at the API does not by itself prove
 that Instagram rendered the quick-reply button or delivered the message.
+After setting up fields in Meta's dashboard, the Instagram professional account
+must also be subscribed via Meta's `POST /me/subscribed_apps` API with
+`subscribed_fields=comments,messages,messaging_postbacks`. Dashboard callback
+verification alone does not activate real comment events. Confirm this with
+`GET /me/subscribed_apps` using the same Instagram access token Wingman uses.
 
 For a local webhook test, run
 `.venv/bin/python -m wingman.instagram.webhook_server` in one terminal. This separate
