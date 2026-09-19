@@ -54,7 +54,28 @@ class InstagramClient:
             },
             method="POST",
         )
-        return self._request(request)
+        return self._request(request, attempts=1)
+
+    def send_message(self, account_id: str, recipient: dict[str, str], message: dict[str, Any]) -> dict[str, Any]:
+        """Send once: retrying a timed-out DM could deliver it twice."""
+        request = Request(
+            self._url(f"{account_id}/messages", {}),
+            data=json.dumps({"recipient": recipient, "message": message}).encode("utf-8"),
+            headers={**self._headers(), "Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=self.timeout) as response:
+                payload = json.load(response)
+        except HTTPError as error:
+            raise InstagramAPIError(
+                self._error_message(error.read().decode("utf-8", errors="replace"), error.code)
+            ) from error
+        except (URLError, TimeoutError) as error:
+            raise InstagramAPIError(f"Instagram message delivery is uncertain: {error}") from error
+        if not isinstance(payload, dict) or not payload.get("message_id"):
+            raise InstagramAPIError("Instagram did not confirm the message; delivery is uncertain.")
+        return payload
 
     def iter_edge(
         self, path: str, *, fields: str, limit: int = 100
@@ -98,8 +119,9 @@ class InstagramClient:
             .replace("+00:00", "Z"),
         )
 
-    def _request(self, request: Request) -> dict[str, Any]:
-        for attempt in range(self.retries):
+    def _request(self, request: Request, *, attempts: int | None = None) -> dict[str, Any]:
+        limit = attempts if attempts is not None else self.retries
+        for attempt in range(limit):
             try:
                 with urlopen(request, timeout=self.timeout) as response:
                     payload = json.loads(response.read().decode("utf-8"))
@@ -116,7 +138,7 @@ class InstagramClient:
                 final_error = InstagramAPIError(
                     f"Instagram API request failed: {error}"
                 )
-            if attempt + 1 < self.retries:
+            if attempt + 1 < limit:
                 time.sleep(2**attempt)
         raise final_error
 

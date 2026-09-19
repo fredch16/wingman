@@ -2,6 +2,8 @@
 
 import os
 import sqlite3
+import hashlib
+import hmac
 from contextlib import closing
 from dataclasses import replace
 from pathlib import Path
@@ -42,6 +44,8 @@ from wingman.instagram.client import (
     post_comment_reply as post_instagram_comment_reply,
 )
 from wingman.instagram.sync import main as sync_instagram
+from wingman.instagram.sync import account_id_from_env
+from wingman.instagram.automation import run_automation, handle_opt_in, deliver_comment
 from wingman.jobs import JobManager, ProgressCallback
 from wingman.youtube.sync import main as sync_youtube
 
@@ -105,6 +109,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     app.extensions["video_learning_errors"] = {}
     app.extensions["video_learning_messages"] = {}
     app.extensions["automation_error"] = None
+    app.extensions["automation_message"] = None
     app.extensions["job_manager"] = JobManager()
 
     def classification_service() -> ClassificationService:
@@ -687,6 +692,10 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             automations=automation_repository().list_all(),
             videos=list_stored_videos(repository().connection),
             automation_error=app.extensions["automation_error"],
+            automation_message=app.extensions["automation_message"],
+            deliveries=repository().connection.execute(
+                "SELECT comment_id, status, error FROM automation_deliveries ORDER BY created_at DESC LIMIT 25"
+            ).fetchall(),
         )
 
     @app.post("/automations")
@@ -696,6 +705,9 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 request.form.get("video_id", "").strip(),
                 request.form.get("keywords", ""),
                 request.form.get("default_reply", ""),
+                mode=request.form.get("mode", "prefill"),
+                initial_dm=request.form.get("initial_dm", ""),
+                followup_dm=request.form.get("followup_dm", ""),
             )
             app.extensions["automation_error"] = None
         except ValueError as error:
@@ -709,6 +721,9 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 automation_id,
                 request.form.get("keywords", ""),
                 request.form.get("default_reply", ""),
+                mode=request.form.get("mode", "prefill"),
+                initial_dm=request.form.get("initial_dm", ""),
+                followup_dm=request.form.get("followup_dm", ""),
             )
             if not updated:
                 abort(404)
@@ -723,6 +738,99 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         if not automation_repository().set_enabled(automation_id, is_enabled):
             abort(404)
         return redirect(url_for("automations"))
+
+    @app.post("/automations/<int:automation_id>/run")
+    def run_instagram_automation(automation_id: int):
+        automation = automation_repository().get(automation_id)
+        if automation is None:
+            abort(404)
+        if automation.mode != "instagram_dm" or not automation.is_enabled:
+            abort(400)
+        try:
+            client = instagram_client()
+            account_id, _ = account_id_from_env(client)
+            result = run_automation(automation_repository(), client, account_id, automation)
+            app.extensions["automation_message"] = (
+                f"Matched {result.eligible}; sent {result.sent}; "
+                f"skipped {result.skipped}; failed {result.failed}."
+            )
+            app.extensions["automation_error"] = None
+        except (InstagramAPIError, ValueError) as error:
+            app.extensions["automation_error"] = str(error)
+        return redirect(url_for("automations"))
+
+    @app.get("/webhooks/instagram")
+    def verify_instagram_webhook():
+        token = os.getenv("INSTAGRAM_WEBHOOK_VERIFY_TOKEN", "")
+        if not token or request.args.get("hub.mode") != "subscribe":
+            abort(403)
+        if not hmac.compare_digest(request.args.get("hub.verify_token", ""), token):
+            abort(403)
+        return request.args.get("hub.challenge", "")
+
+    @app.post("/webhooks/instagram")
+    def instagram_webhook():
+        secret = os.getenv("META_APP_SECRET", "")
+        if not secret:
+            abort(503)
+        signature = request.headers.get("X-Hub-Signature-256", "")
+        digest = hmac.new(secret.encode(), request.get_data(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(signature, f"sha256={digest}"):
+            abort(403)
+        data = request.get_json(silent=True) or {}
+        client = instagram_client()
+        account_id, _ = account_id_from_env(client)
+        for entry in data.get("entry", []):
+            for change in entry.get("changes", []):
+                if change.get("field") != "comments":
+                    continue
+                value = change.get("value") or {}
+                comment_id = str(value.get("id", ""))
+                media_id = str((value.get("media") or {}).get("id", ""))
+                if not comment_id or not media_id or value.get("parent_id"):
+                    continue
+                matching_rules = [
+                    rule for rule in automation_repository().list_all()
+                    if rule.video_id == media_id and rule.mode == "instagram_dm"
+                    and rule.is_enabled and automation_repository().match_delivery(
+                        rule, str(value.get("text", ""))
+                    )
+                ]
+                if not matching_rules:
+                    continue
+                if automation_repository().delivery(comment_id):
+                    continue
+                try:
+                    full = client.get(comment_id, fields="id,text,timestamp,parent_id")
+                except InstagramAPIError:
+                    app.logger.exception("Could not load Instagram comment %s", comment_id)
+                    continue
+                if full.get("parent_id"):
+                    continue
+                comment = {
+                    "comment_id": comment_id,
+                    "text": str(full.get("text", "")),
+                    "published_at": str(full.get("timestamp", "")),
+                    "author_channel_id": str((value.get("from") or {}).get("id", "")),
+                }
+                for rule in matching_rules:
+                    outcome = deliver_comment(
+                        automation_repository(), client, account_id, rule, comment
+                    )
+                    app.logger.info(
+                        "Instagram automation %s comment %s: %s",
+                        rule.automation_id, comment_id, outcome,
+                    )
+                    if outcome != "skipped":
+                        break
+            for event in entry.get("messaging", []):
+                sender = str(event.get("sender", {}).get("id", ""))
+                message = event.get("message") or {}
+                payload = (message.get("quick_reply") or {}).get("payload")
+                payload = payload or (event.get("postback") or {}).get("payload", "")
+                if sender and payload:
+                    handle_opt_in(automation_repository(), client, account_id, sender, payload)
+        return jsonify({"ok": True})
 
     @app.post("/automations/<int:automation_id>/delete")
     def delete_automation(automation_id: int):
