@@ -1,0 +1,14 @@
+[Unit]
+Description=Wingman private dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=fred
+WorkingDirectory=/home/fred/wingman-hackathon
+ExecStart=/home/fred/wingman-hackathon/.venv/bin/gunicorn --bind 127.0.0.1:5000 --workers 1 --threads 4 'wingman.web:create_app()'
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
