@@ -58,12 +58,18 @@ def deliver_comment(
             account_id,
             {"comment_id": comment_id},
             {
-                "text": automation.initial_dm,
-                "quick_replies": [{
-                    "content_type": "text",
-                    "title": "Yes please",
-                    "payload": f"wingman_yes:{comment_id}",
-                }],
+                "attachment": {
+                    "type": "template",
+                    "payload": {
+                        "template_type": "button",
+                        "text": automation.initial_dm,
+                        "buttons": [{
+                            "type": "postback",
+                            "title": "Yes please",
+                            "payload": f"wingman_yes:{comment_id}",
+                        }],
+                    },
+                },
             },
         )
         repo.update_delivery(
