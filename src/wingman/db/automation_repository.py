@@ -24,6 +24,7 @@ class Automation:
     mode: str = "prefill"
     initial_dm: str = ""
     followup_dm: str = ""
+    match_type: str = "contains"
 
 
 @dataclass(frozen=True)
@@ -66,7 +67,7 @@ class AutomationRepository:
             """
         )
         columns = {row["name"] for row in self.connection.execute("PRAGMA table_info(automations)")}
-        for name in ("mode", "initial_dm", "followup_dm"):
+        for name in ("mode", "initial_dm", "followup_dm", "match_type"):
             if name not in columns:
                 self.connection.execute(
                     f"ALTER TABLE automations ADD COLUMN {name} TEXT NOT NULL DEFAULT ''"
@@ -102,6 +103,7 @@ class AutomationRepository:
         mode: str = "prefill",
         initial_dm: str = "",
         followup_dm: str = "",
+        match_type: str = "contains",
     ) -> int:
         parsed_keywords = normalize_keywords(keywords)
         reply = default_reply.strip()
@@ -111,15 +113,15 @@ class AutomationRepository:
             raise ValueError("Add a default response.")
         if not self._video_exists(video_id):
             raise ValueError("Select a stored video.")
-        self._validate_delivery(mode, initial_dm, followup_dm, video_id)
+        self._validate_delivery(mode, initial_dm, followup_dm, video_id, match_type)
         timestamp = utc_now()
         with self.connection:
             cursor = self.connection.execute(
                 """
                 INSERT INTO automations (
                     video_id, keywords, default_reply, is_enabled,
-                    created_at, updated_at, mode, initial_dm, followup_dm
-                ) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?)
+                    created_at, updated_at, mode, initial_dm, followup_dm, match_type
+                ) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     video_id,
@@ -130,6 +132,7 @@ class AutomationRepository:
                     mode,
                     initial_dm.strip(),
                     followup_dm.strip(),
+                    match_type,
                 ),
             )
         return int(cursor.lastrowid)
@@ -143,6 +146,7 @@ class AutomationRepository:
         mode: str = "prefill",
         initial_dm: str = "",
         followup_dm: str = "",
+        match_type: str = "contains",
     ) -> bool:
         parsed_keywords = normalize_keywords(keywords)
         reply = default_reply.strip()
@@ -153,13 +157,13 @@ class AutomationRepository:
         row = self.connection.execute("SELECT video_id FROM automations WHERE automation_id = ?", (automation_id,)).fetchone()
         if row is None:
             return False
-        self._validate_delivery(mode, initial_dm, followup_dm, row["video_id"])
+        self._validate_delivery(mode, initial_dm, followup_dm, row["video_id"], match_type)
         with self.connection:
             cursor = self.connection.execute(
                 """
                 UPDATE automations
                 SET keywords = ?, default_reply = ?, updated_at = ?,
-                    mode = ?, initial_dm = ?, followup_dm = ?
+                    mode = ?, initial_dm = ?, followup_dm = ?, match_type = ?
                 WHERE automation_id = ?
                 """,
                 (
@@ -169,6 +173,7 @@ class AutomationRepository:
                     mode,
                     initial_dm.strip(),
                     followup_dm.strip(),
+                    match_type,
                     automation_id,
                 ),
             )
@@ -204,7 +209,8 @@ class AutomationRepository:
                    automations.keywords, automations.default_reply,
                    automations.is_enabled, automations.created_at,
                    automations.updated_at, automations.mode,
-                   automations.initial_dm, automations.followup_dm
+                   automations.initial_dm, automations.followup_dm,
+                   automations.match_type
             FROM automations
             LEFT JOIN videos ON videos.video_id = automations.video_id
             ORDER BY automations.created_at DESC, automations.automation_id DESC
@@ -239,6 +245,8 @@ class AutomationRepository:
     def match_delivery(self, automation: Automation, comment_text: str) -> str | None:
         if automation.mode != "instagram_dm" or not automation.is_enabled:
             return None
+        if automation.match_type == "exact":
+            return next((word for word in automation.keywords if word == comment_text.strip()), None)
         return next((word for word in automation.keywords if word.casefold() in comment_text.casefold()), None)
 
     def delivery(self, comment_id: str) -> sqlite3.Row | None:
@@ -275,9 +283,11 @@ class AutomationRepository:
             )
         return cursor.rowcount == 1
 
-    def _validate_delivery(self, mode: str, initial_dm: str, followup_dm: str, video_id: str) -> None:
+    def _validate_delivery(self, mode: str, initial_dm: str, followup_dm: str, video_id: str, match_type: str) -> None:
         if mode not in {"prefill", "instagram_dm"}:
             raise ValueError("Unknown automation mode.")
+        if match_type not in {"contains", "exact"}:
+            raise ValueError("Unknown matching type.")
         if mode == "instagram_dm":
             platform = self.connection.execute("SELECT platform FROM videos WHERE video_id = ?", (video_id,)).fetchone()
             if not platform or platform["platform"] != "instagram":
@@ -314,4 +324,5 @@ class AutomationRepository:
             mode=row["mode"] or "prefill",
             initial_dm=row["initial_dm"],
             followup_dm=row["followup_dm"],
+            match_type=row["match_type"] or "contains",
         )

@@ -693,6 +693,9 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             videos=list_stored_videos(repository().connection),
             automation_error=app.extensions["automation_error"],
             automation_message=app.extensions["automation_message"],
+            instagram_webhook_configured=bool(
+                os.getenv("META_APP_SECRET") and os.getenv("INSTAGRAM_WEBHOOK_VERIFY_TOKEN")
+            ),
             deliveries=repository().connection.execute(
                 "SELECT comment_id, status, error FROM automation_deliveries ORDER BY created_at DESC LIMIT 25"
             ).fetchall(),
@@ -708,6 +711,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 mode=request.form.get("mode", "prefill"),
                 initial_dm=request.form.get("initial_dm", ""),
                 followup_dm=request.form.get("followup_dm", ""),
+                match_type=request.form.get("match_type", "contains"),
             )
             app.extensions["automation_error"] = None
         except ValueError as error:
@@ -724,6 +728,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 mode=request.form.get("mode", "prefill"),
                 initial_dm=request.form.get("initial_dm", ""),
                 followup_dm=request.form.get("followup_dm", ""),
+                match_type=request.form.get("match_type", "contains"),
             )
             if not updated:
                 abort(404)

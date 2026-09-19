@@ -92,7 +92,9 @@ Create an **Instagram DM opt-in** rule for one stored Reel or post. Enter
 comma-separated keywords, a public acknowledgement (for example, “Check your
 DMs for my question”), an opening DM asking whether the viewer wants the
 resource, and a follow-up DM containing the resource text and link. DM keyword
-matching is case-insensitive. Existing review-first rules are unchanged.
+matching is case-insensitive by default; **Exact comment** instead requires
+the full comment to match the keyword, including case. Existing review-first
+rules are unchanged.
 
 Click **Run on new matching comments** on the rule to process comments that
 arrived after the rule was created. Wingman sends the opening private reply with

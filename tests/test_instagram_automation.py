@@ -89,8 +89,28 @@ class InstagramAutomationTests(unittest.TestCase):
         self.repo.create("reel", "PCB", "Manual reply")
         self.assertEqual(self.repo.match("reel", "PCB please").default_reply, "Manual reply")
 
+    def test_exact_match_is_case_sensitive_and_whole_comment(self):
+        exact_id = self.repo.create(
+            "reel", "wingman", "Check your DMs", mode="instagram_dm",
+            initial_dm="Want it?", followup_dm="Test link", match_type="exact",
+        )
+        exact = self.repo.get(exact_id)
+        self.assertEqual(self.repo.match_delivery(exact, " wingman "), "wingman")
+        self.assertIsNone(self.repo.match_delivery(exact, "Wingman"))
+        self.assertIsNone(self.repo.match_delivery(exact, "wingman please"))
+
 
 class InstagramWebhookTests(unittest.TestCase):
+    def test_verification_requires_configured_matching_token(self):
+        app = create_app({"TESTING": True})
+        with patch.dict(os.environ, {"INSTAGRAM_WEBHOOK_VERIFY_TOKEN": "test-verify"}):
+            client = app.test_client()
+            path = "/webhooks/instagram?hub.mode=subscribe&hub.challenge=challenge-123"
+            self.assertEqual(client.get(path + "&hub.verify_token=wrong").status_code, 403)
+            response = client.get(path + "&hub.verify_token=test-verify")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.get_data(as_text=True), "challenge-123")
+
     def test_signed_comment_event_starts_flow_once(self):
         with tempfile.TemporaryDirectory() as directory:
             path = str(Path(directory) / "test.db")
