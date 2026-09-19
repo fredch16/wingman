@@ -783,7 +783,13 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         signature = request.headers.get("X-Hub-Signature-256", "")
         digest = hmac.new(secret.encode(), request.get_data(), hashlib.sha256).hexdigest()
         if not hmac.compare_digest(signature, f"sha256={digest}"):
-            app.logger.warning("Rejected Instagram webhook: invalid signature")
+            app.logger.warning(
+                "Rejected Instagram webhook: invalid signature "
+                "(sha256 header present=%s, sha1 header present=%s, sha256 format=%s)",
+                bool(signature),
+                bool(request.headers.get("X-Hub-Signature")),
+                signature.startswith("sha256=") and len(signature) == 71,
+            )
             abort(403)
         data = request.get_json(silent=True) or {}
         client = instagram_client()
