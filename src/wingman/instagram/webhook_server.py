@@ -32,9 +32,9 @@ def webhook_only_app() -> Callable:
 
 def main() -> None:
     load_dotenv()
-    if not os.getenv("META_APP_SECRET") or not os.getenv("INSTAGRAM_WEBHOOK_VERIFY_TOKEN"):
+    if not os.getenv("INSTAGRAM_APP_SECRET") or not os.getenv("INSTAGRAM_WEBHOOK_VERIFY_TOKEN"):
         raise SystemExit(
-            "Set META_APP_SECRET and INSTAGRAM_WEBHOOK_VERIFY_TOKEN in .env first."
+            "Set INSTAGRAM_APP_SECRET and INSTAGRAM_WEBHOOK_VERIFY_TOKEN in .env first."
         )
     port = int(os.getenv("WINGMAN_WEBHOOK_PORT", "5001"))
     print(f"Webhook-only listener on http://127.0.0.1:{port}/webhooks/instagram", flush=True)

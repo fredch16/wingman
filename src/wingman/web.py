@@ -694,7 +694,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             automation_error=app.extensions["automation_error"],
             automation_message=app.extensions["automation_message"],
             instagram_webhook_configured=bool(
-                os.getenv("META_APP_SECRET") and os.getenv("INSTAGRAM_WEBHOOK_VERIFY_TOKEN")
+                os.getenv("INSTAGRAM_APP_SECRET") and os.getenv("INSTAGRAM_WEBHOOK_VERIFY_TOKEN")
             ),
             deliveries=repository().connection.execute(
                 "SELECT comment_id, status, error FROM automation_deliveries ORDER BY created_at DESC LIMIT 25"
@@ -777,7 +777,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
 
     @app.post("/webhooks/instagram")
     def instagram_webhook():
-        secret = os.getenv("META_APP_SECRET", "")
+        secret = os.getenv("INSTAGRAM_APP_SECRET", "")
         if not secret:
             abort(503)
         signature = request.headers.get("X-Hub-Signature-256", "")

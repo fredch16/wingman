@@ -109,7 +109,8 @@ configured and subscribed to **comments**, new matching top-level comments
 start this flow automatically. The webhook currently runs in the Flask request;
 a persistent background worker is not included yet.
 
-To enable the button follow-up, set `META_APP_SECRET` and
+To enable the button follow-up, set `INSTAGRAM_APP_SECRET` (from Instagram's
+API setup with Instagram login, not the parent Meta app settings) and
 `INSTAGRAM_WEBHOOK_VERIFY_TOKEN` in `.env`, expose the webhook-only listener over
 HTTPS, and configure Meta's Instagram **comments** and **messages** webhook callback as
 `https://YOUR_HOST/webhooks/instagram` using that verify token. Meta must send
