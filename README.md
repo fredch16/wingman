@@ -86,6 +86,37 @@ response remains fully editable and is never posted automatically; review it,
 then use `Ctrl+Enter` or the platform post button. Automations can be edited,
 paused, enabled, or deleted from the same page.
 
+### Instagram DM opt-in
+
+Create an **Instagram DM opt-in** rule for one stored Reel or post. Enter
+comma-separated keywords, a public acknowledgement (for example, “Check your
+DMs for my question”), an opening DM asking whether the viewer wants the
+resource, and a follow-up DM containing the resource text and link. DM keyword
+matching is case-insensitive. Existing review-first rules are unchanged.
+
+Click **Run on new matching comments** on the rule to process comments that
+arrived after the rule was created. Wingman sends the opening private reply with
+a **Yes please** quick-reply button, then posts the public acknowledgement only
+if Meta accepts that DM. It records each comment ID before sending, so reruns
+do not resend messages, including after an uncertain network failure. The
+Automations page shows recent delivery status and errors. Only comments within
+Meta's seven-day private-reply window are considered. Once the signed webhook is
+configured and subscribed to **comments**, new matching top-level comments
+start this flow automatically. The webhook currently runs in the Flask request;
+a persistent background worker is not included yet.
+
+To enable the button follow-up, set `META_APP_SECRET` and
+`INSTAGRAM_WEBHOOK_VERIFY_TOKEN` in `.env`, expose the Flask app securely over
+HTTPS, and configure Meta's Instagram **comments** and **messages** webhook callback as
+`https://YOUR_HOST/webhooks/instagram` using that verify token. Meta must send
+`X-Hub-Signature-256`; unsigned events are rejected. When the viewer taps **Yes
+please**, Wingman verifies the event, checks that the sender is the recipient
+of the original DM, and sends the follow-up once. The follow-up requires the
+`instagram_business_manage_messages` permission. Do not expose the app
+publicly without access controls for its dashboard. Test the button with a new
+comment first: accepting a private reply at the API does not by itself prove
+that Instagram rendered the quick-reply button or delivered the message.
+
 ## Setup
 
 Wingman requires Python 3.11 or newer, an OpenAI API key, and credentials for at

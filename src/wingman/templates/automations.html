@@ -6,20 +6,21 @@
       <div>
         <span class="eyebrow">Review-first workflows</span>
         <h1>Automations</h1>
-        <p>Prefill a response when a comment on one video contains a keyword. Wingman never posts automatically.</p>
+        <p>Prefill inbox replies, or run an Instagram comment-to-DM workflow on a selected Reel.</p>
       </div>
     </header>
 
     {% if automation_error %}
       <p class="automation-error">{{ automation_error }}</p>
     {% endif %}
+    {% if automation_message %}<p class="automation-status enabled">{{ automation_message }}</p>{% endif %}
 
     <section class="automation-builder">
       <div class="automation-builder-copy">
         <span class="automation-step">01</span>
         <div>
           <h2>Create an automation</h2>
-          <p>Select a video, add exact keyword variations, and write the response you want waiting in the inbox.</p>
+          <p>Select a video, choose how matching comments are handled, and write the messages.</p>
         </div>
       </div>
       <form method="post" action="{{ url_for('create_automation') }}">
@@ -51,16 +52,19 @@
         </fieldset>
 
         <div class="automation-fields">
+          <label><span>Workflow</span><select name="mode"><option value="prefill">Prefill inbox reply</option><option value="instagram_dm">Instagram DM opt-in</option></select></label>
           <label>
             <span>Keyword variations</span>
             <input name="keywords" required placeholder="PCB, pcb, Pcb">
-            <small>Comma-separated and case-sensitive. A simple substring match is used.</small>
+            <small>Comma-separated; Instagram DM matching ignores case.</small>
           </label>
           <label>
-            <span>Default response</span>
+            <span>Inbox reply / public acknowledgement</span>
             <textarea name="default_reply" rows="4" required placeholder="Thanks, I’ll send you the link now."></textarea>
-            <small>This is prefilled for review. It is never posted automatically.</small>
+            <small>For DM workflows, this is posted publicly only after the opening DM succeeds. Do not claim the link was sent yet.</small>
           </label>
+          <label><span>Opening DM (Instagram only)</span><textarea name="initial_dm" rows="3" placeholder="Hi! Got your comment. Would you like the guide?"></textarea></label>
+          <label><span>Message after “Yes please”</span><textarea name="followup_dm" rows="3" placeholder="Here is the guide: https://…"></textarea></label>
         </div>
         <button class="button primary" type="submit" {% if not videos %}disabled{% endif %}>Create automation</button>
       </form>
@@ -91,9 +95,11 @@
                 </span>
                 <h3>{{ automation.video_title }}</h3>
                 <small>{{ automation.platform|title }}</small>
+                <small>{{ 'Instagram DM opt-in' if automation.mode == 'instagram_dm' else 'Inbox prefill' }}</small>
               </div>
             </div>
             <form class="automation-edit-form" method="post" action="{{ url_for('update_automation', automation_id=automation.automation_id) }}">
+              <label><span>Workflow</span><select name="mode"><option value="prefill" {% if automation.mode != 'instagram_dm' %}selected{% endif %}>Prefill inbox reply</option><option value="instagram_dm" {% if automation.mode == 'instagram_dm' %}selected{% endif %}>Instagram DM opt-in</option></select></label>
               <label>
                 <span>Matches</span>
                 <input name="keywords" value="{{ automation.keywords|join(', ') }}" required>
@@ -102,9 +108,12 @@
                 <span>Prefilled response</span>
                 <textarea name="default_reply" rows="3" required>{{ automation.default_reply }}</textarea>
               </label>
+              <label><span>Opening DM</span><textarea name="initial_dm" rows="3">{{ automation.initial_dm }}</textarea></label>
+              <label><span>“Yes please” follow-up with link</span><textarea name="followup_dm" rows="3">{{ automation.followup_dm }}</textarea></label>
               <button class="button" type="submit">Save changes</button>
             </form>
             <div class="automation-card-actions">
+              {% if automation.mode == 'instagram_dm' %}<form method="post" action="{{ url_for('run_instagram_automation', automation_id=automation.automation_id) }}"><button class="button primary" type="submit" {% if not automation.is_enabled %}disabled{% endif %}>Run on new matching comments</button></form>{% endif %}
               <form method="post" action="{{ url_for('toggle_automation', automation_id=automation.automation_id) }}">
                 <input type="hidden" name="is_enabled" value="{{ 'false' if automation.is_enabled else 'true' }}">
                 <button class="button quiet" type="submit">{{ 'Pause' if automation.is_enabled else 'Enable' }}</button>
@@ -122,6 +131,9 @@
           </div>
         {% endfor %}
       </div>
+    </section>
+    <section class="automation-list-section"><div class="automation-list-heading"><div><span class="eyebrow">Delivery log</span><h2>Recent Instagram DM attempts</h2></div></div>
+      {% for delivery in deliveries %}<p><code>{{ delivery['comment_id'] }}</code> · {{ delivery['status'] }}{% if delivery['error'] %} · {{ delivery['error'] }}{% endif %}</p>{% else %}<p class="empty-state">No DM attempts yet.</p>{% endfor %}
     </section>
   </div>
 {% endblock %}
