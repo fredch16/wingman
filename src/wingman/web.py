@@ -712,6 +712,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 initial_dm=request.form.get("initial_dm", ""),
                 followup_dm=request.form.get("followup_dm", ""),
                 match_type=request.form.get("match_type", "contains"),
+                public_reply_variants=request.form.get("public_reply_variants", ""),
             )
             app.extensions["automation_error"] = None
         except ValueError as error:
@@ -729,6 +730,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 initial_dm=request.form.get("initial_dm", ""),
                 followup_dm=request.form.get("followup_dm", ""),
                 match_type=request.form.get("match_type", "contains"),
+                public_reply_variants=request.form.get("public_reply_variants", ""),
             )
             if not updated:
                 abort(404)
@@ -781,11 +783,16 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         signature = request.headers.get("X-Hub-Signature-256", "")
         digest = hmac.new(secret.encode(), request.get_data(), hashlib.sha256).hexdigest()
         if not hmac.compare_digest(signature, f"sha256={digest}"):
+            app.logger.warning("Rejected Instagram webhook: invalid signature")
             abort(403)
         data = request.get_json(silent=True) or {}
         client = instagram_client()
         account_id, _ = account_id_from_env(client)
         for entry in data.get("entry", []):
+            app.logger.warning(
+                "Instagram webhook entry: %d comment changes, %d messaging events",
+                len(entry.get("changes", [])), len(entry.get("messaging", [])),
+            )
             for change in entry.get("changes", []):
                 if change.get("field") != "comments":
                     continue
@@ -822,7 +829,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                     outcome = deliver_comment(
                         automation_repository(), client, account_id, rule, comment
                     )
-                    app.logger.info(
+                    app.logger.warning(
                         "Instagram automation %s comment %s: %s",
                         rule.automation_id, comment_id, outcome,
                     )
@@ -834,7 +841,10 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 payload = (message.get("quick_reply") or {}).get("payload")
                 payload = payload or (event.get("postback") or {}).get("payload", "")
                 if sender and payload:
-                    handle_opt_in(automation_repository(), client, account_id, sender, payload)
+                    handled = handle_opt_in(
+                        automation_repository(), client, account_id, sender, payload
+                    )
+                    app.logger.warning("Instagram opt-in payload handled: %s", handled)
         return jsonify({"ok": True})
 
     @app.post("/automations/<int:automation_id>/delete")

@@ -25,6 +25,7 @@ class Automation:
     initial_dm: str = ""
     followup_dm: str = ""
     match_type: str = "contains"
+    public_reply_variants: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -67,7 +68,7 @@ class AutomationRepository:
             """
         )
         columns = {row["name"] for row in self.connection.execute("PRAGMA table_info(automations)")}
-        for name in ("mode", "initial_dm", "followup_dm", "match_type"):
+        for name in ("mode", "initial_dm", "followup_dm", "match_type", "public_reply_variants"):
             if name not in columns:
                 self.connection.execute(
                     f"ALTER TABLE automations ADD COLUMN {name} TEXT NOT NULL DEFAULT ''"
@@ -104,6 +105,7 @@ class AutomationRepository:
         initial_dm: str = "",
         followup_dm: str = "",
         match_type: str = "contains",
+        public_reply_variants: str = "",
     ) -> int:
         parsed_keywords = normalize_keywords(keywords)
         reply = default_reply.strip()
@@ -120,8 +122,9 @@ class AutomationRepository:
                 """
                 INSERT INTO automations (
                     video_id, keywords, default_reply, is_enabled,
-                    created_at, updated_at, mode, initial_dm, followup_dm, match_type
-                ) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
+                    created_at, updated_at, mode, initial_dm, followup_dm,
+                    match_type, public_reply_variants
+                ) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     video_id,
@@ -133,6 +136,7 @@ class AutomationRepository:
                     initial_dm.strip(),
                     followup_dm.strip(),
                     match_type,
+                    public_reply_variants.strip(),
                 ),
             )
         return int(cursor.lastrowid)
@@ -147,6 +151,7 @@ class AutomationRepository:
         initial_dm: str = "",
         followup_dm: str = "",
         match_type: str = "contains",
+        public_reply_variants: str = "",
     ) -> bool:
         parsed_keywords = normalize_keywords(keywords)
         reply = default_reply.strip()
@@ -163,7 +168,8 @@ class AutomationRepository:
                 """
                 UPDATE automations
                 SET keywords = ?, default_reply = ?, updated_at = ?,
-                    mode = ?, initial_dm = ?, followup_dm = ?, match_type = ?
+                    mode = ?, initial_dm = ?, followup_dm = ?, match_type = ?,
+                    public_reply_variants = ?
                 WHERE automation_id = ?
                 """,
                 (
@@ -174,6 +180,7 @@ class AutomationRepository:
                     initial_dm.strip(),
                     followup_dm.strip(),
                     match_type,
+                    public_reply_variants.strip(),
                     automation_id,
                 ),
             )
@@ -210,7 +217,7 @@ class AutomationRepository:
                    automations.is_enabled, automations.created_at,
                    automations.updated_at, automations.mode,
                    automations.initial_dm, automations.followup_dm,
-                   automations.match_type
+                   automations.match_type, automations.public_reply_variants
             FROM automations
             LEFT JOIN videos ON videos.video_id = automations.video_id
             ORDER BY automations.created_at DESC, automations.automation_id DESC
@@ -283,6 +290,12 @@ class AutomationRepository:
             )
         return cursor.rowcount == 1
 
+    def delivery_count(self, automation_id: int) -> int:
+        return int(self.connection.execute(
+            "SELECT COUNT(*) FROM automation_deliveries WHERE automation_id = ?",
+            (automation_id,),
+        ).fetchone()[0])
+
     def _validate_delivery(self, mode: str, initial_dm: str, followup_dm: str, video_id: str, match_type: str) -> None:
         if mode not in {"prefill", "instagram_dm"}:
             raise ValueError("Unknown automation mode.")
@@ -325,4 +338,8 @@ class AutomationRepository:
             initial_dm=row["initial_dm"],
             followup_dm=row["followup_dm"],
             match_type=row["match_type"] or "contains",
+            public_reply_variants=tuple(
+                line.strip() for line in row["public_reply_variants"].splitlines()
+                if line.strip()
+            ),
         )

@@ -76,7 +76,9 @@ def deliver_comment(
         return "failed"
     # Do not claim the resource was sent. The public acknowledgement says a DM is waiting.
     try:
-        posted = client.reply(comment_id, automation.default_reply)
+        public_options = (automation.default_reply, *automation.public_reply_variants)
+        public_text = public_options[(repo.delivery_count(automation.automation_id) - 1) % len(public_options)]
+        posted = client.reply(comment_id, public_text)
         repo.update_delivery(comment_id, "awaiting_opt_in", public_reply_id=posted.reply_id)
     except Exception as error:
         repo.update_delivery(comment_id, "public_failed", error=str(error))

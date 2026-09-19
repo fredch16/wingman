@@ -102,6 +102,21 @@ class InstagramAutomationTests(unittest.TestCase):
         self.assertIsNone(self.repo.match_delivery(exact, "Wingman"))
         self.assertIsNone(self.repo.match_delivery(exact, "wingman please"))
 
+    def test_public_reply_variants_cycle(self):
+        variant_id = self.repo.create(
+            "reel", "wingman", "First public reply", mode="instagram_dm",
+            initial_dm="Want it?", followup_dm="Test link", match_type="exact",
+            public_reply_variants="Second public reply\nThird public reply",
+        )
+        rule = self.repo.get(variant_id)
+        for number in range(4):
+            comment = dict(self.comment, comment_id=f"variant-{number}", text="wingman")
+            self.assertEqual(deliver_comment(self.repo, self.client, "creator", rule, comment), "sent")
+        self.assertEqual(
+            [text for _, text in self.client.public_replies],
+            ["First public reply", "Second public reply", "Third public reply", "First public reply"],
+        )
+
 
 class InstagramWebhookTests(unittest.TestCase):
     def test_public_listener_exposes_no_dashboard_routes(self):
