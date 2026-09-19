@@ -100,7 +100,7 @@ main public reply and those variants for successive matching comments.
 
 Click **Run on new matching comments** on the rule to process comments that
 arrived after the rule was created. Wingman sends the opening private reply with
-a **Yes please** quick-reply button, then posts the public acknowledgement only
+an inline **Yes please** button, then posts the public acknowledgement only
 if Meta accepts that DM. It records each comment ID before sending, so reruns
 do not resend messages, including after an uncertain network failure. The
 Automations page shows recent delivery status and errors. Only comments within
@@ -120,7 +120,7 @@ of the original DM, and sends the follow-up once. The follow-up requires the
 `instagram_business_manage_messages` permission. Do not expose the app
 publicly without access controls for its dashboard. Test the button with a new
 comment first: accepting a private reply at the API does not by itself prove
-that Instagram rendered the quick-reply button or delivered the message.
+that Instagram rendered the button or delivered the message.
 After setting up fields in Meta's dashboard, the Instagram professional account
 must also be subscribed via Meta's `POST /me/subscribed_apps` API with
 `subscribed_fields=comments,messages,messaging_postbacks`. Dashboard callback
