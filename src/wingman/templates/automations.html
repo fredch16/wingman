@@ -14,6 +14,7 @@
       <p class="automation-error">{{ automation_error }}</p>
     {% endif %}
     {% if automation_message %}<p class="automation-status enabled">{{ automation_message }}</p>{% endif %}
+    {% if not instagram_webhook_configured %}<p class="automation-error">Instagram webhook is not configured yet. Rules can be run manually, but automatic comment and button events require the Meta app secret, a verify token, and Meta webhook subscriptions.</p>{% endif %}
 
     <section class="automation-builder">
       <div class="automation-builder-copy">
@@ -53,6 +54,7 @@
 
         <div class="automation-fields">
           <label><span>Workflow</span><select name="mode"><option value="prefill">Prefill inbox reply</option><option value="instagram_dm">Instagram DM opt-in</option></select></label>
+          <label><span>Keyword matching</span><select name="match_type"><option value="contains">Contains keyword (case-insensitive for DMs)</option><option value="exact">Exact comment, including case</option></select></label>
           <label>
             <span>Keyword variations</span>
             <input name="keywords" required placeholder="PCB, pcb, Pcb">
@@ -100,6 +102,7 @@
             </div>
             <form class="automation-edit-form" method="post" action="{{ url_for('update_automation', automation_id=automation.automation_id) }}">
               <label><span>Workflow</span><select name="mode"><option value="prefill" {% if automation.mode != 'instagram_dm' %}selected{% endif %}>Prefill inbox reply</option><option value="instagram_dm" {% if automation.mode == 'instagram_dm' %}selected{% endif %}>Instagram DM opt-in</option></select></label>
+              <label><span>Keyword matching</span><select name="match_type"><option value="contains" {% if automation.match_type != 'exact' %}selected{% endif %}>Contains keyword (case-insensitive for DMs)</option><option value="exact" {% if automation.match_type == 'exact' %}selected{% endif %}>Exact comment, including case</option></select></label>
               <label>
                 <span>Matches</span>
                 <input name="keywords" value="{{ automation.keywords|join(', ') }}" required>
