@@ -137,6 +137,34 @@ hostname changes when restarted; update the Meta callback each time. Keep both
 processes running while testing. For always-on use, use a stable hostname and
 supervised services instead of a quick tunnel.
 
+### Raspberry Pi deployment
+
+On a 64-bit Pi with Python 3.11+, copy the application and the required local
+state into `/home/fred/wingman-hackathon`. Keep `.env`, OAuth files, and the
+SQLite database out of Git, and set credential file permissions to `600`.
+Create a virtual environment there and install the package with
+`python3 -m venv .venv && .venv/bin/python -m pip install -e .`.
+
+The two systemd units in `deploy/` run the dashboard on loopback port 5000 and
+the webhook-only app on loopback port 5001. Install and start them on the Pi:
+
+```bash
+sudo cp deploy/wingman-web.service deploy/wingman-webhook.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now wingman-web wingman-webhook
+systemctl status wingman-web wingman-webhook
+```
+
+Tailscale Funnel can give the webhook a stable public HTTPS URL without moving
+the domain's DNS. After installing and joining Tailscale on the Pi, run
+`tailscale funnel --bg 5001` and use its HTTPS hostname plus
+`/webhooks/instagram` as Meta's callback. Enable Funnel only for port 5001:
+port 5000 contains the unprotected dashboard and must stay private. For local
+dashboard access over SSH, use
+`ssh -L 5080:127.0.0.1:5000 fred@wingman-pi.local` and open
+<http://127.0.0.1:5080>. Switch Meta's callback only after the new HTTPS
+endpoint passes verification, then test one fresh comment end to end.
+
 ## Setup
 
 Wingman requires Python 3.11 or newer, an OpenAI API key, and credentials for at
