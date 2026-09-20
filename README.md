@@ -96,8 +96,13 @@ paused, enabled, or deleted from the same page.
 For YouTube, choose **YouTube auto-reply** instead of Inbox prefill to post a
 configured public reply when a future comment on the selected video matches a
 keyword. This mode is opt-in per video; comments from before the rule was
-created, edited, or re-enabled are not sent. It runs after the count-gated polling scan, so replies
-arrive on the next changed-count check (or daily reconciliation), not instantly.
+created, edited, or re-enabled are not sent. Videos with an enabled YouTube
+keyword rule are checked cheaply every ten minutes, but Wingman fetches their
+full comments only when the total video comment count rises by at least five,
+or by at least two after three hours since the last full scan. The 24-hour
+reconciliation and manual `--refresh` still force a scan. YouTube's total
+includes replies, so a count increase may produce no new top-level comments.
+Automatic replies arrive only after a full scan, not instantly.
 Wingman records each attempt to prevent duplicates, skips creator comments and
 threads that already have replies, and shows failures in Automations activity.
 Failed or interrupted sends are never automatically retried because the
@@ -361,8 +366,10 @@ python3 -m wingman.youtube.watch
 ```
 
 This checks the comment counts of enabled **YouTube** videos in batches of up
-to 50, fetching comments only when a count changes or the 24-hour safety scan
-is due. The first run scans each enabled YouTube video to establish a baseline.
+to 50. Videos without an enabled keyword automation fetch comments when the
+count changes; videos with an enabled keyword automation use the five-comment
+or two-after-three-hours batch threshold above. All videos still get a 24-hour
+safety scan. The first run scans each enabled YouTube video to establish a baseline.
 Use `--refresh` for an immediate full scan, or `--reconcile-hours N` to adjust
 the safety interval. The command is one-shot. On the Pi, the optional
 `deploy/wingman-youtube-watch.timer` runs it roughly every ten minutes. Install

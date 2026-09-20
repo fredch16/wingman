@@ -10,6 +10,7 @@ from wingman.db.video_catalog import Video, store_discovered_videos
 from wingman.youtube.sync import FetchResult, VideoSyncResult
 from wingman.youtube.watch import fetch_video_comment_counts, watch_comments
 from wingman.youtube.automation import AutoReplySummary
+from wingman.db.automation_repository import AutomationRepository
 
 
 class YouTubeWatchTests(unittest.TestCase):
@@ -90,6 +91,39 @@ class YouTubeWatchTests(unittest.TestCase):
             watch_comments(self.youtube, self.connection, now=self.now + timedelta(minutes=10))
         self.assertEqual(first.auto_replies_sent, 1)
         self.assertEqual(automate.call_count, 1)
+
+    def test_automated_video_batches_five_count_increases(self) -> None:
+        AutomationRepository(self.connection).create(
+            "youtube-one", "PCB", "Link", mode="youtube_reply"
+        )
+        synced = VideoSyncResult("youtube-one", FetchResult([], 1), SyncSummary(0, 0, 0, 0))
+        with patch("wingman.youtube.watch.sync_videos", return_value=[synced]) as sync:
+            watch_comments(self.youtube, self.connection, now=self.now)
+            self.youtube.videos.return_value.list.return_value.execute.return_value = {
+                "items": [{"id": "youtube-one", "statistics": {"commentCount": "16"}}]
+            }
+            early = watch_comments(self.youtube, self.connection, now=self.now + timedelta(minutes=10))
+            self.youtube.videos.return_value.list.return_value.execute.return_value = {
+                "items": [{"id": "youtube-one", "statistics": {"commentCount": "17"}}]
+            }
+            ready = watch_comments(self.youtube, self.connection, now=self.now + timedelta(minutes=20))
+        self.assertEqual((early.videos_scanned, ready.videos_scanned), (0, 1))
+        self.assertEqual(sync.call_count, 2)
+
+    def test_automated_video_scans_two_after_three_hours(self) -> None:
+        AutomationRepository(self.connection).create(
+            "youtube-one", "PCB", "Link", mode="youtube_reply"
+        )
+        synced = VideoSyncResult("youtube-one", FetchResult([], 1), SyncSummary(0, 0, 0, 0))
+        with patch("wingman.youtube.watch.sync_videos", return_value=[synced]) as sync:
+            watch_comments(self.youtube, self.connection, now=self.now)
+            self.youtube.videos.return_value.list.return_value.execute.return_value = {
+                "items": [{"id": "youtube-one", "statistics": {"commentCount": "14"}}]
+            }
+            early = watch_comments(self.youtube, self.connection, now=self.now + timedelta(hours=2, minutes=50))
+            ready = watch_comments(self.youtube, self.connection, now=self.now + timedelta(hours=3))
+        self.assertEqual((early.videos_scanned, ready.videos_scanned), (0, 1))
+        self.assertEqual(sync.call_count, 2)
 
 
 if __name__ == "__main__":

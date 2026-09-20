@@ -72,7 +72,7 @@
     form.querySelector('[data-public-reply-help]').textContent = isInstagram
       ? 'One complete reply per line. Wingman rotates through them. Posted after the opening DM succeeds.'
       : isYouTube
-        ? 'One complete reply per line. Wingman rotates through them for future matching comments only.'
+        ? 'Write one complete reply. Line breaks are preserved; only future matching comments receive it.'
       : 'One complete reply per line. Wingman prepares the first match for your review.';
 
     for (const option of videoOptions) {
@@ -101,7 +101,7 @@
     form.querySelector('[data-preview-links]').textContent = [...form.querySelectorAll('.automation-link-row [name="link_label[]"]')]
       .map((input) => input.value.trim()).filter(Boolean).join(' · ');
     form.querySelector('[data-preview-prefill-text]').textContent = replies[0] || 'Wingman prepares a reply for your review.';
-    form.querySelector('[data-preview-youtube-text]').textContent = replies[0] || 'Wingman posts this reply to future matching comments.';
+    form.querySelector('[data-preview-youtube-text]').textContent = publicReply.value.trim() || 'Wingman posts this reply to future matching comments.';
   }
 
   form.addEventListener('input', refresh);

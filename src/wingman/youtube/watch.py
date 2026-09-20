@@ -15,6 +15,7 @@ from google.auth.exceptions import RefreshError, TransportError
 from googleapiclient.errors import HttpError
 
 from wingman.db.comment_store import connect_database
+from wingman.db.automation_repository import AutomationRepository
 from wingman.db.video_catalog import create_videos_table
 from wingman.youtube.automation import run_youtube_auto_replies
 from wingman.youtube.sync import api_error_message, get_authenticated_youtube_client, sync_videos
@@ -48,6 +49,17 @@ def enabled_youtube_video_ids(connection: sqlite3.Connection) -> list[str]:
     return [row[0] for row in connection.execute(
         "SELECT video_id FROM videos WHERE platform = 'youtube' AND is_enabled = 1 ORDER BY published_at DESC"
     )]
+
+
+def automated_youtube_video_ids(connection: sqlite3.Connection) -> set[str]:
+    """Videos with an enabled YouTube keyword rule, including legacy prefills."""
+    AutomationRepository(connection)
+    return {row[0] for row in connection.execute(
+        """SELECT DISTINCT a.video_id FROM automations a
+           JOIN videos v ON v.video_id = a.video_id
+           WHERE v.platform = 'youtube' AND a.is_enabled = 1
+             AND (a.mode IN ('prefill', 'youtube_reply') OR a.mode = '')"""
+    )}
 
 
 def fetch_video_comment_counts(
@@ -99,6 +111,7 @@ def watch_comments(
         return WatchSummary(0, 0, 0, 0, 0, 0)
     current_time = now or datetime.now(timezone.utc)
     counts, requests = fetch_video_comment_counts(youtube, video_ids)
+    automated_ids = automated_youtube_video_ids(connection)
     scanned = skipped = failed = new_comments = auto_sent = auto_failed = 0
     print(f"Checked comment counts for {len(video_ids)} YouTube videos in {requests} API request(s).")
     for video_id in video_ids:
@@ -117,16 +130,34 @@ def watch_comments(
             ) >= reconcile_after
         )
         changed = previous is None or previous["comment_count"] != count
-        if not (refresh or changed or overdue):
+        delta = count - previous["comment_count"] if previous and previous["comment_count"] is not None and count is not None else 0
+        hours_since_scan = (
+            current_time - datetime.fromisoformat(previous["full_scan_at"].replace("Z", "+00:00"))
+        ) if previous else timedelta.max
+        batch_ready = (
+            delta >= 5 or (delta >= 2 and hours_since_scan >= timedelta(hours=3))
+        )
+        should_scan = refresh or overdue or (
+            batch_ready if video_id in automated_ids else changed
+        )
+        if not should_scan:
             skipped += 1
-            print(f"{video_id}: count unchanged ({count}); skipping comment fetch.")
+            if video_id in automated_ids and delta > 0:
+                print(f"{video_id}: {delta} count increase(s) since last scan; waiting for batch threshold.")
+            else:
+                print(f"{video_id}: count unchanged ({count}); skipping comment fetch.")
             with connection:
                 connection.execute(
                     "UPDATE youtube_comment_watch SET count_checked_at = ? WHERE video_id = ?",
                     (current_time.isoformat(), video_id),
                 )
             continue
-        reason = "manual refresh" if refresh else "count changed" if changed else "reconciliation due"
+        reason = (
+            "manual refresh" if refresh else
+            "reconciliation due" if overdue else
+            "automation batch threshold reached" if video_id in automated_ids else
+            "count changed"
+        )
         print(f"{video_id}: {reason}; fetching comments...")
         result = sync_videos(youtube, [video_id], connection, refresh=True)[0]
         if result.error:
