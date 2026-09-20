@@ -1967,23 +1967,38 @@ input::placeholder {
   padding-top: 20px;
 }
 
-.automation-delete-form .automation-delete-button {
+.automation-edit-actions .button.primary,
+.automation-delete-form .button.primary {
+  font-size: 13px;
+  min-height: 48px;
+  width: min(100%, 250px);
+}
+
+.automation-edit-actions .button.primary {
+  background: var(--signal);
+  border: 2px solid var(--signal);
+  color: #fff;
+}
+
+.automation-edit-actions .button.primary:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+
+.automation-delete-form .button.primary.automation-delete-button {
   background: #a5282d;
   border: 2px solid #8f2025;
   color: #fff;
-  font-size: 15px;
   font-weight: 750;
-  min-height: 52px;
-  width: 100%;
 }
 
-.automation-delete-form .automation-delete-button:hover {
+.automation-delete-form .button.primary.automation-delete-button:hover {
   background: #861c21;
   border-color: #72171b;
   color: #fff;
 }
 
-.automation-delete-form .automation-delete-button:focus-visible {
+.automation-delete-form .button.primary.automation-delete-button:focus-visible {
   outline: 3px solid #a5282d;
   outline-offset: 3px;
 }

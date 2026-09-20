@@ -17,7 +17,7 @@ from googleapiclient.errors import HttpError
 from wingman.playground import PLAYGROUND_COMMENTS, get_playground_comment
 from wingman.ai.classification_prompt import PREVIOUS_CLASSIFICATION_PROMPT
 from wingman.ai.classification_service import ClassificationService, CommentClassification
-from wingman.db.comment_store import connect_database
+from wingman.db.comment_store import connect_database, sync_comments
 from wingman.db.automation_repository import AutomationRepository
 from wingman.youtube.sync import api_error_message, get_authenticated_youtube_client
 from wingman.db.inbox_repository import Comment, CommentRepository
@@ -35,6 +35,7 @@ from wingman.ai.reply_service import ReplyGenerationService
 from wingman.db.video_catalog import (
     append_video_response_guidance,
     list_stored_videos,
+    store_discovered_videos,
     update_video_summary,
 )
 from wingman.youtube.reply import post_comment_reply
@@ -44,7 +45,7 @@ from wingman.instagram.client import (
     post_comment_reply as post_instagram_comment_reply,
 )
 from wingman.instagram.sync import main as sync_instagram
-from wingman.instagram.sync import account_id_from_env
+from wingman.instagram.sync import account_id_from_env, comment_from_api, video_from_media
 from wingman.instagram.automation import run_automation, handle_opt_in, deliver_comment
 from wingman.jobs import JobManager, ProgressCallback
 from wingman.youtube.sync import main as sync_youtube
@@ -819,7 +820,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             abort(403)
         data = request.get_json(silent=True) or {}
         client = instagram_client()
-        account_id, _ = account_id_from_env(client)
+        account_id, creator_username = account_id_from_env(client)
         for entry in data.get("entry", []):
             app.logger.warning(
                 "Instagram webhook entry: %d comment changes, %d messaging events",
@@ -833,29 +834,65 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 media_id = str((value.get("media") or {}).get("id", ""))
                 if not comment_id or not media_id or value.get("parent_id"):
                     continue
+                try:
+                    full = client.get(
+                        comment_id,
+                        fields="id,text,timestamp,parent_id,from,username,like_count",
+                    )
+                except InstagramAPIError:
+                    app.logger.exception("Could not load Instagram comment %s", comment_id)
+                    return jsonify({"ok": False, "error": "Comment fetch failed"}), 503
+                if full.get("parent_id"):
+                    continue
+                author = full.get("from") or value.get("from") or {}
+                full["from"] = author
+                full["username"] = full.get("username") or value.get("username")
+                author_id = str(author.get("id") or "") if isinstance(author, dict) else ""
+                author_username = str(
+                    (author.get("username") if isinstance(author, dict) else "")
+                    or full.get("username") or ""
+                )
+                if author_id == account_id or (
+                    creator_username and author_username.casefold().lstrip("@")
+                    == creator_username.casefold().lstrip("@")
+                ):
+                    continue
                 matching_rules = [
                     rule for rule in automation_repository().list_all()
                     if rule.video_id == media_id and rule.mode == "instagram_dm"
                     and rule.is_enabled and automation_repository().match_delivery(
-                        rule, str(value.get("text", ""))
+                        rule, str(full.get("text", ""))
                     )
                 ]
+                if not repository().connection.execute(
+                    "SELECT 1 FROM videos WHERE video_id = ?", (media_id,)
+                ).fetchone():
+                    try:
+                        media = client.get(
+                            media_id,
+                            fields="id,caption,timestamp,thumbnail_url,media_url,permalink",
+                        )
+                        store_discovered_videos(repository().connection, [video_from_media(media)])
+                    except InstagramAPIError:
+                        app.logger.warning("Could not load Instagram media %s; using its ID as title", media_id)
+                sync_comments(repository().connection, [comment_from_api(full, media_id)])
                 if not matching_rules:
+                    app.logger.info("Instagram comment %s added to inbox", comment_id)
                     continue
-                if automation_repository().delivery(comment_id):
-                    continue
-                try:
-                    full = client.get(comment_id, fields="id,text,timestamp,parent_id")
-                except InstagramAPIError:
-                    app.logger.exception("Could not load Instagram comment %s", comment_id)
-                    continue
-                if full.get("parent_id"):
+                existing_delivery = automation_repository().delivery(comment_id)
+                if existing_delivery:
+                    if existing_delivery["status"] in {"awaiting_opt_in", "completed"}:
+                        repository().connection.execute(
+                            "UPDATE comments SET is_ignored = 1 WHERE comment_id = ?",
+                            (comment_id,),
+                        )
+                        repository().connection.commit()
                     continue
                 comment = {
                     "comment_id": comment_id,
                     "text": str(full.get("text", "")),
                     "published_at": str(full.get("timestamp", "")),
-                    "author_channel_id": str((value.get("from") or {}).get("id", "")),
+                    "author_channel_id": author_id,
                 }
                 for rule in matching_rules:
                     outcome = deliver_comment(
@@ -865,6 +902,12 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                         "Instagram automation %s comment %s: %s",
                         rule.automation_id, comment_id, outcome,
                     )
+                    if outcome == "sent":
+                        repository().connection.execute(
+                            "UPDATE comments SET is_ignored = 1 WHERE comment_id = ?",
+                            (comment_id,),
+                        )
+                        repository().connection.commit()
                     if outcome != "skipped":
                         break
             for event in entry.get("messaging", []):

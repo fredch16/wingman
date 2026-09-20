@@ -111,6 +111,10 @@ Meta's seven-day private-reply window are considered. Once the signed webhook is
 configured and subscribed to **comments**, new matching top-level comments
 start this flow automatically. The webhook currently runs in the Flask request;
 a persistent background worker is not included yet.
+Other new top-level Instagram comments are saved directly to the inbox by the
+webhook. Successfully automated comments are hidden from the active inbox;
+failed deliveries remain available for manual attention. A repeated webhook
+event updates the same comment instead of creating a duplicate.
 
 To enable the button follow-up, set `INSTAGRAM_APP_SECRET` (from Instagram's
 API setup with Instagram login, not the parent Meta app settings) and

@@ -144,4 +144,9 @@ def handle_opt_in(
         return True
     except Exception as error:
         repo.update_delivery(comment_id, "followup_failed", error=str(error))
+        with repo.connection:
+            repo.connection.execute(
+                "UPDATE comments SET is_ignored = 0 WHERE comment_id = ?",
+                (comment_id,),
+            )
         return False
