@@ -10,6 +10,8 @@
   const publicReply = form.elements.namedItem('default_reply');
   const keywords = form.elements.namedItem('keywords');
   const exactMatch = form.elements.namedItem('match_type');
+  const buttonLabel = form.elements.namedItem('opt_in_button_label');
+  const followupLinks = form.elements.namedItem('followup_links');
 
   function refresh() {
     const mode = form.querySelector('input[name="mode"]:checked')?.value || 'prefill';
@@ -45,6 +47,9 @@
     form.querySelector('[data-preview-initial]').textContent = initialDm.value.trim() || 'Ask if they want the resource.';
     form.querySelector('[data-preview-public]').textContent = publicReply.value.trim() || 'Acknowledge the comment after the DM succeeds.';
     form.querySelector('[data-preview-followup]').textContent = followupDm.value.trim() || 'Send the resource link.';
+    form.querySelector('[data-preview-button-label]').textContent = buttonLabel.value.trim() || 'Yes please';
+    form.querySelector('[data-preview-links]').textContent = followupLinks.value.split('\n')
+      .map((line) => line.split('|')[0].trim()).filter(Boolean).join(' · ');
     form.querySelector('[data-preview-prefill-text]').textContent = publicReply.value.trim() || 'Wingman prepares a reply for your review.';
   }
 

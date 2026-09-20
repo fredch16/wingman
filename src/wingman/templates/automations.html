@@ -52,8 +52,10 @@
               <legend><span class="automation-section-number">4</span> What should it say?</legend>
               <label><span data-public-reply-label>Public comment reply</span><textarea name="default_reply" rows="3" required placeholder="Thanks for commenting! Check your DMs for a quick question."></textarea><small data-public-reply-help>Posted only after Instagram accepts the opening DM. Do not say the resource has already been sent.</small></label>
               <div data-instagram-only>
-                <label><span>Opening DM</span><textarea name="initial_dm" rows="3" placeholder="Hi! Got your comment. Would you like the guide?"></textarea><small>The “Yes please” button appears inside this message.</small></label>
-                <label><span>Follow-up after “Yes please”</span><textarea name="followup_dm" rows="3" placeholder="Here is the guide: https://…"></textarea><small>Put the actual resource or link here.</small></label>
+                <label><span>Opening DM</span><textarea name="initial_dm" rows="4" placeholder="Hey, I got your comment 👋&#10;&#10;Would you like to try out siliXon PRO for FREE for 1 month?"></textarea><small>The opt-in button appears inside this message.</small></label>
+                <label><span>Opt-in button label</span><input name="opt_in_button_label" value="Yes please" maxlength="20" required><small>Shown beneath the opening DM.</small></label>
+                <label><span>Follow-up DM</span><textarea name="followup_dm" rows="3" placeholder="Amazing! Here you go, happy building!"></textarea><small>Sent only after someone taps the opt-in button.</small></label>
+                <label><span>Follow-up link buttons</span><textarea name="followup_links" rows="3" placeholder="siliXon PRO | https://app.silixon.io/..."></textarea><small>One “Button label | https://link” per line, up to three links. Leave blank to send a plain-text follow-up.</small></label>
                 <details class="automation-optional-fields"><summary>Optional public reply variations</summary><label><span>More public replies</span><textarea name="public_reply_variants" rows="3" placeholder="One alternative per line"></textarea><small>Wingman rotates through these and the main public reply.</small></label></details>
               </div>
             </fieldset>
@@ -61,7 +63,7 @@
           </div>
           <aside class="automation-preview" aria-label="Workflow preview">
             <span class="eyebrow">Live preview</span><h3 data-preview-title>Choose a post</h3><p data-preview-trigger>A matching comment starts the workflow.</p>
-            <ol data-preview-instagram><li><span>01 · Opening DM</span><p data-preview-initial>Ask if they want the resource.</p></li><li><span>02 · Public reply</span><p data-preview-public>Acknowledge the comment after the DM succeeds.</p></li><li><span>03 · They tap Yes please</span><p data-preview-followup>Send the resource link.</p></li></ol>
+            <ol data-preview-instagram><li><span>01 · Opening DM</span><p data-preview-initial>Ask if they want the resource.</p><small data-preview-button-label>Yes please</small></li><li><span>02 · Public reply</span><p data-preview-public>Acknowledge the comment after the DM succeeds.</p></li><li><span>03 · Follow-up DM</span><p data-preview-followup>Send the resource link.</p><small data-preview-links></small></li></ol>
             <ol data-preview-prefill hidden><li><span>Inbox prefill</span><p data-preview-prefill-text>Wingman prepares a reply for your review.</p></li></ol>
             <small>No messages are sent when you create a rule. Future matching Instagram comments trigger enabled DM rules automatically.</small>
           </aside>
@@ -85,7 +87,9 @@
                 <label><span>Public reply / inbox prefill</span><textarea name="default_reply" rows="3" required>{{ automation.default_reply }}</textarea></label>
                 <label><span>More public replies, one per line</span><textarea name="public_reply_variants" rows="3">{{ automation.public_reply_variants|join('\n') }}</textarea></label>
                 <label><span>Opening DM</span><textarea name="initial_dm" rows="3">{{ automation.initial_dm }}</textarea></label>
-                <label><span>Follow-up with resource</span><textarea name="followup_dm" rows="3">{{ automation.followup_dm }}</textarea></label>
+                <label><span>Opt-in button label</span><input name="opt_in_button_label" value="{{ automation.opt_in_button_label }}" maxlength="20" required></label>
+                <label><span>Follow-up message</span><textarea name="followup_dm" rows="3">{{ automation.followup_dm }}</textarea></label>
+                <label><span>Follow-up link buttons</span><textarea name="followup_links" rows="3" placeholder="Button label | https://link&#10;Second link | https://link">{% for label, url in automation.followup_links %}{{ label }} | {{ url }}{% if not loop.last %}&#10;{% endif %}{% endfor %}</textarea><small>One labeled HTTPS URL per line, up to three.</small></label>
                 <div class="automation-edit-actions"><button class="button primary" type="submit">Save changes</button></div>
               </form>
               <form class="automation-delete-form" method="post" action="{{ url_for('delete_automation', automation_id=automation.automation_id) }}" data-confirm-delete><button class="button quiet danger" type="submit">Delete automation</button></form>

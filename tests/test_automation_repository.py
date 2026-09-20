@@ -87,6 +87,26 @@ class AutomationRepositoryTests(unittest.TestCase):
         self.assertTrue(self.repository.delete(automation_id))
         self.assertEqual(self.repository.list_all(), [])
 
+    def test_migrates_existing_automations_without_losing_rule(self) -> None:
+        connection = sqlite3.connect(":memory:")
+        connection.row_factory = sqlite3.Row
+        store_discovered_videos(connection, [Video("older", "Older Reel", "2026-09-01T00:00:00Z", "", platform="instagram")])
+        connection.execute("""CREATE TABLE automations (
+            automation_id INTEGER PRIMARY KEY, video_id TEXT, keywords TEXT,
+            default_reply TEXT, is_enabled INTEGER, created_at TEXT, updated_at TEXT,
+            mode TEXT, initial_dm TEXT, followup_dm TEXT, match_type TEXT,
+            public_reply_variants TEXT)""")
+        connection.execute("""INSERT INTO automations VALUES
+            (1, 'older', '[\"pcb\"]', 'Check DMs', 1, '2026-09-01', '2026-09-01',
+             'instagram_dm', 'Want it?', 'Here it is', 'contains', '')""")
+        try:
+            rule = AutomationRepository(connection).get(1)
+            self.assertEqual(rule.opt_in_button_label, "Yes please")
+            self.assertEqual(rule.followup_links, ())
+            self.assertEqual(rule.default_reply, "Check DMs")
+        finally:
+            connection.close()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -713,6 +713,8 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 followup_dm=request.form.get("followup_dm", ""),
                 match_type=request.form.get("match_type", "contains"),
                 public_reply_variants=request.form.get("public_reply_variants", ""),
+                opt_in_button_label=request.form.get("opt_in_button_label", "Yes please"),
+                followup_links=request.form.get("followup_links", ""),
             )
             app.extensions["automation_error"] = None
         except ValueError as error:
@@ -731,6 +733,8 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 followup_dm=request.form.get("followup_dm", ""),
                 match_type=request.form.get("match_type", "contains"),
                 public_reply_variants=request.form.get("public_reply_variants", ""),
+                opt_in_button_label=request.form.get("opt_in_button_label", "Yes please"),
+                followup_links=request.form.get("followup_links", ""),
             )
             if not updated:
                 abort(404)
