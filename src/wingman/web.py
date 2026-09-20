@@ -731,6 +731,9 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         """Use the unified editor, while accepting legacy form submissions."""
         if "reply_options" not in request.form:
             return request.form.get("default_reply", ""), request.form.get("public_reply_variants", "")
+        if request.form.get("mode") == "youtube_reply":
+            # Existing YouTube prefills contain intentional multi-line replies.
+            return request.form["reply_options"].strip(), ""
         replies = [line.strip() for line in request.form["reply_options"].splitlines() if line.strip()]
         return (replies[0], "\n".join(replies[1:])) if replies else ("", "")
 

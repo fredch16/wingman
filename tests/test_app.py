@@ -536,6 +536,24 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn(b"YouTube auto-reply", created.data)
         self.assertEqual(self.reply_calls, [])
 
+    def test_youtube_auto_reply_preserves_multiline_message(self) -> None:
+        message = "Here is the guide:\nhttps://example.com/pcb\n\nHappy building!"
+        self.client.post(
+            "/automations",
+            data={
+                "video_id": "abcdefghijk", "mode": "youtube_reply",
+                "keywords": "PCB", "reply_options": message,
+            },
+        )
+        connection = connect_database(self.database_path)
+        try:
+            from wingman.db.automation_repository import AutomationRepository
+            rule = AutomationRepository(connection).list_all()[0]
+            self.assertEqual(rule.default_reply, message)
+            self.assertEqual(rule.public_reply_variants, ())
+        finally:
+            connection.close()
+
     def test_automation_builder_shows_workflow_and_video_picker(self) -> None:
         response = self.client.get("/automations")
 

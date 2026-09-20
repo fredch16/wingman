@@ -8,7 +8,7 @@
 </span>
 {%- endmacro %}
 {% block content %}
-  <script src="{{ url_for('static', filename='automations.js', v='20260920-2') }}" defer></script>
+  <script src="{{ url_for('static', filename='automations.js', v='20260920-3') }}" defer></script>
   <div class="automations-page">
     <header class="page-heading automation-heading">
       <div><span class="eyebrow">Your workflows</span><h1>Automations</h1><p>Choose a post, decide what counts as a match, then write what Wingman should send.</p></div>
@@ -93,7 +93,7 @@
                 <label><span>Workflow</span><select name="mode"><option value="prefill" {% if automation.mode == 'prefill' %}selected{% endif %}>Inbox prefill</option>{% if automation.platform == 'instagram' %}<option value="instagram_dm" {% if automation.mode == 'instagram_dm' %}selected{% endif %}>AutoDM</option>{% else %}<option value="youtube_reply" {% if automation.mode == 'youtube_reply' %}selected{% endif %}>YouTube auto-reply</option>{% endif %}</select></label>
                 <label><span>Match style</span><select name="match_type"><option value="contains" {% if automation.match_type != 'exact' %}selected{% endif %}>Contains keyword</option><option value="exact" {% if automation.match_type == 'exact' %}selected{% endif %}>Whole comment, exact case</option></select></label>
                 <label><span>Keywords</span><input name="keywords" value="{{ automation.keywords|join(', ') }}" required></label>
-                <label class="automation-replies-field"><span data-public-reply-label>{{ 'Public comment replies' if automation.mode in ['instagram_dm', 'youtube_reply'] else 'Inbox replies to prefill' }}</span><textarea name="reply_options" rows="5" required>{{ automation.default_reply }}{% for reply in automation.public_reply_variants %}{{ '\n' }}{{ reply }}{% endfor %}</textarea><small>One complete reply per line. Wingman rotates through them for automatic replies.</small></label>
+                <label class="automation-replies-field"><span data-public-reply-label>{{ 'Public comment replies' if automation.mode in ['instagram_dm', 'youtube_reply'] else 'Inbox replies to prefill' }}</span><textarea name="reply_options" rows="5" required>{{ automation.default_reply }}{% for reply in automation.public_reply_variants %}{{ '\n' }}{{ reply }}{% endfor %}</textarea><small>{{ 'One reply; line breaks are preserved.' if automation.mode == 'youtube_reply' else 'One complete reply per line. Wingman rotates through them for AutoDM.' }}</small></label>
                 <div class="automation-edit-dm-fields" data-instagram-only>
                   <label><span>Opening DM</span><textarea name="initial_dm" rows="3">{{ automation.initial_dm }}</textarea></label>
                   <label><span>Opt-in button label</span><input name="opt_in_button_label" value="{{ automation.opt_in_button_label }}" maxlength="20"></label>
