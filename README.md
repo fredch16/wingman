@@ -108,6 +108,15 @@ threads that already have replies, and shows failures in Automations activity.
 Failed or interrupted sends are never automatically retried because the
 platform might already have accepted the post.
 
+The **Analytics** page in the sidebar summarizes recorded automation attempts
+across both platforms and videos. A trigger is counted once per unique comment
+ID, so repeated syncs cannot inflate the total. Public replies, completed
+Instagram follow-up DMs, and current failures are shown separately. Historical
+deliveries remain in the totals even if their automation rule is deleted;
+manual replies and activity before Wingman began recording deliveries are not
+included. These figures are calculated from the delivery records rather than
+stored as a separate counter.
+
 ### Instagram DM opt-in
 
 Create an **AutoDM** rule for one stored Instagram Reel or post. Enter
