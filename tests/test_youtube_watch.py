@@ -9,6 +9,7 @@ from wingman.db.comment_store import SyncSummary
 from wingman.db.video_catalog import Video, store_discovered_videos
 from wingman.youtube.sync import FetchResult, VideoSyncResult
 from wingman.youtube.watch import fetch_video_comment_counts, watch_comments
+from wingman.youtube.automation import AutoReplySummary
 
 
 class YouTubeWatchTests(unittest.TestCase):
@@ -78,6 +79,17 @@ class YouTubeWatchTests(unittest.TestCase):
         counts, requests = fetch_video_comment_counts(self.youtube, ids)
         self.assertEqual((len(counts), requests), (51, 2))
         self.assertEqual(self.youtube.videos.return_value.list.call_count, 2)
+
+    def test_automation_runs_after_successful_scan_not_skipped_check(self) -> None:
+        synced = VideoSyncResult("youtube-one", FetchResult([], 1), SyncSummary(0, 0, 0, 0))
+        with patch("wingman.youtube.watch.sync_videos", return_value=[synced]), patch(
+            "wingman.youtube.watch.run_youtube_auto_replies",
+            return_value=AutoReplySummary(matched=1, sent=1),
+        ) as automate:
+            first = watch_comments(self.youtube, self.connection, now=self.now)
+            watch_comments(self.youtube, self.connection, now=self.now + timedelta(minutes=10))
+        self.assertEqual(first.auto_replies_sent, 1)
+        self.assertEqual(automate.call_count, 1)
 
 
 if __name__ == "__main__":

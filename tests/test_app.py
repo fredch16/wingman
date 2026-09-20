@@ -519,6 +519,23 @@ class InboxRouteTests(unittest.TestCase):
             ),
         )
 
+    def test_youtube_auto_reply_rule_is_explicitly_selected(self) -> None:
+        page = self.client.get("/automations")
+        self.assertIn(b'value="youtube_reply"', page.data)
+        created = self.client.post(
+            "/automations",
+            data={
+                "video_id": "abcdefghijk",
+                "mode": "youtube_reply",
+                "keywords": "PCB",
+                "reply_options": "Here is the guide: https://example.com/pcb",
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(created.status_code, 200)
+        self.assertIn(b"YouTube auto-reply", created.data)
+        self.assertEqual(self.reply_calls, [])
+
     def test_automation_builder_shows_workflow_and_video_picker(self) -> None:
         response = self.client.get("/automations")
 

@@ -93,6 +93,16 @@ response remains fully editable and is never posted automatically; review it,
 then use `Ctrl+Enter` or the platform post button. Automations can be edited,
 paused, enabled, or deleted from the same page.
 
+For YouTube, choose **YouTube auto-reply** instead of Inbox prefill to post a
+configured public reply when a future comment on the selected video matches a
+keyword. This mode is opt-in per video; comments from before the rule was
+created, edited, or re-enabled are not sent. It runs after the count-gated polling scan, so replies
+arrive on the next changed-count check (or daily reconciliation), not instantly.
+Wingman records each attempt to prevent duplicates, skips creator comments and
+threads that already have replies, and shows failures in Automations activity.
+Failed or interrupted sends are never automatically retried because the
+platform might already have accepted the post.
+
 ### Instagram DM opt-in
 
 Create an **AutoDM** rule for one stored Instagram Reel or post. Enter
