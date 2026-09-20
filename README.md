@@ -348,8 +348,18 @@ This checks the comment counts of enabled **YouTube** videos in batches of up
 to 50, fetching comments only when a count changes or the 24-hour safety scan
 is due. The first run scans each enabled YouTube video to establish a baseline.
 Use `--refresh` for an immediate full scan, or `--reconcile-hours N` to adjust
-the safety interval. The command is one-shot and safe to schedule later. It
-updates the inbox and existing review-first keyword prefills; it **does not
+the safety interval. The command is one-shot. On the Pi, the optional
+`deploy/wingman-youtube-watch.timer` runs it roughly every ten minutes. Install
+and enable the timer with:
+
+```bash
+sudo cp deploy/wingman-youtube-watch.service deploy/wingman-youtube-watch.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now wingman-youtube-watch.timer
+systemctl list-timers wingman-youtube-watch.timer
+```
+
+The check updates the inbox and existing review-first keyword prefills; it **does not
 automatically post YouTube replies**. Counts are a cheap signal, not proof that
 no comments changed: deletions or new replies can affect the total, so the
 periodic reconciliation remains important.

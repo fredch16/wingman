@@ -1,0 +1,11 @@
+[Unit]
+Description=Check YouTube comments every ten minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=10min
+AccuracySec=1min
+Unit=wingman-youtube-watch.service
+
+[Install]
+WantedBy=timers.target
