@@ -1,0 +1,11 @@
+[Unit]
+Description=Wingman count-gated YouTube comment check
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=fred
+WorkingDirectory=/home/fred/wingman-hackathon
+ExecStart=/home/fred/wingman-hackathon/.venv/bin/python -m wingman.youtube.watch
+TimeoutStartSec=300
