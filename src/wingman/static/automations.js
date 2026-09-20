@@ -15,6 +15,7 @@
   function refreshMode(targetForm) {
     const mode = targetForm.querySelector('input[name="mode"]:checked, select[name="mode"]')?.value || 'prefill';
     const isInstagram = mode === 'instagram_dm';
+    const isYouTube = mode === 'youtube_reply';
     const dmFields = targetForm.querySelector('[data-instagram-only]');
     if (dmFields) dmFields.hidden = !isInstagram;
     for (const name of ['initial_dm', 'followup_dm', 'opt_in_button_label']) {
@@ -22,7 +23,7 @@
       if (input) input.required = isInstagram;
     }
     const title = targetForm.querySelector('[data-public-reply-label]');
-    if (title) title.textContent = isInstagram ? 'Public comment replies' : 'Inbox replies to prefill';
+    if (title) title.textContent = isInstagram || isYouTube ? 'Public comment replies' : 'Inbox replies to prefill';
     const links = targetForm.querySelector('[data-link-editor]');
     if (links) refreshLinkEditor(links);
     return isInstagram;
@@ -63,16 +64,19 @@
 
   function refresh() {
     const isInstagram = refreshMode(form);
+    const isYouTube = form.querySelector('input[name="mode"]:checked')?.value === 'youtube_reply';
     const query = search.value.trim().toLocaleLowerCase();
     let visibleVideos = 0;
 
     instagramFields.hidden = !isInstagram;
     form.querySelector('[data-public-reply-help]').textContent = isInstagram
       ? 'One complete reply per line. Wingman rotates through them. Posted after the opening DM succeeds.'
+      : isYouTube
+        ? 'One complete reply per line. Wingman rotates through them for future matching comments only.'
       : 'One complete reply per line. Wingman prepares the first match for your review.';
 
     for (const option of videoOptions) {
-      const visible = (!isInstagram || option.dataset.platform === 'instagram')
+      const visible = (isInstagram ? option.dataset.platform === 'instagram' : isYouTube ? option.dataset.platform === 'youtube' : true)
         && (`${option.dataset.title} ${option.dataset.platform}`).toLocaleLowerCase().includes(query);
       option.hidden = !visible;
       if (!visible) option.querySelector('input').checked = false;
@@ -87,7 +91,8 @@
       ? `When a comment ${exactMatch.value === 'exact' ? 'matches exactly' : 'contains'}: ${words.join(' · ')}`
       : 'A matching comment starts the workflow.';
     form.querySelector('[data-preview-instagram]').hidden = !isInstagram;
-    form.querySelector('[data-preview-prefill]').hidden = isInstagram;
+    form.querySelector('[data-preview-prefill]').hidden = isInstagram || isYouTube;
+    form.querySelector('[data-preview-youtube]').hidden = !isYouTube;
     form.querySelector('[data-preview-initial]').textContent = initialDm.value.trim() || 'Ask if they want the resource.';
     const replies = publicReply.value.split('\n').map((reply) => reply.trim()).filter(Boolean);
     form.querySelector('[data-preview-public]').textContent = replies[0] || 'Acknowledge the comment after the DM succeeds.';
@@ -96,6 +101,7 @@
     form.querySelector('[data-preview-links]').textContent = [...form.querySelectorAll('.automation-link-row [name="link_label[]"]')]
       .map((input) => input.value.trim()).filter(Boolean).join(' · ');
     form.querySelector('[data-preview-prefill-text]').textContent = replies[0] || 'Wingman prepares a reply for your review.';
+    form.querySelector('[data-preview-youtube-text]').textContent = replies[0] || 'Wingman posts this reply to future matching comments.';
   }
 
   form.addEventListener('input', refresh);

@@ -16,6 +16,7 @@ from googleapiclient.errors import HttpError
 
 from wingman.db.comment_store import connect_database
 from wingman.db.video_catalog import create_videos_table
+from wingman.youtube.automation import run_youtube_auto_replies
 from wingman.youtube.sync import api_error_message, get_authenticated_youtube_client, sync_videos
 
 
@@ -27,6 +28,8 @@ class WatchSummary:
     videos_failed: int
     new_comments: int
     count_requests: int
+    auto_replies_sent: int = 0
+    auto_replies_failed: int = 0
 
 
 def create_watch_table(connection: sqlite3.Connection) -> None:
@@ -96,7 +99,7 @@ def watch_comments(
         return WatchSummary(0, 0, 0, 0, 0, 0)
     current_time = now or datetime.now(timezone.utc)
     counts, requests = fetch_video_comment_counts(youtube, video_ids)
-    scanned = skipped = failed = new_comments = 0
+    scanned = skipped = failed = new_comments = auto_sent = auto_failed = 0
     print(f"Checked comment counts for {len(video_ids)} YouTube videos in {requests} API request(s).")
     for video_id in video_ids:
         if video_id not in counts:
@@ -145,8 +148,19 @@ def watch_comments(
             f"{video_id}: {result.sync_summary.newly_inserted} new comment(s), "
             f"{result.fetch_result.pages_fetched} page(s)."
         )
+        auto = run_youtube_auto_replies(youtube, connection, result.fetch_result.comments)
+        auto_sent += auto.sent
+        auto_failed += auto.failed
+        if auto.matched:
+            print(
+                f"{video_id}: {auto.matched} rule match(es), {auto.sent} auto-replies sent, "
+                f"{auto.skipped} skipped, {auto.failed} failed."
+            )
         save_full_scan_checkpoint(connection, video_id, count, current_time.isoformat())
-    return WatchSummary(len(video_ids), scanned, skipped, failed, new_comments, requests)
+    return WatchSummary(
+        len(video_ids), scanned, skipped, failed, new_comments, requests,
+        auto_sent, auto_failed,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -176,9 +190,10 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"Done: {summary.videos_checked} checked, {summary.videos_scanned} scanned, "
         f"{summary.videos_skipped} unchanged, {summary.videos_failed} failed, "
-        f"{summary.new_comments} new comments."
+        f"{summary.new_comments} new comments, {summary.auto_replies_sent} auto-replies sent, "
+        f"{summary.auto_replies_failed} auto-replies failed."
     )
-    return 1 if summary.videos_failed else 0
+    return 1 if summary.videos_failed or summary.auto_replies_failed else 0
 
 
 if __name__ == "__main__":

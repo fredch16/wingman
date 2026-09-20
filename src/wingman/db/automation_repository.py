@@ -283,7 +283,7 @@ class AutomationRepository:
         return next((item for item in self.list_all() if item.automation_id == automation_id), None)
 
     def match_delivery(self, automation: Automation, comment_text: str) -> str | None:
-        if automation.mode != "instagram_dm" or not automation.is_enabled:
+        if automation.mode not in {"instagram_dm", "youtube_reply"} or not automation.is_enabled:
             return None
         if automation.match_type == "exact":
             return next((word for word in automation.keywords if word == comment_text.strip()), None)
@@ -330,7 +330,7 @@ class AutomationRepository:
         ).fetchone()[0])
 
     def _validate_delivery(self, mode: str, initial_dm: str, followup_dm: str, video_id: str, match_type: str) -> None:
-        if mode not in {"prefill", "instagram_dm"}:
+        if mode not in {"prefill", "instagram_dm", "youtube_reply"}:
             raise ValueError("Unknown automation mode.")
         if match_type not in {"contains", "exact"}:
             raise ValueError("Unknown matching type.")
@@ -340,6 +340,10 @@ class AutomationRepository:
                 raise ValueError("DM automation requires an Instagram post or Reel.")
             if not initial_dm.strip() or not followup_dm.strip():
                 raise ValueError("Add both the opening DM and the follow-up message.")
+        if mode == "youtube_reply":
+            platform = self.connection.execute("SELECT platform FROM videos WHERE video_id = ?", (video_id,)).fetchone()
+            if not platform or platform["platform"] != "youtube":
+                raise ValueError("YouTube auto-reply requires a YouTube video.")
 
     def _video_exists(self, video_id: str) -> bool:
         return (
