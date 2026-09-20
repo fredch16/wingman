@@ -20,7 +20,7 @@ class WebhookRequestHandler(WSGIRequestHandler):
 
 
 def webhook_only_app() -> Callable:
-    flask_app = create_app()
+    flask_app = create_app({"START_REPLY_WORKER": False})
 
     def application(environ, start_response):
         if environ.get("PATH_INFO") != "/webhooks/instagram":

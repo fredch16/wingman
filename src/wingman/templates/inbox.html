@@ -47,6 +47,10 @@
         <p class="dry-run-banner">Dry run · classifications reset on restart</p>
       {% endif %}
 
+      {% for failure in failed_replies %}
+        <p class="form-error">Reply to {{ failure.comment_id }} failed: {{ failure.error }}. Check the platform before retrying.</p>
+      {% endfor %}
+
       {% if all_comments %}
         <div class="conversation-list" role="list">
           {% for comment in all_comments %}

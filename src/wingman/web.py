@@ -48,6 +48,7 @@ from wingman.instagram.sync import main as sync_instagram
 from wingman.instagram.sync import account_id_from_env, comment_from_api, video_from_media
 from wingman.instagram.automation import run_automation, handle_opt_in, deliver_comment
 from wingman.jobs import JobManager, ProgressCallback
+from wingman.reply_queue import ReplyQueue
 from wingman.youtube.sync import main as sync_youtube
 
 BULK_REPLY_PRIORITY_THRESHOLD = 0.2
@@ -112,6 +113,27 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     app.extensions["automation_error"] = None
     app.extensions["automation_message"] = None
     app.extensions["job_manager"] = JobManager()
+
+    def send_queued_reply(platform: str, comment_id: str, reply_text: str):
+        if platform == "instagram":
+            return instagram_reply_service()(
+                instagram_client(), comment_id, reply_text
+            )
+        youtube = (
+            app.config["YOUTUBE_CLIENT"]
+            if app.config.get("YOUTUBE_CLIENT") is not None
+            else get_authenticated_youtube_client()
+        )
+        return youtube_reply_service()(youtube, comment_id, reply_text)
+
+    app.extensions["reply_queue"] = ReplyQueue(
+        app.config["DATABASE"], send_queued_reply
+    )
+    if app.config.get("START_REPLY_WORKER", True) and (
+        not app.config.get("TESTING") or app.config.get("ASYNC_POSTS")
+    ):
+        app.extensions["reply_queue"].mark_interrupted()
+        app.extensions["reply_queue"].start()
 
     def classification_service() -> ClassificationService:
         if "classification_service" not in app.extensions:
@@ -224,6 +246,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             "inbox.html",
             comments=comments,
             unclassified_comments=unclassified_comments,
+            failed_replies=app.extensions["reply_queue"].failed(),
             view=view,
             classification_errors=app.extensions[
                 "production_classification_errors"
@@ -411,10 +434,12 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         if comment is None:
             abort(404)
         comment = with_automation(comment)
+        queued_status = app.extensions["reply_queue"].status(comment_id)
         return render_template(
             "comment_detail.html",
             comment=comment,
-            reply_error=app.extensions["reply_errors"].get(comment_id),
+            reply_error=(queued_status or {}).get("error")
+            or app.extensions["reply_errors"].get(comment_id),
             reply_draft=app.extensions["reply_drafts"].get(
                 comment_id, comment.draft_reply or ""
             ),
@@ -979,6 +1004,14 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             app.extensions["reply_drafts"][comment_id] = reply_text
             return redirect(url_for("comment_detail", comment_id=comment_id))
 
+        if not app.config.get("TESTING") or app.config.get("ASYNC_POSTS"):
+            queue: ReplyQueue = app.extensions["reply_queue"]
+            if not queue.enqueue(comment_id, comment.platform, reply_text):
+                abort(409, description="This reply is already queued or posted.")
+            if request.accept_mimetypes.best == "application/json":
+                return jsonify({"status": "queued", "comment_id": comment_id}), 202
+            return redirect(url_for("comment_detail", comment_id=comment_id))
+
         try:
             if comment.platform == "instagram":
                 posted = instagram_reply_service()(
@@ -1017,6 +1050,15 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             app.extensions["reply_errors"].pop(comment_id, None)
             app.extensions["reply_drafts"].pop(comment_id, None)
         return redirect(url_for("comment_detail", comment_id=comment_id))
+
+    @app.get("/comments/<comment_id>/reply-status")
+    def reply_status(comment_id: str):
+        if repository().get_comment(comment_id) is None:
+            abort(404)
+        status = app.extensions["reply_queue"].status(comment_id)
+        if status is None:
+            abort(404)
+        return jsonify(status)
 
     @app.get("/classification-playground")
     def classification_playground() -> str:
