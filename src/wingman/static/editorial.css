@@ -1468,3 +1468,398 @@ input::placeholder {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Automation setup: keep the workflow readable before exposing its details. */
+.automation-builder {
+  display: block;
+}
+
+.automation-builder-copy h2,
+.automation-list-heading h2 {
+  font-size: 22px;
+}
+
+.automation-builder-copy p,
+.automation-heading p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.automation-setup-grid {
+  display: grid;
+  gap: 30px;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  margin-top: 24px;
+}
+
+.automation-setup-main {
+  display: grid;
+  gap: 25px;
+  min-width: 0;
+}
+
+.automation-setup-main fieldset {
+  border: 0;
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.automation-setup-main legend {
+  color: var(--foreground);
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 14px;
+  width: 100%;
+}
+
+.automation-section-number {
+  align-items: center;
+  background: var(--charcoal);
+  border-radius: 50%;
+  color: var(--paper-on-dark);
+  display: inline-flex;
+  font-size: 11px;
+  height: 25px;
+  justify-content: center;
+  margin-right: 9px;
+  width: 25px;
+}
+
+.automation-workflow-options {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.automation-workflow-options label {
+  cursor: pointer;
+  display: block;
+  position: relative;
+}
+
+.automation-workflow-options input {
+  opacity: 0;
+  position: absolute;
+}
+
+.automation-workflow-options label > span {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 5px;
+  min-height: 102px;
+  padding: 16px;
+}
+
+.automation-workflow-options strong {
+  color: var(--foreground);
+  font-size: 15px;
+}
+
+.automation-workflow-options small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.automation-workflow-options input:checked + span {
+  background: var(--accent-wash);
+  border-color: var(--signal);
+}
+
+.automation-workflow-options input:focus-visible + span,
+.video-option input:focus-visible + .video-option-card {
+  outline: 3px solid var(--signal);
+  outline-offset: 2px;
+}
+
+.automation-search-label,
+.automation-trigger-fields label > span,
+.automation-message-fields label > span,
+.automation-edit-form label > span {
+  color: var(--foreground);
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 7px;
+}
+
+.automation-video-search,
+.automation-trigger-fields input,
+.automation-trigger-fields select,
+.automation-message-fields textarea,
+.automation-edit-form input,
+.automation-edit-form select,
+.automation-edit-form textarea {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 11px 13px;
+  width: 100%;
+}
+
+.automation-video-search:focus,
+.automation-trigger-fields input:focus,
+.automation-trigger-fields select:focus,
+.automation-message-fields textarea:focus,
+.automation-edit-form select:focus {
+  border-color: var(--signal);
+  outline: none;
+}
+
+.video-picker-grid {
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 12px;
+  max-height: 350px;
+}
+
+.video-option[hidden],
+.automation-help[hidden],
+[data-instagram-only][hidden],
+[data-preview-instagram][hidden],
+[data-preview-prefill][hidden] {
+  display: none;
+}
+
+.video-option-card {
+  grid-template-columns: 84px minmax(0, 1fr) 18px;
+  min-height: 77px;
+}
+
+.video-thumbnail {
+  height: 50px;
+}
+
+.video-option-copy strong {
+  font-size: 13px;
+}
+
+.video-option-copy small,
+.automation-card-video small {
+  font-size: 11px;
+}
+
+.automation-help,
+.automation-trigger-fields small,
+.automation-message-fields small {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  line-height: 1.45;
+  margin-top: 6px;
+}
+
+.automation-trigger-fields,
+.automation-message-fields,
+.automation-message-fields > div {
+  display: grid;
+  gap: 16px;
+}
+
+.automation-trigger-fields label,
+.automation-message-fields label {
+  display: block;
+}
+
+.automation-optional-fields {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.automation-optional-fields summary,
+.automation-edit-details summary {
+  color: var(--signal);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.automation-optional-fields label {
+  margin-top: 15px;
+}
+
+.automation-preview {
+  align-self: start;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 22px;
+  position: sticky;
+  top: 22px;
+}
+
+.automation-preview h3 {
+  font-size: 17px;
+  line-height: 1.35;
+  margin: 11px 0 5px;
+}
+
+.automation-preview > p,
+.automation-preview > small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.automation-preview ol {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 20px 0;
+  padding: 0;
+}
+
+.automation-preview li {
+  border-left: 3px solid var(--signal);
+  padding: 7px 0 7px 12px;
+}
+
+.automation-preview li span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.automation-preview li p {
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.automation-setup-main > .button {
+  justify-self: start;
+}
+
+.automation-card {
+  align-items: center;
+  gap: 18px;
+  grid-template-columns: minmax(230px, 1.2fr) minmax(180px, 1fr) auto;
+}
+
+.automation-card-video h3 {
+  font-size: 15px;
+}
+
+.automation-status {
+  font-size: 11px;
+}
+
+.automation-card-summary {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.automation-card-summary span,
+.automation-card-summary small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.automation-card-summary strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.automation-card-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.automation-edit-details {
+  border-top: 1px solid var(--border);
+  grid-column: 1 / -1;
+  padding-top: 14px;
+}
+
+.automation-edit-form {
+  display: grid;
+  gap: 15px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 18px;
+}
+
+.automation-edit-actions,
+.automation-delete-form {
+  grid-column: 1 / -1;
+}
+
+.automation-delete-form {
+  margin-top: 10px;
+}
+
+.automation-delivery-list p {
+  align-items: center;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  padding: 12px 0;
+}
+
+.automation-delivery-list code {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.automation-delivery-list span {
+  color: var(--signal);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.automation-delivery-list small {
+  color: var(--accent-strong);
+  font-size: 12px;
+}
+
+@media (max-width: 1050px) {
+  .automation-setup-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .automation-preview {
+    position: static;
+  }
+
+  .automation-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .automation-card-summary {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 700px) {
+  .automation-builder,
+  .automation-list-section {
+    padding: 18px;
+  }
+
+  .automation-workflow-options,
+  .video-picker-grid,
+  .automation-edit-form,
+  .automation-card {
+    grid-template-columns: 1fr;
+  }
+
+  .automation-card-summary {
+    grid-row: auto;
+  }
+
+  .automation-card-actions {
+    justify-content: flex-start;
+  }
+}
