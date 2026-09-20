@@ -335,6 +335,25 @@ wingman-sync --backfill-replies --refresh
 `python fetch_comments.py` remains as a compatibility entrypoint and accepts the
 same arguments.
 
+### Count-gated YouTube check (prototype)
+
+After a normal discovery/sync has populated the video catalog, run:
+
+```bash
+python3 -m wingman.youtube.watch
+# Or, after reinstalling the package: wingman-youtube-watch
+```
+
+This checks the comment counts of enabled **YouTube** videos in batches of up
+to 50, fetching comments only when a count changes or the 24-hour safety scan
+is due. The first run scans each enabled YouTube video to establish a baseline.
+Use `--refresh` for an immediate full scan, or `--reconcile-hours N` to adjust
+the safety interval. The command is one-shot and safe to schedule later. It
+updates the inbox and existing review-first keyword prefills; it **does not
+automatically post YouTube replies**. Counts are a cheap signal, not proof that
+no comments changed: deletions or new replies can affect the total, so the
+periodic reconciliation remains important.
+
 Synchronization is resilient across videos: disabled comments, empty results,
 or a failure on one video do not stop later videos. Successful comment and reply
 checks are committed incrementally so interrupted runs can resume.

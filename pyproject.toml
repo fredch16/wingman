@@ -22,6 +22,7 @@ dependencies = [
 wingman = "wingman.cli:main"
 wingman-daily = "wingman.daily:main"
 wingman-sync = "wingman.youtube.sync:main"
+wingman-youtube-watch = "wingman.youtube.watch:main"
 wingman-instagram = "wingman.instagram.sync:main"
 wingman-web = "wingman.web:main"
 wingman-webhook = "wingman.instagram.webhook_server:main"
