@@ -79,6 +79,12 @@ class InstagramAutomationTests(unittest.TestCase):
         self.assertEqual(deliver_comment(self.repo, self.client, "creator", self.rule, self.comment), "skipped")
         self.assertEqual(len(self.client.messages), 1)
 
+    def test_missing_commenter_id_still_uses_comment_private_reply(self):
+        comment = dict(self.comment, comment_id="comment-no-sender", author_channel_id="")
+        self.assertEqual(deliver_comment(self.repo, self.client, "creator", self.rule, comment), "sent")
+        self.assertEqual(self.client.messages[0][1], {"comment_id": "comment-no-sender"})
+        self.assertEqual(self.repo.delivery("comment-no-sender")["recipient_id"], "ig-scoped-viewer")
+
     def test_no_public_reply_when_private_fails_and_no_retry(self):
         self.client.fail_private = True
         self.assertEqual(deliver_comment(self.repo, self.client, "creator", self.rule, self.comment), "failed")
