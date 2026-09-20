@@ -493,7 +493,7 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn(b"Your automations", created.data)
         self.assertIn(b"PID Explained in 60 Seconds", created.data)
         self.assertIn(b"https://img/video.jpg", created.data)
-        self.assertIn(b"automation-delete-button", created.data)
+        self.assertIn(b'class="button primary automation-delete-button"', created.data)
 
         detail = self.client.get("/comments/comment-new")
         self.assertIn(b"Automation matched", detail.data)

@@ -15,7 +15,7 @@ from wingman.db.automation_repository import AutomationRepository
 from wingman.db.video_catalog import Video, store_discovered_videos
 from wingman.instagram.automation import deliver_comment, handle_opt_in
 from wingman.instagram.client import PostedReply
-from wingman.db.comment_store import connect_database
+from wingman.db.comment_store import connect_database, create_comments_table
 from wingman.web import create_app
 from wingman.instagram.webhook_server import webhook_only_app
 from werkzeug.test import Client
@@ -234,6 +234,74 @@ class InstagramWebhookTests(unittest.TestCase):
                     self.assertEqual(client.post("/webhooks/instagram", data=body, content_type="application/json", headers={"X-Hub-Signature-256": signature}).status_code, 200)
             self.assertEqual(len(fake.messages), 1)
             self.assertEqual(len(fake.public_replies), 1)
+            db = connect_database(path)
+            try:
+                self.assertEqual(db.execute(
+                    "SELECT is_ignored FROM comments WHERE comment_id = 'new-comment'"
+                ).fetchone()[0], 1)
+            finally:
+                db.close()
+
+    def test_unmatched_webhook_comment_enters_inbox_once(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = str(Path(directory) / "test.db")
+            db = connect_database(path)
+            store_discovered_videos(db, [Video("reel", "Test Reel", "2026-09-19T00:00:00Z", "", platform="instagram")])
+            db.close()
+            fake = FakeClient()
+            fake.get = lambda comment_id, **parameters: {
+                "id": comment_id, "text": "Great explanation",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "from": {"id": "viewer", "username": "viewer"},
+            }
+            app = create_app({"TESTING": True, "DATABASE": path, "INSTAGRAM_CLIENT": fake})
+            body = json.dumps({"entry": [{"changes": [{"field": "comments", "value": {
+                "id": "ordinary-comment", "text": "Great explanation", "media": {"id": "reel"},
+                "from": {"id": "viewer", "username": "viewer"},
+            }}]}]}).encode()
+            signature = "sha256=" + hmac.new(b"test-secret", body, hashlib.sha256).hexdigest()
+            with patch.dict(os.environ, {"INSTAGRAM_APP_SECRET": "test-secret", "INSTAGRAM_ACCOUNT_ID": "creator"}):
+                for _ in range(2):
+                    self.assertEqual(app.test_client().post(
+                        "/webhooks/instagram", data=body, content_type="application/json",
+                        headers={"X-Hub-Signature-256": signature},
+                    ).status_code, 200)
+            db = connect_database(path)
+            try:
+                rows = db.execute("SELECT author_display_name, text, is_ignored FROM comments WHERE comment_id = 'ordinary-comment'").fetchall()
+                self.assertEqual([tuple(row) for row in rows], [("@viewer", "Great explanation", 0)])
+            finally:
+                db.close()
+
+    def test_creator_and_nested_webhook_comments_do_not_enter_inbox(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = str(Path(directory) / "test.db")
+            db = connect_database(path)
+            store_discovered_videos(db, [Video("reel", "Test Reel", "2026-09-19T00:00:00Z", "", platform="instagram")])
+            db.close()
+            fake = FakeClient()
+            fake.get = lambda comment_id, **parameters: {
+                "id": comment_id, "text": "Creator reply", "timestamp": datetime.now(timezone.utc).isoformat(),
+                "parent_id": "parent" if comment_id == "nested" else None,
+                "from": {"id": "creator", "username": "creator"},
+            }
+            app = create_app({"TESTING": True, "DATABASE": path, "INSTAGRAM_CLIENT": fake})
+            with patch.dict(os.environ, {"INSTAGRAM_APP_SECRET": "test-secret", "INSTAGRAM_ACCOUNT_ID": "creator"}):
+                for comment_id in ("creator-comment", "nested"):
+                    body = json.dumps({"entry": [{"changes": [{"field": "comments", "value": {
+                        "id": comment_id, "media": {"id": "reel"}, "from": {"id": "creator"},
+                    }}]}]}).encode()
+                    signature = "sha256=" + hmac.new(b"test-secret", body, hashlib.sha256).hexdigest()
+                    self.assertEqual(app.test_client().post(
+                        "/webhooks/instagram", data=body, content_type="application/json",
+                        headers={"X-Hub-Signature-256": signature},
+                    ).status_code, 200)
+            db = connect_database(path)
+            try:
+                create_comments_table(db)
+                self.assertEqual(db.execute("SELECT COUNT(*) FROM comments").fetchone()[0], 0)
+            finally:
+                db.close()
 
     def test_signed_button_event_sends_followup_once(self):
         with tempfile.TemporaryDirectory() as directory:
