@@ -53,6 +53,12 @@ AI is optional for replying. Every conversation opens with an empty response
 editor, so you can type a manual reply and press `Ctrl+Enter` to post it
 directly to YouTube or Instagram without classifying, generating, or approving
 it first. **Generate Draft** remains available beside the direct post action.
+Posting now queues the reply locally and lets you continue through the inbox
+immediately. A single background worker sends queued replies in order. If a
+send fails, Wingman shows the error in the inbox; check the platform before
+retrying, since a timed-out request may still have published. Unsent queued
+replies resume after an app restart, but interrupted in-flight sends are not
+automatically retried to avoid duplicates.
 
 ### Keyboard controls
 

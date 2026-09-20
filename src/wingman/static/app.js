@@ -171,13 +171,19 @@
     conversationCount.textContent = `${count} ${count === 1 ? "conversation" : "conversations"} waiting for you`;
   }
 
-  function showWorkflowToast(message) {
+  function showWorkflowToast(message, persistent = false) {
     const toast = document.createElement("div");
     toast.className = "workflow-toast";
     toast.setAttribute("role", "status");
     toast.textContent = message;
     document.body.append(toast);
     requestAnimationFrame(() => toast.classList.add("visible"));
+    if (persistent) {
+      toast.setAttribute("role", "alert");
+      toast.title = "Click to dismiss";
+      toast.addEventListener("click", () => toast.remove());
+      return;
+    }
     setTimeout(() => {
       toast.classList.remove("visible");
       toast.addEventListener("transitionend", () => toast.remove(), { once: true });
@@ -198,6 +204,27 @@
         resolve();
       }, { once: true });
     });
+  }
+
+  async function watchQueuedReply(commentId) {
+    try {
+      for (;;) {
+        await new Promise((resolve) => setTimeout(resolve, 850));
+        const response = await fetch(`/comments/${encodeURIComponent(commentId)}/reply-status`);
+        if (!response.ok) throw new Error(`Reply status unavailable (${response.status})`);
+        const result = await response.json();
+        if (result.status === "sent") {
+          showWorkflowToast("Reply posted successfully");
+          return;
+        }
+        if (result.status === "failed") {
+          showWorkflowToast(`Reply failed: ${result.error || "please check the comment before retrying"}. Check the platform before retrying.`, true);
+          return;
+        }
+      }
+    } catch (error) {
+      showWorkflowToast(`Could not confirm reply: ${error.message}. Check the platform before retrying.`, true);
+    }
   }
 
   function showCompletedInbox() {
@@ -283,8 +310,23 @@
       const response = await fetch(action, {
         method,
         body: new FormData(form),
+        headers: isPostAction ? { Accept: "application/json" } : {},
       });
       if (!response.ok) throw new Error(`Request failed (${response.status})`);
+      if (isPostAction && response.status === 202) {
+        showWorkflowToast("Reply on its way");
+        watchQueuedReply(activeCommentId);
+        if (activeCardIndex >= 0) {
+          const completedCard = cards[activeCardIndex];
+          await dismissCard(completedCard);
+          cards.splice(activeCardIndex, 1);
+          completedCard.remove();
+          updateConversationCount();
+          if (cards.length) selectCard(cards[Math.min(activeCardIndex, cards.length - 1)]);
+          else showCompletedInbox();
+        }
+        return;
+      }
       const finalResponse = await fetch(response.url);
       if (!finalResponse.ok) throw new Error(`Refresh failed (${finalResponse.status})`);
       const documentText = await finalResponse.text();
