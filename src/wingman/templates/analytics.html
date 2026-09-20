@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Automation analytics · Wingman{% endblock %}
+{% block content %}
+  <div class="analytics-page">
+    <header class="page-heading analytics-heading">
+      <div>
+        <span class="eyebrow">Automation activity</span>
+        <h1>Analytics</h1>
+        <p>What Wingman has handled across YouTube and Instagram.</p>
+      </div>
+      <a class="button secondary" href="{{ url_for('automations') }}">Manage automations ↗</a>
+    </header>
+
+    <section class="analytics-metrics" aria-label="Automation totals">
+      <div class="analytics-metric analytics-metric-primary">
+        <span>Automations triggered</span>
+        <strong>{{ analytics.total.triggered }}</strong>
+        <small>One per unique comment</small>
+      </div>
+      <div class="analytics-metric">
+        <span>Public replies posted</span>
+        <strong>{{ analytics.total.public_replies }}</strong>
+        <small>Across both platforms</small>
+      </div>
+      <div class="analytics-metric">
+        <span>Follow-up DMs sent</span>
+        <strong>{{ analytics.total.followup_dms }}</strong>
+        <small>Instagram opt-ins</small>
+      </div>
+      <div class="analytics-metric">
+        <span>Needs attention</span>
+        <strong>{{ analytics.total.failed }}</strong>
+        <small>Latest state is failed</small>
+      </div>
+    </section>
+
+    <div class="analytics-sections">
+      <section class="analytics-section" aria-labelledby="platform-heading">
+        <div class="analytics-section-heading">
+          <div><span class="eyebrow">Reach</span><h2 id="platform-heading">By platform</h2></div>
+        </div>
+        {% for item in analytics.platforms %}
+          <div class="analytics-platform-row">
+            <span class="platform-badge platform-badge-{{ item.platform }}">{{ item.platform|title }}</span>
+            <div><strong>{{ item.metrics.triggered }}</strong><small>triggered</small></div>
+            <div><strong>{{ item.metrics.public_replies }}</strong><small>public replies</small></div>
+            <div><strong>{{ item.metrics.failed }}</strong><small>failed</small></div>
+          </div>
+        {% else %}
+          <p class="analytics-empty">No automations have triggered yet.</p>
+        {% endfor %}
+      </section>
+
+      <section class="analytics-section" aria-labelledby="video-heading">
+        <div class="analytics-section-heading">
+          <div><span class="eyebrow">Performance</span><h2 id="video-heading">By video</h2></div>
+        </div>
+        {% for item in analytics.videos %}
+          <div class="analytics-video-row">
+            <span class="analytics-video-thumb">
+              {% if item.thumbnail_url %}<img src="{{ item.thumbnail_url }}" alt="" loading="lazy">{% else %}<span aria-hidden="true">▶</span>{% endif %}
+            </span>
+            <div class="analytics-video-name">
+              <strong>{{ item.title }}</strong>
+              <small>{{ item.platform|title }}</small>
+            </div>
+            <div class="analytics-video-count"><strong>{{ item.metrics.triggered }}</strong><small>triggered</small></div>
+            <div class="analytics-video-count"><strong>{{ item.metrics.public_replies }}</strong><small>replied</small></div>
+          </div>
+        {% else %}
+          <p class="analytics-empty">Video results will appear after the first automation fires.</p>
+        {% endfor %}
+      </section>
+
+      <section class="analytics-section" aria-labelledby="activity-heading">
+        <div class="analytics-section-heading">
+          <div><span class="eyebrow">History</span><h2 id="activity-heading">Recent activity</h2></div>
+          <small>Latest 20</small>
+        </div>
+        {% for item in analytics.recent %}
+          <div class="analytics-activity-row">
+            <span class="analytics-activity-dot {{ 'is-failed' if 'failed' in item.status }}" aria-hidden="true"></span>
+            <div>
+              <strong>{{ item.video_title }}</strong>
+              <small>{{ item.platform|title }} · {{ item.created_at[:16]|replace('T', ' ') }} UTC</small>
+              {% if item.error %}<small class="analytics-activity-error">{{ item.error }}</small>{% endif %}
+            </div>
+            <span class="analytics-activity-status">{{ item.status|replace('_', ' ')|title }}</span>
+          </div>
+        {% else %}
+          <p class="analytics-empty">No activity yet.</p>
+        {% endfor %}
+      </section>
+    </div>
+    <p class="analytics-footnote">Counts come from Wingman’s recorded automation attempts, including rules later deleted. Manual replies and activity before Wingman tracking began are not counted.</p>
+  </div>
+{% endblock %}

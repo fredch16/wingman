@@ -2077,3 +2077,220 @@ input::placeholder {
 
   .automation-remove-link { grid-column: 2; grid-row: 1 / 3; }
 }
+/* Automation analytics: a concise, read-only view of actual deliveries. */
+.analytics-page {
+  margin: 0 auto;
+  max-width: 1280px;
+  padding: 0 38px 60px;
+}
+
+.analytics-heading {
+  gap: 18px;
+  max-width: none;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.analytics-metrics {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 18px 0 24px;
+}
+
+.analytics-metric,
+.analytics-section {
+  background: var(--surface-raised);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.analytics-metric {
+  display: flex;
+  flex-direction: column;
+  min-height: 148px;
+  padding: 19px 21px;
+}
+
+.analytics-metric-primary {
+  border-color: var(--signal);
+}
+
+.analytics-metric > span,
+.analytics-metric > small,
+.analytics-platform-row small,
+.analytics-video-row small,
+.analytics-activity-row small,
+.analytics-video-count small,
+.analytics-footnote {
+  color: var(--muted);
+}
+
+.analytics-metric > span {
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.analytics-metric > strong {
+  font-size: clamp(32px, 3vw, 46px);
+  font-weight: 650;
+  letter-spacing: -.055em;
+  line-height: 1.15;
+  margin: 9px 0 auto;
+}
+
+.analytics-metric > small {
+  font-size: 12px;
+}
+
+.analytics-sections {
+  display: grid;
+  gap: 18px;
+}
+
+.analytics-section {
+  padding: 20px 24px;
+}
+
+.analytics-section-heading {
+  align-items: flex-end;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.analytics-section-heading h2 {
+  font-size: 21px;
+  letter-spacing: -.035em;
+  margin: 5px 0 0;
+}
+
+.analytics-section-heading > small {
+  color: var(--muted);
+}
+
+.analytics-platform-row,
+.analytics-video-row,
+.analytics-activity-row {
+  align-items: center;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 18px;
+  min-height: 66px;
+  padding: 12px 0;
+}
+
+.analytics-platform-row {
+  grid-template-columns: minmax(135px, 1fr) repeat(3, minmax(90px, 120px));
+}
+
+.analytics-platform-row > div,
+.analytics-video-count {
+  display: flex;
+  flex-direction: column;
+}
+
+.analytics-platform-row strong,
+.analytics-video-count strong {
+  font-size: 19px;
+  font-weight: 650;
+}
+
+.analytics-platform-row .platform-badge {
+  justify-self: start;
+}
+
+.analytics-video-row {
+  grid-template-columns: 78px minmax(0, 1fr) 88px 88px;
+}
+
+.analytics-video-thumb {
+  align-items: center;
+  aspect-ratio: 16 / 9;
+  background: var(--surface-bright);
+  border-radius: 3px;
+  color: var(--muted);
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  width: 78px;
+}
+
+.analytics-video-thumb img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.analytics-video-name,
+.analytics-activity-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.analytics-video-name strong,
+.analytics-activity-row strong {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analytics-activity-row {
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+}
+
+.analytics-activity-dot {
+  background: var(--signal);
+  border-radius: 50%;
+  height: 8px;
+  width: 8px;
+}
+
+.analytics-activity-dot.is-failed {
+  background: var(--critical);
+}
+
+.analytics-activity-status {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.analytics-activity-error {
+  color: var(--critical) !important;
+}
+
+.analytics-empty {
+  color: var(--muted);
+  margin: 20px 0 8px;
+}
+
+.analytics-footnote {
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 20px;
+}
+
+@media (max-width: 1000px) {
+  .analytics-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 650px) {
+  .analytics-page { padding: 0 18px 40px; }
+  .analytics-heading { align-items: flex-start; flex-direction: column; }
+  .analytics-metrics { gap: 8px; }
+  .analytics-metric { min-height: 125px; padding: 14px; }
+  .analytics-metric > span { font-size: 12px; }
+  .analytics-section { padding: 15px; }
+  .analytics-platform-row { gap: 7px; grid-template-columns: minmax(90px, 1fr) repeat(3, 58px); }
+  .analytics-platform-row strong,
+  .analytics-video-count strong { font-size: 16px; }
+  .analytics-platform-row small,
+  .analytics-video-count small { font-size: 10px; }
+  .analytics-video-row { gap: 8px; grid-template-columns: 52px minmax(0, 1fr) 49px 49px; }
+  .analytics-video-thumb { width: 52px; }
+  .analytics-activity-status { font-size: 10px; }
+}

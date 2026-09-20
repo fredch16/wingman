@@ -19,6 +19,7 @@ from wingman.ai.classification_prompt import PREVIOUS_CLASSIFICATION_PROMPT
 from wingman.ai.classification_service import ClassificationService, CommentClassification
 from wingman.db.comment_store import connect_database, sync_comments
 from wingman.db.automation_repository import AutomationRepository
+from wingman.db.automation_analytics import get_automation_analytics
 from wingman.youtube.sync import api_error_message, get_authenticated_youtube_client
 from wingman.db.inbox_repository import Comment, CommentRepository
 from wingman.ai.learning_service import (
@@ -725,6 +726,13 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             deliveries=repository().connection.execute(
                 "SELECT comment_id, status, error FROM automation_deliveries ORDER BY created_at DESC LIMIT 25"
             ).fetchall(),
+        )
+
+    @app.get("/analytics")
+    def automation_analytics() -> str:
+        return render_template(
+            "analytics.html",
+            analytics=get_automation_analytics(repository().connection),
         )
 
     def automation_messages_from_form() -> tuple[str, str]:

@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=Instrument+Sans:wdth,wght@75..100,400..700&amp;display=swap"
           rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='editorial.css', v='20260920-4') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='editorial.css', v='20260920-5') }}">
     <script src="{{ url_for('static', filename='app.js') }}" defer></script>
   </head>
   <body>
@@ -48,6 +48,13 @@
               <path d="M4 7h5m4 0h7M4 17h9m4 0h3"/><circle cx="11" cy="7" r="2"/><circle cx="15" cy="17" r="2"/>
             </svg>
             <span>Automations</span>
+          </a>
+          <a class="{{ 'active' if request.endpoint == 'automation_analytics' }}"
+             href="{{ url_for('automation_analytics') }}">
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 19V5m0 14h16M8 15v-4m5 4V7m5 8v-6"/>
+            </svg>
+            <span>Analytics</span>
           </a>
           <a href="#" aria-disabled="true">
             <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
