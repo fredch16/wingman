@@ -1775,10 +1775,178 @@ input::placeholder {
   justify-content: flex-end;
 }
 
+.automation-platform-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 19px 0;
+}
+
+.automation-platform-tabs button {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 14px;
+}
+
+.automation-platform-tabs button.active,
+.automation-platform-tabs button:hover {
+  background: var(--accent-wash);
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+.automation-card[hidden] { display: none; }
+
+.automation-disabled { opacity: 1; border-color: #c9c5bd; }
+
+.automation-card-badges {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 8px;
+}
+
+.automation-card-badges .platform-badge {
+  align-items: center;
+  display: inline-flex;
+  gap: 5px;
+  font-size: 11px;
+  padding: 5px 8px;
+}
+
+.video-option-copy .platform-badge {
+  align-items: center;
+  display: inline-flex;
+  font-size: 10px;
+  gap: 4px;
+  margin-right: 5px;
+  padding: 3px 6px;
+}
+
+.video-option-copy small {
+  align-items: center;
+  display: flex;
+}
+
+.automation-card-actions {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.automation-card-actions form,
+.automation-card-actions button {
+  width: 100%;
+}
+
+.automation-card-actions button {
+  font-size: 13px;
+  font-weight: 700;
+  min-height: 42px;
+}
+
+.automation-pause-button {
+  background: #f5eee2;
+  border: 2px solid #bd956c;
+  color: #74472c;
+}
+
+.automation-pause-button:hover {
+  background: #e9d6bc;
+}
+
+.automation-link-editor {
+  display: grid;
+  gap: 10px;
+}
+
+.automation-field-title {
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.automation-link-row {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(125px, 0.8fr) minmax(190px, 2fr) 38px;
+  margin-bottom: 9px;
+}
+
+.automation-link-row label > span {
+  color: var(--muted);
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+.automation-link-row input,
+.automation-message-fields input {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 14px;
+  min-width: 0;
+  padding: 11px 13px;
+  width: 100%;
+}
+
+.automation-link-row input:focus,
+.automation-message-fields input:focus {
+  border-color: var(--signal);
+  outline: none;
+}
+
+.automation-remove-link {
+  font-size: 20px;
+  height: 44px;
+  padding: 0;
+}
+
+.automation-add-link {
+  justify-self: start;
+}
+
+.automation-edit-dm-fields {
+  display: grid;
+  gap: 15px;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.automation-edit-dm-fields[hidden] { display: none; }
+
+.automation-edit-dm-fields .automation-link-editor {
+  grid-column: 1 / -1;
+}
+
+.automation-replies-field { grid-column: 1 / -1; }
+
 .automation-edit-details {
   border-top: 1px solid var(--border);
   grid-column: 1 / -1;
   padding-top: 14px;
+}
+
+.automation-edit-details summary {
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: inline-block;
+  padding: 9px 13px;
+}
+
+.automation-edit-details summary:hover {
+  background: var(--accent-wash);
+  border-color: var(--signal);
 }
 
 .automation-edit-form {
@@ -1862,4 +2030,12 @@ input::placeholder {
   .automation-card-actions {
     justify-content: flex-start;
   }
+
+  .automation-edit-dm-fields { grid-template-columns: 1fr; }
+
+  .automation-link-row { grid-template-columns: minmax(0, 1fr) 36px; }
+
+  .automation-link-row label:nth-child(2) { grid-column: 1; }
+
+  .automation-remove-link { grid-column: 2; grid-row: 1 / 3; }
 }

@@ -522,7 +522,7 @@ class InboxRouteTests(unittest.TestCase):
         response = self.client.get("/automations")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Instagram DM opt-in", response.data)
+        self.assertIn(b"AutoDM", response.data)
         self.assertIn(b"Inbox prefill", response.data)
         self.assertIn(b"Find a video", response.data)
         self.assertIn(b"PID Explained in 60 Seconds", response.data)

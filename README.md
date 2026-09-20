@@ -77,7 +77,8 @@ Open **Automations** in the sidebar to create a review-first response rule:
    shown beside each item.
 2. Enter comma-separated, case-sensitive keyword variations such as
    `PCB, pcb, Pcb`.
-3. Enter the response Wingman should prefill.
+3. Enter replies in one box, one complete reply per line. Inbox prefill uses
+   the first line; AutoDM rotates through all lines.
 
 When a comment on that specific video contains any configured string, Wingman
 places the default response in the normal reply editor and identifies the
@@ -88,17 +89,17 @@ paused, enabled, or deleted from the same page.
 
 ### Instagram DM opt-in
 
-Create an **Instagram DM opt-in** rule for one stored Reel or post. Enter
+Create an **AutoDM** rule for one stored Instagram Reel or post. Enter
 comma-separated keywords, a public acknowledgement (for example, “Check your
 DMs for my question”), an opening DM asking whether the viewer wants the
 resource, an editable opt-in button label, and a follow-up DM. Add up to three
-follow-up link buttons, one `Label | https://url` per line. If no buttons are
+follow-up link buttons with separate label and URL fields. If no buttons are
 configured, the follow-up is sent as plain text. DM keyword
 matching is case-insensitive by default; **Exact comment** instead requires
 the full comment to match the keyword, including case. Existing review-first
 rules are unchanged.
-Add optional public-reply variants, one per line; Wingman cycles through the
-main public reply and those variants for successive matching comments.
+Enter public-reply variants on separate lines in the same replies box; Wingman
+cycles through them for successive matching comments.
 
 Click **Run on new matching comments** on the rule to process comments that
 arrived after the rule was created. Wingman sends the opening private reply with
