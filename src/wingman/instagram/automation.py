@@ -48,7 +48,9 @@ def deliver_comment(
     if age.total_seconds() < 0 or age.total_seconds() >= 7 * 86400:
         return "skipped"
     sender_id = str(comment["author_channel_id"] or "")
-    if not sender_id or sender_id == account_id:
+    # Meta can omit the commenter ID on a comment webhook. The private reply
+    # addresses the comment ID; Meta returns the recipient ID for opt-in checks.
+    if sender_id and sender_id == account_id:
         return "skipped"
     comment_id = str(comment["comment_id"])
     if not repo.claim_delivery(comment_id, automation.automation_id, sender_id):
