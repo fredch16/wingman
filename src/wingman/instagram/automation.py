@@ -65,7 +65,7 @@ def deliver_comment(
                         "text": automation.initial_dm,
                         "buttons": [{
                             "type": "postback",
-                            "title": "Yes please",
+                            "title": automation.opt_in_button_label,
                             "payload": f"wingman_yes:{comment_id}",
                         }],
                     },
@@ -128,9 +128,16 @@ def handle_opt_in(
         repo.update_delivery(comment_id, "followup_failed", error="Automation no longer exists.")
         return False
     try:
-        result = client.send_message(
-            account_id, {"id": sender_id}, {"text": automation.followup_dm}
-        )
+        message = {"text": automation.followup_dm}
+        if automation.followup_links:
+            message = {"attachment": {"type": "template", "payload": {
+                "template_type": "button", "text": automation.followup_dm,
+                "buttons": [
+                    {"type": "web_url", "title": label, "url": url}
+                    for label, url in automation.followup_links
+                ],
+            }}}
+        result = client.send_message(account_id, {"id": sender_id}, message)
         repo.update_delivery(
             comment_id, "completed", followup_message_id=str(result["message_id"])
         )

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from dataclasses import dataclass
+from urllib.parse import urlparse
 
 from wingman.db.video_catalog import create_videos_table, utc_now
 
@@ -26,6 +27,8 @@ class Automation:
     followup_dm: str = ""
     match_type: str = "contains"
     public_reply_variants: tuple[str, ...] = ()
+    opt_in_button_label: str = "Yes please"
+    followup_links: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -44,6 +47,23 @@ def normalize_keywords(value: str | list[str] | tuple[str, ...]) -> tuple[str, .
         if keyword and keyword not in normalized:
             normalized.append(keyword)
     return tuple(normalized)
+
+
+def parse_followup_links(value: str) -> tuple[tuple[str, str], ...]:
+    """Parse one `button label | https://url` per line for the follow-up DM."""
+    links: list[tuple[str, str]] = []
+    for line in value.splitlines():
+        if not line.strip():
+            continue
+        label, separator, url = line.partition("|")
+        label, url = label.strip(), url.strip()
+        parsed = urlparse(url)
+        if not separator or not label or len(label) > 20 or parsed.scheme != "https" or not parsed.netloc:
+            raise ValueError("Each link needs a button label (max 20 characters) and an HTTPS URL, separated by |.")
+        links.append((label, url))
+    if len(links) > 3:
+        raise ValueError("Instagram allows at most three follow-up link buttons.")
+    return tuple(links)
 
 
 class AutomationRepository:
@@ -68,7 +88,7 @@ class AutomationRepository:
             """
         )
         columns = {row["name"] for row in self.connection.execute("PRAGMA table_info(automations)")}
-        for name in ("mode", "initial_dm", "followup_dm", "match_type", "public_reply_variants"):
+        for name in ("mode", "initial_dm", "followup_dm", "match_type", "public_reply_variants", "opt_in_button_label", "followup_links"):
             if name not in columns:
                 self.connection.execute(
                     f"ALTER TABLE automations ADD COLUMN {name} TEXT NOT NULL DEFAULT ''"
@@ -106,6 +126,8 @@ class AutomationRepository:
         followup_dm: str = "",
         match_type: str = "contains",
         public_reply_variants: str = "",
+        opt_in_button_label: str = "Yes please",
+        followup_links: str = "",
     ) -> int:
         parsed_keywords = normalize_keywords(keywords)
         reply = default_reply.strip()
@@ -116,6 +138,8 @@ class AutomationRepository:
         if not self._video_exists(video_id):
             raise ValueError("Select a stored video.")
         self._validate_delivery(mode, initial_dm, followup_dm, video_id, match_type)
+        links = parse_followup_links(followup_links)
+        button_label = self._validate_button_label(opt_in_button_label)
         timestamp = utc_now()
         with self.connection:
             cursor = self.connection.execute(
@@ -123,8 +147,8 @@ class AutomationRepository:
                 INSERT INTO automations (
                     video_id, keywords, default_reply, is_enabled,
                     created_at, updated_at, mode, initial_dm, followup_dm,
-                    match_type, public_reply_variants
-                ) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
+                    match_type, public_reply_variants, opt_in_button_label, followup_links
+                ) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     video_id,
@@ -137,6 +161,8 @@ class AutomationRepository:
                     followup_dm.strip(),
                     match_type,
                     public_reply_variants.strip(),
+                    button_label,
+                    json.dumps(links, ensure_ascii=False),
                 ),
             )
         return int(cursor.lastrowid)
@@ -152,6 +178,8 @@ class AutomationRepository:
         followup_dm: str = "",
         match_type: str = "contains",
         public_reply_variants: str = "",
+        opt_in_button_label: str = "Yes please",
+        followup_links: str = "",
     ) -> bool:
         parsed_keywords = normalize_keywords(keywords)
         reply = default_reply.strip()
@@ -163,13 +191,15 @@ class AutomationRepository:
         if row is None:
             return False
         self._validate_delivery(mode, initial_dm, followup_dm, row["video_id"], match_type)
+        links = parse_followup_links(followup_links)
+        button_label = self._validate_button_label(opt_in_button_label)
         with self.connection:
             cursor = self.connection.execute(
                 """
                 UPDATE automations
                 SET keywords = ?, default_reply = ?, updated_at = ?,
                     mode = ?, initial_dm = ?, followup_dm = ?, match_type = ?,
-                    public_reply_variants = ?
+                    public_reply_variants = ?, opt_in_button_label = ?, followup_links = ?
                 WHERE automation_id = ?
                 """,
                 (
@@ -181,6 +211,8 @@ class AutomationRepository:
                     followup_dm.strip(),
                     match_type,
                     public_reply_variants.strip(),
+                    button_label,
+                    json.dumps(links, ensure_ascii=False),
                     automation_id,
                 ),
             )
@@ -217,7 +249,8 @@ class AutomationRepository:
                    automations.is_enabled, automations.created_at,
                    automations.updated_at, automations.mode,
                    automations.initial_dm, automations.followup_dm,
-                   automations.match_type, automations.public_reply_variants
+                   automations.match_type, automations.public_reply_variants,
+                   automations.opt_in_button_label, automations.followup_links
             FROM automations
             LEFT JOIN videos ON videos.video_id = automations.video_id
             ORDER BY automations.created_at DESC, automations.automation_id DESC
@@ -317,6 +350,13 @@ class AutomationRepository:
         )
 
     @staticmethod
+    def _validate_button_label(value: str) -> str:
+        label = value.strip()
+        if not label or len(label) > 20:
+            raise ValueError("The opt-in button label must be 1–20 characters.")
+        return label
+
+    @staticmethod
     def _decode_keywords(value: str) -> tuple[str, ...]:
         decoded = json.loads(value)
         return normalize_keywords(tuple(str(item) for item in decoded))
@@ -342,4 +382,6 @@ class AutomationRepository:
                 line.strip() for line in row["public_reply_variants"].splitlines()
                 if line.strip()
             ),
+            opt_in_button_label=row["opt_in_button_label"] or "Yes please",
+            followup_links=tuple(tuple(item) for item in json.loads(row["followup_links"] or "[]")),
         )

@@ -91,7 +91,9 @@ paused, enabled, or deleted from the same page.
 Create an **Instagram DM opt-in** rule for one stored Reel or post. Enter
 comma-separated keywords, a public acknowledgement (for example, “Check your
 DMs for my question”), an opening DM asking whether the viewer wants the
-resource, and a follow-up DM containing the resource text and link. DM keyword
+resource, an editable opt-in button label, and a follow-up DM. Add up to three
+follow-up link buttons, one `Label | https://url` per line. If no buttons are
+configured, the follow-up is sent as plain text. DM keyword
 matching is case-insensitive by default; **Exact comment** instead requires
 the full comment to match the keyword, including case. Existing review-first
 rules are unchanged.
@@ -100,7 +102,7 @@ main public reply and those variants for successive matching comments.
 
 Click **Run on new matching comments** on the rule to process comments that
 arrived after the rule was created. Wingman sends the opening private reply with
-an inline **Yes please** button, then posts the public acknowledgement only
+an inline opt-in button, then posts the public acknowledgement only
 if Meta accepts that DM. It records each comment ID before sending, so reruns
 do not resend messages, including after an uncertain network failure. The
 Automations page shows recent delivery status and errors. Only comments within

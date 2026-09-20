@@ -93,6 +93,32 @@ class InstagramAutomationTests(unittest.TestCase):
         self.assertFalse(handle_opt_in(self.repo, self.client, "creator", "ig-scoped-viewer", "wingman_yes:comment-1"))
         self.assertEqual(len(self.client.messages), 2)
 
+    def test_custom_opt_in_and_multiple_followup_link_buttons(self):
+        rule_id = self.repo.create(
+            "reel", "pcb", "Check your DMs", mode="instagram_dm",
+            initial_dm="Want the trial?", opt_in_button_label="Yes, send it",
+            followup_dm="Happy building!",
+            followup_links="siliXon PRO | https://example.test/pro?x=1&y=2\nDocs | https://example.test/docs",
+        )
+        rule = self.repo.get(rule_id)
+        comment = dict(self.comment, comment_id="comment-links")
+        self.assertEqual(deliver_comment(self.repo, self.client, "creator", rule, comment), "sent")
+        self.assertEqual(self.client.messages[0][2]["attachment"]["payload"]["buttons"][0]["title"], "Yes, send it")
+        self.assertTrue(handle_opt_in(self.repo, self.client, "creator", "ig-scoped-viewer", "wingman_yes:comment-links"))
+        payload = self.client.messages[1][2]["attachment"]["payload"]
+        self.assertEqual(payload["template_type"], "button")
+        self.assertEqual(payload["text"], "Happy building!")
+        self.assertEqual(payload["buttons"], [
+            {"type": "web_url", "title": "siliXon PRO", "url": "https://example.test/pro?x=1&y=2"},
+            {"type": "web_url", "title": "Docs", "url": "https://example.test/docs"},
+        ])
+
+    def test_invalid_followup_buttons_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, "HTTPS URL"):
+            self.repo.create("reel", "pcb", "Reply", mode="instagram_dm", initial_dm="Want it?", followup_dm="Here", followup_links="Bad | http://example.test")
+        with self.assertRaisesRegex(ValueError, "at most three"):
+            self.repo.create("reel", "pcb", "Reply", mode="instagram_dm", initial_dm="Want it?", followup_dm="Here", followup_links="A | https://example.test\n" * 4)
+
     def test_old_prefill_rules_remain_prefill(self):
         self.repo.create("reel", "PCB", "Manual reply")
         self.assertEqual(self.repo.match("reel", "PCB please").default_reply, "Manual reply")
