@@ -150,6 +150,51 @@ class InstagramAutomationTests(unittest.TestCase):
 
 
 class InstagramWebhookTests(unittest.TestCase):
+    def test_automation_editor_saves_unified_replies_and_link_rows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = str(Path(directory) / "test.db")
+            db = connect_database(path)
+            store_discovered_videos(db, [Video("reel", "Test Reel", "2026-09-19T00:00:00Z", "", platform="instagram")])
+            db.close()
+            app = create_app({"TESTING": True, "DATABASE": path})
+            client = app.test_client()
+            response = client.post("/automations", data={
+                "video_id": "reel", "mode": "instagram_dm", "match_type": "contains",
+                "keywords": "PCB", "reply_options": "First reply\nSecond reply\nThird reply",
+                "initial_dm": "Want it?", "opt_in_button_label": "Yes please",
+                "followup_dm": "Here it is", "link_label[]": ["Guide", "Docs"],
+                "link_url[]": ["https://example.test/guide", "https://example.test/docs"],
+            }, follow_redirects=True)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(b"AutoDM", response.data)
+            self.assertIn(b"Pause automation", response.data)
+            self.assertIn(b"data-automation-filter", response.data)
+            db = connect_database(path)
+            try:
+                repo = AutomationRepository(db)
+                rule = repo.list_all()[0]
+                self.assertEqual(rule.default_reply, "First reply")
+                self.assertEqual(rule.public_reply_variants, ("Second reply", "Third reply"))
+                self.assertEqual(rule.followup_links, (("Guide", "https://example.test/guide"), ("Docs", "https://example.test/docs")))
+                rule_id = rule.automation_id
+            finally:
+                db.close()
+            edited = client.post(f"/automations/{rule_id}/update", data={
+                "mode": "instagram_dm", "match_type": "contains", "keywords": "PCB",
+                "reply_options": "Updated first\nUpdated second", "initial_dm": "Want it?",
+                "opt_in_button_label": "Yes please", "followup_dm": "Here it is",
+                "link_label[]": ["Guide", "Docs"],
+                "link_url[]": ["https://example.test/guide", "https://example.test/docs"],
+            }, follow_redirects=True)
+            self.assertEqual(edited.status_code, 200)
+            db = connect_database(path)
+            try:
+                rule = AutomationRepository(db).get(rule_id)
+                self.assertEqual((rule.default_reply, *rule.public_reply_variants), ("Updated first", "Updated second"))
+                self.assertEqual(len(rule.followup_links), 2)
+            finally:
+                db.close()
+
     def test_public_listener_exposes_no_dashboard_routes(self):
         with patch.dict(os.environ, {"INSTAGRAM_WEBHOOK_VERIFY_TOKEN": "test-verify"}):
             client = Client(webhook_only_app(), Response)

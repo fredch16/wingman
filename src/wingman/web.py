@@ -701,20 +701,41 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             ).fetchall(),
         )
 
+    def automation_messages_from_form() -> tuple[str, str]:
+        """Use the unified editor, while accepting legacy form submissions."""
+        if "reply_options" not in request.form:
+            return request.form.get("default_reply", ""), request.form.get("public_reply_variants", "")
+        replies = [line.strip() for line in request.form["reply_options"].splitlines() if line.strip()]
+        return (replies[0], "\n".join(replies[1:])) if replies else ("", "")
+
+    def automation_links_from_form() -> str:
+        """Serialize labeled link rows for the existing repository parser."""
+        if "link_label[]" not in request.form and "link_url[]" not in request.form:
+            return request.form.get("followup_links", "")
+        labels = request.form.getlist("link_label[]")
+        urls = request.form.getlist("link_url[]")
+        if len(labels) != len(urls):
+            raise ValueError("Each link needs both a button label and URL.")
+        return "\n".join(
+            f"{label} | {url}" for label, url in zip(labels, urls)
+            if label.strip() or url.strip()
+        )
+
     @app.post("/automations")
     def create_automation():
         try:
+            first_reply, extra_replies = automation_messages_from_form()
             automation_repository().create(
                 request.form.get("video_id", "").strip(),
                 request.form.get("keywords", ""),
-                request.form.get("default_reply", ""),
+                first_reply,
                 mode=request.form.get("mode", "prefill"),
                 initial_dm=request.form.get("initial_dm", ""),
                 followup_dm=request.form.get("followup_dm", ""),
                 match_type=request.form.get("match_type", "contains"),
-                public_reply_variants=request.form.get("public_reply_variants", ""),
+                public_reply_variants=extra_replies,
                 opt_in_button_label=request.form.get("opt_in_button_label", "Yes please"),
-                followup_links=request.form.get("followup_links", ""),
+                followup_links=automation_links_from_form(),
             )
             app.extensions["automation_error"] = None
         except ValueError as error:
@@ -724,17 +745,18 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     @app.post("/automations/<int:automation_id>/update")
     def update_automation(automation_id: int):
         try:
+            first_reply, extra_replies = automation_messages_from_form()
             updated = automation_repository().update(
                 automation_id,
                 request.form.get("keywords", ""),
-                request.form.get("default_reply", ""),
+                first_reply,
                 mode=request.form.get("mode", "prefill"),
                 initial_dm=request.form.get("initial_dm", ""),
                 followup_dm=request.form.get("followup_dm", ""),
                 match_type=request.form.get("match_type", "contains"),
-                public_reply_variants=request.form.get("public_reply_variants", ""),
+                public_reply_variants=extra_replies,
                 opt_in_button_label=request.form.get("opt_in_button_label", "Yes please"),
-                followup_links=request.form.get("followup_links", ""),
+                followup_links=automation_links_from_form(),
             )
             if not updated:
                 abort(404)
