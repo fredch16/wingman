@@ -1,144 +1,99 @@
 {% extends "base.html" %}
 {% block title %}Automations · Wingman{% endblock %}
 {% block content %}
+  <script src="{{ url_for('static', filename='automations.js') }}" defer></script>
   <div class="automations-page">
     <header class="page-heading automation-heading">
-      <div>
-        <span class="eyebrow">Review-first workflows</span>
-        <h1>Automations</h1>
-        <p>Prefill inbox replies, or run an Instagram comment-to-DM workflow on a selected Reel.</p>
-      </div>
+      <div><span class="eyebrow">Your workflows</span><h1>Automations</h1><p>Choose a post, decide what counts as a match, then write what Wingman should send.</p></div>
     </header>
+    {% if automation_error %}<p class="automation-error" role="alert">{{ automation_error }}</p>{% endif %}
+    {% if automation_message %}<p class="automation-status enabled" role="status">{{ automation_message }}</p>{% endif %}
+    {% if not instagram_webhook_configured %}<p class="automation-error">Instagram webhook is not configured yet. DM rules can be run manually, but automatic delivery needs the Meta webhook.</p>{% endif %}
 
-    {% if automation_error %}
-      <p class="automation-error">{{ automation_error }}</p>
-    {% endif %}
-    {% if automation_message %}<p class="automation-status enabled">{{ automation_message }}</p>{% endif %}
-    {% if not instagram_webhook_configured %}<p class="automation-error">Instagram webhook is not configured yet. Rules can be run manually, but automatic comment and button events require the Meta app secret, a verify token, and Meta webhook subscriptions.</p>{% endif %}
+    <section class="automation-builder" aria-labelledby="new-automation-heading">
+      <div class="automation-builder-copy"><span class="automation-step">+</span><div><h2 id="new-automation-heading">Create an automation</h2><p>Work through the trigger and messages. You can edit or pause the rule later.</p></div></div>
+      <form id="automation-create-form" method="post" action="{{ url_for('create_automation') }}">
+        <div class="automation-setup-grid">
+          <div class="automation-setup-main">
+            <fieldset class="automation-workflow-picker">
+              <legend><span class="automation-section-number">1</span> What should Wingman do?</legend>
+              <div class="automation-workflow-options">
+                <label><input type="radio" name="mode" value="instagram_dm" {% if videos|selectattr('platform', 'equalto', 'instagram')|list %}checked{% endif %}><span><strong>Instagram DM opt-in</strong><small>Reply publicly, ask in a DM, then send the link after “Yes please”.</small></span></label>
+                <label><input type="radio" name="mode" value="prefill" {% if not videos|selectattr('platform', 'equalto', 'instagram')|list %}checked{% endif %}><span><strong>Inbox prefill</strong><small>Prepare a response for review. Nothing is posted automatically.</small></span></label>
+              </div>
+            </fieldset>
 
-    <section class="automation-builder">
-      <div class="automation-builder-copy">
-        <span class="automation-step">01</span>
-        <div>
-          <h2>Create an automation</h2>
-          <p>Select a video, choose how matching comments are handled, and write the messages.</p>
-        </div>
-      </div>
-      <form method="post" action="{{ url_for('create_automation') }}">
-        <fieldset class="video-picker">
-          <legend>Select a video</legend>
-          <div class="video-picker-grid">
-            {% for video in videos %}
-              <label class="video-option">
-                <input type="radio" name="video_id" value="{{ video.video_id }}" required>
-                <span class="video-option-card">
-                  <span class="video-thumbnail">
-                    {% if video.thumbnail_url %}
-                      <img src="{{ video.thumbnail_url }}" alt="" loading="lazy">
-                    {% else %}
-                      <span aria-hidden="true">▶</span>
-                    {% endif %}
-                  </span>
-                  <span class="video-option-copy">
-                    <strong>{{ video.title }}</strong>
-                    <small>{{ video.platform|title }} · {{ video.published_at[:10] if video.published_at else "Unknown date" }}</small>
-                  </span>
-                  <span class="video-selected-mark">✓</span>
-                </span>
-              </label>
-            {% else %}
-              <p class="empty-state">Sync your channels before creating an automation.</p>
-            {% endfor %}
+            <fieldset class="video-picker">
+              <legend><span class="automation-section-number">2</span> Which video or post?</legend>
+              <label class="automation-search-label" for="automation-video-search">Find a video</label>
+              <input id="automation-video-search" class="automation-video-search" type="search" placeholder="Search by title or platform" autocomplete="off">
+              <div class="video-picker-grid">
+                {% for video in videos %}
+                  <label class="video-option" data-platform="{{ video.platform }}" data-title="{{ video.title|lower }}">
+                    <input type="radio" name="video_id" value="{{ video.video_id }}" required>
+                    <span class="video-option-card">
+                      <span class="video-thumbnail">{% if video.thumbnail_url %}<img src="{{ video.thumbnail_url }}" alt="" loading="lazy">{% else %}<span aria-hidden="true">▶</span>{% endif %}</span>
+                      <span class="video-option-copy"><strong>{{ video.title }}</strong><small>{{ video.platform|title }} · {{ video.published_at[:10] if video.published_at else "Unknown date" }}</small></span>
+                      <span class="video-selected-mark" aria-hidden="true">✓</span>
+                    </span>
+                  </label>
+                {% else %}<p class="empty-state">Sync your channels before creating an automation.</p>{% endfor %}
+              </div>
+              <p id="automation-video-empty" class="automation-help" hidden>No matching posts. Try another title or workflow.</p>
+            </fieldset>
+
+            <fieldset class="automation-trigger-fields">
+              <legend><span class="automation-section-number">3</span> What triggers it?</legend>
+              <label><span>Keywords</span><input name="keywords" required placeholder="PCB, circuit board"><small>Separate alternatives with commas. You only need case variations for inbox prefill.</small></label>
+              <label><span>Match style</span><select name="match_type"><option value="contains">Comment contains a keyword</option><option value="exact">Whole comment matches exactly</option></select><small>Exact matching is case-sensitive. Instagram “contains” matching ignores case.</small></label>
+            </fieldset>
+
+            <fieldset class="automation-message-fields">
+              <legend><span class="automation-section-number">4</span> What should it say?</legend>
+              <label><span data-public-reply-label>Public comment reply</span><textarea name="default_reply" rows="3" required placeholder="Thanks for commenting! Check your DMs for a quick question."></textarea><small data-public-reply-help>Posted only after Instagram accepts the opening DM. Do not say the resource has already been sent.</small></label>
+              <div data-instagram-only>
+                <label><span>Opening DM</span><textarea name="initial_dm" rows="3" placeholder="Hi! Got your comment. Would you like the guide?"></textarea><small>The “Yes please” button appears inside this message.</small></label>
+                <label><span>Follow-up after “Yes please”</span><textarea name="followup_dm" rows="3" placeholder="Here is the guide: https://…"></textarea><small>Put the actual resource or link here.</small></label>
+                <details class="automation-optional-fields"><summary>Optional public reply variations</summary><label><span>More public replies</span><textarea name="public_reply_variants" rows="3" placeholder="One alternative per line"></textarea><small>Wingman rotates through these and the main public reply.</small></label></details>
+              </div>
+            </fieldset>
+            <button class="button primary" type="submit" {% if not videos %}disabled{% endif %}>Create automation</button>
           </div>
-        </fieldset>
-
-        <div class="automation-fields">
-          <label><span>Workflow</span><select name="mode"><option value="prefill">Prefill inbox reply</option><option value="instagram_dm">Instagram DM opt-in</option></select></label>
-          <label><span>Keyword matching</span><select name="match_type"><option value="contains">Contains keyword (case-insensitive for DMs)</option><option value="exact">Exact comment, including case</option></select></label>
-          <label>
-            <span>Keyword variations</span>
-            <input name="keywords" required placeholder="PCB, pcb, Pcb">
-            <small>Comma-separated; Instagram DM matching ignores case.</small>
-          </label>
-          <label>
-            <span>Inbox reply / public acknowledgement</span>
-            <textarea name="default_reply" rows="4" required placeholder="Thanks, I’ll send you the link now."></textarea>
-            <small>For DM workflows, this is posted publicly only after the opening DM succeeds. Do not claim the link was sent yet.</small>
-          </label>
-          <label><span>More public replies (optional)</span><textarea name="public_reply_variants" rows="3" placeholder="Another public reply, one per line"></textarea><small>Wingman cycles through this first reply and each additional line.</small></label>
-          <label><span>Opening DM (Instagram only)</span><textarea name="initial_dm" rows="3" placeholder="Hi! Got your comment. Would you like the guide?"></textarea></label>
-          <label><span>Message after “Yes please”</span><textarea name="followup_dm" rows="3" placeholder="Here is the guide: https://…"></textarea></label>
+          <aside class="automation-preview" aria-label="Workflow preview">
+            <span class="eyebrow">Live preview</span><h3 data-preview-title>Choose a post</h3><p data-preview-trigger>A matching comment starts the workflow.</p>
+            <ol data-preview-instagram><li><span>01 · Opening DM</span><p data-preview-initial>Ask if they want the resource.</p></li><li><span>02 · Public reply</span><p data-preview-public>Acknowledge the comment after the DM succeeds.</p></li><li><span>03 · They tap Yes please</span><p data-preview-followup>Send the resource link.</p></li></ol>
+            <ol data-preview-prefill hidden><li><span>Inbox prefill</span><p data-preview-prefill-text>Wingman prepares a reply for your review.</p></li></ol>
+            <small>No messages are sent when you create a rule. Future matching Instagram comments trigger enabled DM rules automatically.</small>
+          </aside>
         </div>
-        <button class="button primary" type="submit" {% if not videos %}disabled{% endif %}>Create automation</button>
       </form>
     </section>
 
-    <section class="automation-list-section">
-      <div class="automation-list-heading">
-        <div>
-          <span class="eyebrow">Active library</span>
-          <h2>Your automations</h2>
-        </div>
-        <span class="automation-count">{{ automations|length }}</span>
-      </div>
+    <section class="automation-list-section" aria-labelledby="automation-list-heading">
+      <div class="automation-list-heading"><div><span class="eyebrow">Your library</span><h2 id="automation-list-heading">Your automations</h2></div><span class="automation-count">{{ automations|length }}</span></div>
       <div class="automation-list">
         {% for automation in automations %}
           <article class="automation-card {{ 'automation-disabled' if not automation.is_enabled }}">
-            <div class="automation-card-video">
-              <span class="automation-card-thumb">
-                {% if automation.thumbnail_url %}
-                  <img src="{{ automation.thumbnail_url }}" alt="" loading="lazy">
-                {% else %}
-                  <span aria-hidden="true">▶</span>
-                {% endif %}
-              </span>
-              <div>
-                <span class="automation-status {{ 'enabled' if automation.is_enabled else 'disabled' }}">
-                  {{ 'Enabled' if automation.is_enabled else 'Paused' }}
-                </span>
-                <h3>{{ automation.video_title }}</h3>
-                <small>{{ automation.platform|title }}</small>
-                <small>{{ 'Instagram DM opt-in' if automation.mode == 'instagram_dm' else 'Inbox prefill' }}</small>
-              </div>
-            </div>
-            <form class="automation-edit-form" method="post" action="{{ url_for('update_automation', automation_id=automation.automation_id) }}">
-              <label><span>Workflow</span><select name="mode"><option value="prefill" {% if automation.mode != 'instagram_dm' %}selected{% endif %}>Prefill inbox reply</option><option value="instagram_dm" {% if automation.mode == 'instagram_dm' %}selected{% endif %}>Instagram DM opt-in</option></select></label>
-              <label><span>Keyword matching</span><select name="match_type"><option value="contains" {% if automation.match_type != 'exact' %}selected{% endif %}>Contains keyword (case-insensitive for DMs)</option><option value="exact" {% if automation.match_type == 'exact' %}selected{% endif %}>Exact comment, including case</option></select></label>
-              <label>
-                <span>Matches</span>
-                <input name="keywords" value="{{ automation.keywords|join(', ') }}" required>
-              </label>
-              <label>
-                <span>Prefilled response</span>
-                <textarea name="default_reply" rows="3" required>{{ automation.default_reply }}</textarea>
-              </label>
-              <label><span>More public replies (optional)</span><textarea name="public_reply_variants" rows="3">{{ automation.public_reply_variants|join('\n') }}</textarea><small>One per line; sent in rotation after the opening DM succeeds.</small></label>
-              <label><span>Opening DM</span><textarea name="initial_dm" rows="3">{{ automation.initial_dm }}</textarea></label>
-              <label><span>“Yes please” follow-up with link</span><textarea name="followup_dm" rows="3">{{ automation.followup_dm }}</textarea></label>
-              <button class="button" type="submit">Save changes</button>
-            </form>
-            <div class="automation-card-actions">
-              {% if automation.mode == 'instagram_dm' %}<form method="post" action="{{ url_for('run_instagram_automation', automation_id=automation.automation_id) }}"><button class="button primary" type="submit" {% if not automation.is_enabled %}disabled{% endif %}>Run on new matching comments</button></form>{% endif %}
-              <form method="post" action="{{ url_for('toggle_automation', automation_id=automation.automation_id) }}">
-                <input type="hidden" name="is_enabled" value="{{ 'false' if automation.is_enabled else 'true' }}">
-                <button class="button quiet" type="submit">{{ 'Pause' if automation.is_enabled else 'Enable' }}</button>
+            <div class="automation-card-video"><span class="automation-card-thumb">{% if automation.thumbnail_url %}<img src="{{ automation.thumbnail_url }}" alt="" loading="lazy">{% else %}<span aria-hidden="true">▶</span>{% endif %}</span><div><span class="automation-status {{ 'enabled' if automation.is_enabled else 'disabled' }}">{{ 'Enabled' if automation.is_enabled else 'Paused' }}</span><h3>{{ automation.video_title }}</h3><small>{{ automation.platform|title }} · {{ 'DM opt-in' if automation.mode == 'instagram_dm' else 'Inbox prefill' }}</small></div></div>
+            <div class="automation-card-summary"><span>When a comment {{ 'matches exactly' if automation.match_type == 'exact' else 'contains' }}</span><strong>{{ automation.keywords|join(' · ') }}</strong><small>{{ 'Public reply → DM opt-in → resource' if automation.mode == 'instagram_dm' else 'Prefilled reply for review' }}</small></div>
+            <div class="automation-card-actions"><form method="post" action="{{ url_for('toggle_automation', automation_id=automation.automation_id) }}"><input type="hidden" name="is_enabled" value="{{ 'false' if automation.is_enabled else 'true' }}"><button class="button quiet" type="submit">{{ 'Pause' if automation.is_enabled else 'Enable' }}</button></form>{% if automation.mode == 'instagram_dm' %}<form method="post" action="{{ url_for('run_instagram_automation', automation_id=automation.automation_id) }}"><button class="button quiet" type="submit" {% if not automation.is_enabled %}disabled{% endif %}>Run on new comments</button></form>{% endif %}</div>
+            <details class="automation-edit-details"><summary>Edit messages and matching</summary>
+              <form class="automation-edit-form" method="post" action="{{ url_for('update_automation', automation_id=automation.automation_id) }}">
+                <label><span>Workflow</span><select name="mode"><option value="prefill" {% if automation.mode != 'instagram_dm' %}selected{% endif %}>Inbox prefill</option><option value="instagram_dm" {% if automation.mode == 'instagram_dm' %}selected{% endif %}>Instagram DM opt-in</option></select></label>
+                <label><span>Match style</span><select name="match_type"><option value="contains" {% if automation.match_type != 'exact' %}selected{% endif %}>Contains keyword</option><option value="exact" {% if automation.match_type == 'exact' %}selected{% endif %}>Whole comment, exact case</option></select></label>
+                <label><span>Keywords</span><input name="keywords" value="{{ automation.keywords|join(', ') }}" required></label>
+                <label><span>Public reply / inbox prefill</span><textarea name="default_reply" rows="3" required>{{ automation.default_reply }}</textarea></label>
+                <label><span>More public replies, one per line</span><textarea name="public_reply_variants" rows="3">{{ automation.public_reply_variants|join('\n') }}</textarea></label>
+                <label><span>Opening DM</span><textarea name="initial_dm" rows="3">{{ automation.initial_dm }}</textarea></label>
+                <label><span>Follow-up with resource</span><textarea name="followup_dm" rows="3">{{ automation.followup_dm }}</textarea></label>
+                <div class="automation-edit-actions"><button class="button primary" type="submit">Save changes</button></div>
               </form>
-              <form method="post" action="{{ url_for('delete_automation', automation_id=automation.automation_id) }}">
-                <button class="button quiet danger" type="submit">Delete</button>
-              </form>
-            </div>
+              <form class="automation-delete-form" method="post" action="{{ url_for('delete_automation', automation_id=automation.automation_id) }}" data-confirm-delete><button class="button quiet danger" type="submit">Delete automation</button></form>
+            </details>
           </article>
-        {% else %}
-          <div class="automation-empty">
-            <span>⌁</span>
-            <h3>No automations yet</h3>
-            <p>Your first keyword response will appear here.</p>
-          </div>
-        {% endfor %}
+        {% else %}<div class="automation-empty"><span>⌁</span><h3>No automations yet</h3><p>Create a rule above to get started.</p></div>{% endfor %}
       </div>
     </section>
-    <section class="automation-list-section"><div class="automation-list-heading"><div><span class="eyebrow">Delivery log</span><h2>Recent Instagram DM attempts</h2></div></div>
-      {% for delivery in deliveries %}<p><code>{{ delivery['comment_id'] }}</code> · {{ delivery['status'] }}{% if delivery['error'] %} · {{ delivery['error'] }}{% endif %}</p>{% else %}<p class="empty-state">No DM attempts yet.</p>{% endfor %}
-    </section>
+    <section class="automation-list-section" aria-labelledby="delivery-log-heading"><div class="automation-list-heading"><div><span class="eyebrow">Activity</span><h2 id="delivery-log-heading">Recent Instagram DM attempts</h2></div></div><div class="automation-delivery-list">{% for delivery in deliveries %}<p><code>{{ delivery['comment_id'] }}</code><span>{{ delivery['status'] }}</span>{% if delivery['error'] %}<small>{{ delivery['error'] }}</small>{% endif %}</p>{% else %}<p class="empty-state">No DM attempts yet.</p>{% endfor %}</div></section>
   </div>
 {% endblock %}

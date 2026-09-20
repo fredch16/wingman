@@ -518,6 +518,17 @@ class InboxRouteTests(unittest.TestCase):
             ),
         )
 
+    def test_automation_builder_shows_workflow_and_video_picker(self) -> None:
+        response = self.client.get("/automations")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Instagram DM opt-in", response.data)
+        self.assertIn(b"Inbox prefill", response.data)
+        self.assertIn(b"Find a video", response.data)
+        self.assertIn(b"PID Explained in 60 Seconds", response.data)
+        self.assertIn(b"Live preview", response.data)
+        self.assertIn(b"automations.js", response.data)
+
     def test_automation_can_be_updated_paused_and_deleted(self) -> None:
         self.client.post(
             "/automations",
