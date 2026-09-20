@@ -100,7 +100,7 @@
                 </div>
                 <div class="automation-edit-actions"><button class="button primary" type="submit">Save changes</button></div>
               </form>
-              <form class="automation-delete-form" method="post" action="{{ url_for('delete_automation', automation_id=automation.automation_id) }}" data-confirm-delete><button class="button quiet danger" type="submit">Delete automation</button></form>
+              <form class="automation-delete-form" method="post" action="{{ url_for('delete_automation', automation_id=automation.automation_id) }}" data-confirm-delete><button class="button automation-delete-button" type="submit">Delete automation</button></form>
             </details>
           </article>
         {% else %}<div class="automation-empty"><span>⌁</span><h3>No automations yet</h3><p>Create a rule above to get started.</p></div>{% endfor %}
