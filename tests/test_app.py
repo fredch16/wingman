@@ -781,6 +781,18 @@ class InboxRouteTests(unittest.TestCase):
             script,
         )
         self.assertIn(
+            'event.key === "r" || event.key === "g"',
+            script,
+        )
+        self.assertIn(
+            'event.key.toLowerCase() === "g" && event.ctrlKey',
+            script,
+        )
+        self.assertIn(
+            'document.querySelector(".generate-batch-form")',
+            script,
+        )
+        self.assertIn(
             'event.key === "o" || event.key === "O"',
             script,
         )
