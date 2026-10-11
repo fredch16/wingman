@@ -222,6 +222,7 @@ class InboxRouteTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"/static/app.js?v=20261011-2", response.data)
+        self.assertIn(b"/static/editorial.css?v=20261012-1", response.data)
         self.assertIn(b"Full text for comment-new", response.data)
         self.assertIn(b"Full text for comment-low", response.data)
         self.assertIn(b"PID Explained in 60 Seconds", response.data)
@@ -819,6 +820,14 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn(
             'form.querySelector(".editor-actions .primary")',
             script,
+        )
+
+        styles = Path("src/wingman/static/editorial.css").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            ".conversation-card.is-generating:not(.selected)",
+            styles,
         )
         self.assertIn('button.matches(".post-button")', script)
         self.assertIn('? "Posting…"', script)

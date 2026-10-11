@@ -2325,7 +2325,7 @@ input::placeholder {
   top: 0;
   width: 50%;
 }
-.conversation-card.is-generating { background: color-mix(in srgb, var(--signal) 4%, var(--surface)); }
+.conversation-card.is-generating:not(.selected) { background: color-mix(in srgb, var(--signal) 4%, var(--surface)); }
 .conversation-card.generation-failed .comment-generation-progress { color: var(--critical); }
 .conversation-card.generation-failed .comment-generation-track > span { animation: none; background: var(--critical); left: 0; width: 100%; }
 .conversation-card.selected .comment-generation-progress { color: white; }
