@@ -291,6 +291,12 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIsNotNone(self.row("comment-unclassified")["classified_at"])
 
     def test_background_generation_reports_comment_progress(self) -> None:
+        saved = self.client.post(
+            "/comments/comment-unclassified/reply-direction",
+            data={"reply_direction": "Answer this like a concise model answer."},
+        )
+        self.assertEqual(saved.status_code, 204)
+
         started = self.client.post("/jobs/generate")
         result = self.wait_for_job(started.get_json()["job_id"])
 
@@ -298,6 +304,16 @@ class InboxRouteTests(unittest.TestCase):
         self.assertEqual(result["completed"], 3)
         self.assertEqual(result["total"], 3)
         self.assertIsNotNone(self.row("comment-unclassified")["draft_reply"])
+        generated_comment = next(
+            comment
+            for comment in self.reply_generator.calls
+            if comment.comment_id == "comment-unclassified"
+        )
+        self.assertEqual(
+            generated_comment.reply_direction,
+            "Answer this like a concise model answer.",
+        )
+        self.assertIsNone(self.row("comment-unclassified")["reply_direction"])
 
     def test_comment_detail_and_missing_comment(self) -> None:
         response = self.client.get("/comments/comment-new")
@@ -631,16 +647,30 @@ class InboxRouteTests(unittest.TestCase):
         detail = self.client.get("/comments/comment-new")
         self.assertIn(b"Generate Draft", detail.data)
         self.assertIn(b"Post to YouTube", detail.data)
+        self.assertIn(b'data-autosave-field="reply_direction"', detail.data)
+        self.assertIn(
+            b'/comments/comment-new/reply-direction', detail.data
+        )
 
         response = self.client.post(
             "/comments/comment-new/generate-reply",
+            data={
+                "draft_reply": (
+                    "Keep it concise and mention that the code is on GitHub."
+                )
+            },
             follow_redirects=True,
         )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(self.reply_generator.calls), 1)
+        self.assertEqual(
+            self.reply_generator.calls[0].reply_direction,
+            "Keep it concise and mention that the code is on GitHub.",
+        )
         row = self.row("comment-new")
         self.assertEqual(row["draft_reply"], "Generated reply draft.")
+        self.assertIsNone(row["reply_direction"])
         self.assertEqual(
             row["original_draft_reply"], "Generated reply draft."
         )

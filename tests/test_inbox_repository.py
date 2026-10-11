@@ -79,6 +79,27 @@ class CommentRepositoryTests(unittest.TestCase):
         self.assertEqual(row["category"], "technical")
         self.assertEqual(row["draft_reply"], "Draft response")
 
+    def test_saves_reply_direction_until_generation_succeeds(self) -> None:
+        self.assertTrue(
+            self.repository.update_reply_direction(
+                "comment-1", "  Keep this concise and friendly.  "
+            )
+        )
+
+        directed = self.repository.get_comment("comment-1")
+        assert directed is not None
+        self.assertEqual(
+            directed.reply_direction, "Keep this concise and friendly."
+        )
+
+        self.assertTrue(
+            self.repository.save_generated_reply("comment-1", "Generated draft")
+        )
+        generated = self.repository.get_comment("comment-1")
+        assert generated is not None
+        self.assertIsNone(generated.reply_direction)
+        self.assertEqual(generated.draft_reply, "Generated draft")
+
     def test_marks_confirmed_youtube_reply(self) -> None:
         self.assertTrue(
             self.repository.mark_youtube_replied(

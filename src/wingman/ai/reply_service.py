@@ -20,6 +20,8 @@ class ReplyableComment(Protocol):
     video_summary: str | None
     thread_id: str
     total_reply_count: int
+    reply_direction: str | None
+    draft_reply: str | None
 
 
 @dataclass(frozen=True)
@@ -28,6 +30,7 @@ class ReplyContext:
     video_title: str
     video_summary: str | None = None
     thread_context: str | None = None
+    creator_direction: str | None = None
 
 
 class GeneratedReply(BaseModel):
@@ -64,6 +67,17 @@ class ReplyGenerationService:
         creator_profile = self.load_creator_profile()
         video_context = context.video_summary or "No manual video summary is available."
         thread_context = context.thread_context or "No additional thread context is available."
+        creator_direction = (context.creator_direction or "").strip()
+        direction_section = ""
+        if creator_direction:
+            direction_section = (
+                "\n\nCreator's explicit reply direction:\n"
+                "The creator explicitly asked for the reply to follow the "
+                "direction below. Shape the reply around it while still "
+                "answering the comment naturally. Treat it as guidance, not "
+                "as text that must be copied verbatim.\n\n"
+                f"{creator_direction}"
+            )
         return [
             {"role": "system", "content": REPLY_GENERATION_PROMPT},
             {
@@ -77,6 +91,7 @@ class ReplyGenerationService:
                     f"Video context:\n{video_context}\n\n"
                     f"Comment:\n{context.comment_text}\n\n"
                     f"Thread context:\n{thread_context}"
+                    f"{direction_section}"
                 ),
             },
         ]
@@ -114,11 +129,16 @@ class ReplyGenerationService:
                 f"{comment.total_reply_count} existing replies, but their text "
                 "is not stored locally."
             )
+        creator_direction = (
+            getattr(comment, "reply_direction", None)
+            or getattr(comment, "draft_reply", None)
+        )
         return self.generate_reply(
             ReplyContext(
                 comment_text=comment.text,
                 video_title=comment.video_title,
                 video_summary=comment.video_summary,
                 thread_context=available_thread_context,
+                creator_direction=creator_direction,
             )
         )

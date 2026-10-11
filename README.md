@@ -52,7 +52,12 @@ Only one long-running workflow runs at a time to avoid competing database writes
 AI is optional for replying. Every conversation opens with an empty response
 editor, so you can type a manual reply and press `Ctrl+Enter` to post it
 directly to YouTube or Instagram without classifying, generating, or approving
-it first. **Generate Draft** remains available beside the direct post action.
+it first. You can also type a rough answer, tone note, or instruction and then
+choose **Generate Draft**: Wingman treats the existing text as explicit reply
+direction and shapes the generated answer around it. Directions are saved while
+you browse and are also used by bulk generation when that comment is reached.
+An empty editor keeps the normal generation behavior. **Generate Draft** remains
+available beside the direct post action.
 Posting now queues the reply locally and lets you continue through the inbox
 immediately. A single background worker sends queued replies in order. If a
 send fails, Wingman shows the error in the inbox; check the platform before
@@ -509,9 +514,12 @@ Reply generation combines:
 2. The editable creator profile in `creator.md`.
 3. The selected video's stored context and learned response guidance.
 4. The viewer comment and available thread context.
+5. Any reply direction already written in the editor for that conversation.
 
-The generated text stays editable until it is posted. A successful post is
-recorded locally only after the source platform confirms it.
+Reply direction is included only when the editor is non-empty and is cleared
+after generation succeeds. The generated text stays editable until it is
+posted. A successful post is recorded locally only after the source platform
+confirms it.
 
 ## Learning
 
