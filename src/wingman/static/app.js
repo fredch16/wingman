@@ -6,6 +6,68 @@
   const conversationCount = document.querySelector("#conversation-count");
   const jobProgress = document.querySelector("#job-progress");
   const jobStorageKey = "wingman-active-job";
+  const autosaveTimers = new Map();
+  const autosaveRequests = new Set();
+
+  function updateSaveHint(textarea, message, isError = false) {
+    const hint = textarea.closest(".reply-editor")?.querySelector(".save-hint");
+    if (!hint) return;
+    if (!hint.dataset.defaultText) hint.dataset.defaultText = hint.textContent;
+    hint.textContent = message || hint.dataset.defaultText;
+    hint.classList.toggle("save-hint-error", isError);
+  }
+
+  function persistTextarea(textarea) {
+    const url = textarea.dataset.autosaveUrl;
+    const field = textarea.dataset.autosaveField;
+    if (!url || !field) return Promise.resolve();
+    const body = new FormData();
+    body.set(field, textarea.value);
+    updateSaveHint(textarea, "Saving…");
+    const request = fetch(url, { method: "POST", body })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Autosave failed (${response.status})`);
+        updateSaveHint(textarea, field === "reply_direction" ? "Reply direction saved" : "Draft saved");
+      })
+      .catch((error) => {
+        updateSaveHint(textarea, error.message, true);
+        throw error;
+      })
+      .finally(() => autosaveRequests.delete(request));
+    autosaveRequests.add(request);
+    return request;
+  }
+
+  function scheduleAutosave(textarea) {
+    const existing = autosaveTimers.get(textarea);
+    if (existing) clearTimeout(existing);
+    updateSaveHint(textarea, "Unsaved changes…");
+    autosaveTimers.set(textarea, setTimeout(() => {
+      autosaveTimers.delete(textarea);
+      persistTextarea(textarea).catch(() => {});
+    }, 450));
+  }
+
+  function mirrorTextareaInTemplate(textarea) {
+    const shell = textarea.closest(".conversation-shell");
+    const commentId = shell?.dataset.detailId;
+    if (!commentId) return;
+    const template = document.querySelector(`#detail-${CSS.escape(commentId)}`);
+    const mirrored = template?.content.querySelector(`#${CSS.escape(textarea.id)}`);
+    if (!mirrored) return;
+    mirrored.value = textarea.value;
+    mirrored.textContent = textarea.value;
+  }
+
+  async function flushPendingAutosaves() {
+    const started = [];
+    for (const [textarea, timer] of autosaveTimers) {
+      clearTimeout(timer);
+      autosaveTimers.delete(textarea);
+      started.push(persistTextarea(textarea));
+    }
+    await Promise.all([...autosaveRequests, ...started]);
+  }
 
   function renderJob(job) {
     if (!jobProgress) return;
@@ -58,6 +120,11 @@
   document.querySelectorAll(".background-job-form").forEach((form) => {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
+      try {
+        await flushPendingAutosaves();
+      } catch (_error) {
+        return;
+      }
       setJobButtonsDisabled(true);
       renderJob({
         label: event.submitter?.textContent.trim() || "Working",
@@ -127,6 +194,7 @@
   }
 
   function selectCard(card) {
+    flushPendingAutosaves().catch(() => {});
     const template = document.querySelector(`#detail-${CSS.escape(card.dataset.commentId)}`);
     if (!template || !detailPanel) return;
     cards.forEach((item) => {
@@ -262,6 +330,12 @@
     if (!form.matches(".async-form, .reply-editor")) return;
     event.preventDefault();
 
+    try {
+      await flushPendingAutosaves();
+    } catch (_error) {
+      return;
+    }
+
     const submitter = event.submitter;
     const activeCommentId = form.closest(".conversation-shell")?.dataset.detailId;
     const cardIndexById = cards.findIndex(
@@ -368,11 +442,24 @@
   document.addEventListener("input", (event) => {
     const textarea = event.target.closest(".reply-editor textarea");
     if (!textarea) return;
+    if (textarea.dataset.autosaveUrl) {
+      mirrorTextareaInTemplate(textarea);
+      scheduleAutosave(textarea);
+    }
     const form = textarea.closest(".reply-editor");
     const learnButton = form?.querySelector(".learn-button");
     if (!learnButton) return;
     const original = textarea.dataset.originalDraft?.trim() || "";
     learnButton.disabled = !original || textarea.value.trim() === original;
+  });
+
+  document.addEventListener("focusout", (event) => {
+    const textarea = event.target.closest(".reply-editor textarea[data-autosave-url]");
+    if (!textarea || !autosaveTimers.has(textarea)) return;
+    const timer = autosaveTimers.get(textarea);
+    clearTimeout(timer);
+    autosaveTimers.delete(textarea);
+    persistTextarea(textarea).catch(() => {});
   });
 
   document.addEventListener("keydown", (event) => {

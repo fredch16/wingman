@@ -36,6 +36,9 @@ class ReplyGenerationServiceTests(unittest.TestCase):
                     video_title="PID Explained",
                     video_summary="A short introduction to practical PID control.",
                     thread_context="Another viewer mentioned sensor noise.",
+                    creator_direction=(
+                        "Keep it short and mention that the code is on GitHub."
+                    ),
                 )
             )
 
@@ -51,6 +54,34 @@ class ReplyGenerationServiceTests(unittest.TestCase):
         self.assertIn("practical PID control", request["input"][2]["content"])
         self.assertIn("Why use this filter?", request["input"][2]["content"])
         self.assertIn("sensor noise", request["input"][2]["content"])
+        self.assertIn(
+            "Creator's explicit reply direction:",
+            request["input"][2]["content"],
+        )
+        self.assertIn("code is on GitHub", request["input"][2]["content"])
+
+    def test_omits_creator_direction_section_when_direction_is_blank(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            creator_path = Path(directory) / "creator.md"
+            creator_path.write_text("Fred is warm and technically honest.")
+            service = ReplyGenerationService(
+                client=SimpleNamespace(),
+                model="test-model",
+                creator_profile_path=creator_path,
+            )
+
+            prompt_input = service.build_input(
+                ReplyContext(
+                    comment_text="Why use this filter?",
+                    video_title="PID Explained",
+                    creator_direction="   ",
+                )
+            )
+
+        self.assertNotIn(
+            "Creator's explicit reply direction:",
+            prompt_input[2]["content"],
+        )
 
     def test_missing_creator_profile_is_clear_error(self) -> None:
         service = ReplyGenerationService(

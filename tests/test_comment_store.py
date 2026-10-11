@@ -116,7 +116,7 @@ class CommentStoreTests(unittest.TestCase):
             SELECT status, priority, category, classification_reason,
                    reply_worthy, classified_at, classification_model,
                    classification_version,
-                   draft_reply, original_draft_reply, final_reply,
+                   reply_direction, draft_reply, original_draft_reply, final_reply,
                    needs_research, is_ignored,
                    replied_at, has_creator_reply, creator_reply_id,
                    creator_replied_at, reply_status_checked_at
@@ -132,6 +132,7 @@ class CommentStoreTests(unittest.TestCase):
         self.assertIsNone(row["classified_at"])
         self.assertIsNone(row["classification_model"])
         self.assertIsNone(row["classification_version"])
+        self.assertIsNone(row["reply_direction"])
         self.assertIsNone(row["draft_reply"])
         self.assertIsNone(row["original_draft_reply"])
         self.assertIsNone(row["final_reply"])

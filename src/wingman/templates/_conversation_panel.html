@@ -118,6 +118,8 @@
         <label class="sr-only" for="draft-{{ comment.comment_id }}">Editable reply draft</label>
         <textarea id="draft-{{ comment.comment_id }}"
                   name="draft_reply"
+                  data-autosave-url="{{ url_for('save_draft_reply', comment_id=comment.comment_id) }}"
+                  data-autosave-field="draft_reply"
                   data-original-draft="{{ comment.original_draft_reply or '' }}"
                   rows="9"
                   required>{{ comment.draft_reply }}</textarea>
@@ -176,12 +178,14 @@
           <label class="sr-only" for="manual-draft-{{ comment.comment_id }}">Write your response</label>
           <textarea id="manual-draft-{{ comment.comment_id }}"
                     name="draft_reply"
+                    data-autosave-url="{{ url_for('save_reply_direction', comment_id=comment.comment_id) }}"
+                    data-autosave-field="reply_direction"
                     rows="8"
                     required
                     autofocus
-                    placeholder="Write a reply to {{ comment.author_display_name }}…">{{ comment.automation_reply or "" }}</textarea>
+                    placeholder="Write a reply or give Wingman direction, e.g. ‘keep it short and mention the GitHub link’…">{{ comment.reply_direction or comment.automation_reply or "" }}</textarea>
           <div class="editor-footer">
-            <span class="save-hint">Ctrl+Enter to post directly to {{ comment.platform_label }}</span>
+            <span class="save-hint">Saved as reply direction while you browse · Ctrl+Enter to post directly to {{ comment.platform_label }}</span>
             <div class="editor-actions">
               <button class="button secondary"
                       type="submit"

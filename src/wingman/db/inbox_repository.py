@@ -34,6 +34,7 @@ class Comment:
     classified_at: str | None
     classification_model: str | None
     classification_version: str | None
+    reply_direction: str | None
     draft_reply: str | None
     original_draft_reply: str | None
     final_reply: str | None
@@ -174,6 +175,7 @@ class CommentRepository:
                 comments.classified_at,
                 comments.classification_model,
                 comments.classification_version,
+                comments.reply_direction,
                 comments.draft_reply,
                 comments.original_draft_reply,
                 comments.final_reply,
@@ -226,6 +228,7 @@ class CommentRepository:
                 comments.classified_at,
                 comments.classification_model,
                 comments.classification_version,
+                comments.reply_direction,
                 comments.draft_reply,
                 comments.original_draft_reply,
                 comments.final_reply,
@@ -324,6 +327,16 @@ class CommentRepository:
             (draft_reply,),
         )
 
+    def update_reply_direction(
+        self, comment_id: str, reply_direction: str | None
+    ) -> bool:
+        normalized = reply_direction.strip() if reply_direction else None
+        return self._update(
+            comment_id,
+            "reply_direction = ?",
+            (normalized or None,),
+        )
+
     def save_generated_reply(self, comment_id: str, draft_reply: str) -> bool:
         """Store both the immutable comparison source and editable draft."""
         return self._update(
@@ -331,6 +344,7 @@ class CommentRepository:
             """
             original_draft_reply = ?,
             draft_reply = ?,
+            reply_direction = NULL,
             final_reply = NULL,
             reply_approved_at = NULL,
             status = CASE WHEN status = 'approved' THEN 'new' ELSE status END
@@ -430,6 +444,7 @@ class CommentRepository:
             classified_at=row["classified_at"],
             classification_model=row["classification_model"],
             classification_version=row["classification_version"],
+            reply_direction=row["reply_direction"],
             draft_reply=row["draft_reply"],
             original_draft_reply=row["original_draft_reply"],
             final_reply=row["final_reply"],
@@ -467,6 +482,7 @@ class CommentRepository:
                 comments.classified_at,
                 comments.classification_model,
                 comments.classification_version,
+                comments.reply_direction,
                 comments.draft_reply,
                 comments.original_draft_reply,
                 comments.final_reply,

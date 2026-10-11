@@ -478,8 +478,21 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
 
     @app.post("/comments/<comment_id>/generate-reply")
     def generate_reply(comment_id: str):
+        submitted_direction = request.form.get("draft_reply")
+        if submitted_direction is not None:
+            if not repository().update_reply_direction(
+                comment_id, submitted_direction
+            ):
+                abort(404)
         generate_reply_for_comment(comment_id)
         return redirect(url_for("comment_detail", comment_id=comment_id))
+
+    @app.post("/comments/<comment_id>/reply-direction")
+    def save_reply_direction(comment_id: str):
+        direction = request.form.get("reply_direction", "")
+        if not repository().update_reply_direction(comment_id, direction):
+            abort(404)
+        return "", 204
 
     @app.post("/inbox/generate-all")
     def generate_all_replies():
