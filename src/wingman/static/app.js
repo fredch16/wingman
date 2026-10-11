@@ -225,11 +225,15 @@
     cards[next].focus({ preventScroll: true });
   }
 
-  function submitDetailForm(selector) {
-    const form = detailPanel?.querySelector(selector);
-    if (!(form instanceof HTMLFormElement)) return;
-    const submitButton = form.querySelector('button[type="submit"]');
-    form.requestSubmit(submitButton || undefined);
+  function submitDetailAction(selector) {
+    const target = detailPanel?.querySelector(selector);
+    if (target instanceof HTMLButtonElement && target.form) {
+      target.form.requestSubmit(target);
+      return;
+    }
+    if (!(target instanceof HTMLFormElement)) return;
+    const submitButton = target.querySelector('button[type="submit"]');
+    target.requestSubmit(submitButton || undefined);
   }
 
   function updateConversationCount() {
@@ -505,7 +509,9 @@
       moveSelection(-1);
     } else if (event.key === "r" || event.key === "g") {
       event.preventDefault();
-      submitDetailForm('form[action$="/generate-reply"]');
+      submitDetailAction(
+        'form[action$="/generate-reply"], button[formaction$="/generate-reply"]',
+      );
     } else if (event.key === "e" || event.key === "a") {
       const editor = detailPanel?.querySelector(".reply-editor textarea");
       if (editor) {
@@ -521,7 +527,7 @@
       }
     } else if (event.key === "h") {
       event.preventDefault();
-      submitDetailForm('form[action$="/ignore"]');
+      submitDetailAction('form[action$="/ignore"]');
     }
   });
 })();
