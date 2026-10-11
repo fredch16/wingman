@@ -2294,3 +2294,44 @@ input::placeholder {
   .analytics-video-thumb { width: 52px; }
   .analytics-activity-status { font-size: 10px; }
 }
+
+/* Incremental comment generation */
+.comment-generation-progress {
+  align-items: center;
+  color: var(--signal);
+  display: grid;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  gap: 8px;
+  grid-template-columns: 60px minmax(0, 1fr);
+  letter-spacing: .04em;
+  margin-top: 2px;
+  text-transform: uppercase;
+}
+.comment-generation-progress[hidden] { display: none; }
+.comment-generation-track {
+  background: color-mix(in srgb, var(--signal) 18%, transparent);
+  border-radius: 999px;
+  height: 4px;
+  overflow: hidden;
+  position: relative;
+}
+.comment-generation-track > span {
+  animation: comment-generating 1.1s ease-in-out infinite;
+  background: var(--signal);
+  border-radius: inherit;
+  bottom: 0;
+  position: absolute;
+  top: 0;
+  width: 50%;
+}
+.conversation-card.is-generating { background: color-mix(in srgb, var(--signal) 4%, var(--surface)); }
+.conversation-card.generation-failed .comment-generation-progress { color: var(--critical); }
+.conversation-card.generation-failed .comment-generation-track > span { animation: none; background: var(--critical); left: 0; width: 100%; }
+.conversation-card.selected .comment-generation-progress { color: white; }
+.conversation-card.selected .comment-generation-track { background: rgb(255 255 255 / 25%); }
+.conversation-card.selected .comment-generation-track > span { background: white; }
+@keyframes comment-generating {
+  0% { left: -50%; }
+  100% { left: 100%; }
+}

@@ -44,6 +44,10 @@
         {% else %}Needs reply{% endif %}
       </span>
     </span>
+    <span class="comment-generation-progress" hidden data-generation-progress>
+      <span class="comment-generation-track"><span></span></span>
+      <span data-generation-label>Queued for generation</span>
+    </span>
     {% if classification_errors.get(comment.comment_id) %}
       <span class="inline-error">Classification failed</span>
     {% endif %}

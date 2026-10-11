@@ -236,6 +236,30 @@
     target.requestSubmit(submitButton || undefined);
   }
 
+  function updateSingleGenerationCard(commentId, state) {
+    const card = cards.find((item) => item.dataset.commentId === commentId);
+    const progress = card?.querySelector("[data-generation-progress]");
+    const label = progress?.querySelector("[data-generation-label]");
+    if (!card || !progress) return;
+
+    const failed = state === "failed";
+    card.classList.toggle("is-generating", state === "generating");
+    card.classList.toggle("generation-failed", failed);
+    progress.hidden = state === "ready";
+    if (label) {
+      label.textContent = failed ? "Generation failed" : "Generating reply…";
+    }
+
+    if (state === "ready") {
+      const replyState = card.querySelector(".reply-state");
+      if (replyState) {
+        replyState.classList.remove("reply-needed", "reply-approved");
+        replyState.classList.add("reply-draft");
+        replyState.innerHTML = '<span class="reply-state-dot"></span>Draft ready';
+      }
+    }
+  }
+
   function updateConversationCount() {
     if (!conversationCount) return;
     const count = cards.length;
@@ -349,6 +373,7 @@
       ? cardIndexById
       : selectedCardIndex();
     let progressTimer = null;
+    let generatingCommentId = null;
     const feedbackButtons = submitter ? [submitter] : [];
     if (submitter?.matches(".shortcut-approve-post")) {
       const visiblePostButton = form.querySelector(".editor-actions .primary");
@@ -375,6 +400,10 @@
       const isPostAction = actionPath.endsWith("/reply")
         || actionPath.endsWith("/approve-and-post");
       const isGenerateAction = actionPath.endsWith("/generate-reply");
+      if (isGenerateAction && activeCommentId) {
+        generatingCommentId = activeCommentId;
+        updateSingleGenerationCard(activeCommentId, "generating");
+      }
       if (isGenerateAction && submitter) {
         let dotCount = 1;
         const updateProgress = () => {
@@ -412,6 +441,13 @@
       const refreshed = parsed.querySelector(".conversation-shell");
       if (!refreshed || !detailPanel) throw new Error("Updated conversation was unavailable");
       if (progressTimer) clearInterval(progressTimer);
+      if (isGenerateAction && generatingCommentId) {
+        const failed = refreshed.querySelector(".reply-workspace > .form-error");
+        updateSingleGenerationCard(
+          generatingCommentId,
+          failed ? "failed" : "ready",
+        );
+      }
       const completedPost = isPostAction && refreshed.querySelector(".reply-sent");
       if ((isIgnoreAction || completedPost) && activeCardIndex >= 0) {
         const completedCard = cards[activeCardIndex];
@@ -431,6 +467,9 @@
       }
     } catch (error) {
       if (progressTimer) clearInterval(progressTimer);
+      if (generatingCommentId) {
+        updateSingleGenerationCard(generatingCommentId, "failed");
+      }
       const message = document.createElement("p");
       message.className = "form-error";
       message.textContent = error.message;

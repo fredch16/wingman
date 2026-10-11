@@ -221,7 +221,7 @@ class InboxRouteTests(unittest.TestCase):
         response = self.client.get("/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"/static/app.js?v=20261011-1", response.data)
+        self.assertIn(b"/static/app.js?v=20261011-2", response.data)
         self.assertIn(b"Full text for comment-new", response.data)
         self.assertIn(b"Full text for comment-low", response.data)
         self.assertIn(b"PID Explained in 60 Seconds", response.data)
@@ -234,6 +234,7 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn(b"old-model", response.data)
         self.assertIn(b"production-v1", response.data)
         self.assertIn(b"Generate Draft", response.data)
+        self.assertIn(b"data-generation-progress", response.data)
         self.assertIn(b"Reclassify", response.data)
         self.assertLess(
             response.data.index(b"Full text for comment-new"),
@@ -791,6 +792,11 @@ class InboxRouteTests(unittest.TestCase):
         )
         self.assertIn(
             "target instanceof HTMLButtonElement && target.form",
+            script,
+        )
+        self.assertIn("updateSingleGenerationCard", script)
+        self.assertIn(
+            'updateSingleGenerationCard(activeCommentId, "generating")',
             script,
         )
         self.assertIn(
