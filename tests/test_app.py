@@ -775,13 +775,21 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn("showCompletedInbox()", script)
         self.assertIn('`Regenerating${".".repeat(dotCount)}`', script)
         self.assertIn("setInterval(updateProgress, 420)", script)
-        self.assertIn('form.querySelector(\'button[type="submit"]\')', script)
+        self.assertIn('target.querySelector(\'button[type="submit"]\')', script)
         self.assertIn(
             'event.key === "e" || event.key === "a"',
             script,
         )
         self.assertIn(
             'event.key === "r" || event.key === "g"',
+            script,
+        )
+        self.assertIn(
+            'button[formaction$="/generate-reply"]',
+            script,
+        )
+        self.assertIn(
+            "target instanceof HTMLButtonElement && target.form",
             script,
         )
         self.assertIn(
