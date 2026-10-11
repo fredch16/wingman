@@ -221,6 +221,7 @@ class InboxRouteTests(unittest.TestCase):
         response = self.client.get("/")
 
         self.assertEqual(response.status_code, 200)
+        self.assertIn(b"/static/app.js?v=20261011-1", response.data)
         self.assertIn(b"Full text for comment-new", response.data)
         self.assertIn(b"Full text for comment-low", response.data)
         self.assertIn(b"PID Explained in 60 Seconds", response.data)
