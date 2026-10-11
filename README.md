@@ -71,7 +71,8 @@ automatically retried to avoid duplicates.
 | --- | --- |
 | `j` | Select the next comment |
 | `k` | Select the previous comment |
-| `r` | Generate or regenerate the selected reply |
+| `r` or `g` | Generate or regenerate the selected reply |
+| `Ctrl+g` | Generate all missing drafts using the current batch scope |
 | `e` or `a` | Focus the reply editor |
 | `Ctrl+Enter` | Post the selected reply |
 | `h` | Hide the selected conversation |

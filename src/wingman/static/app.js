@@ -485,6 +485,16 @@
       }
     }
 
+    if (event.key.toLowerCase() === "g" && event.ctrlKey) {
+      const form = document.querySelector(".generate-batch-form");
+      const generateButton = form?.querySelector('button[type="submit"]');
+      if (form && generateButton && !generateButton.disabled) {
+        event.preventDefault();
+        form.requestSubmit(generateButton);
+      }
+      return;
+    }
+
     if (isEditing || event.ctrlKey || event.metaKey || event.altKey) return;
 
     if (event.key === "j") {
@@ -493,7 +503,7 @@
     } else if (event.key === "k") {
       event.preventDefault();
       moveSelection(-1);
-    } else if (event.key === "r") {
+    } else if (event.key === "r" || event.key === "g") {
       event.preventDefault();
       submitDetailForm('form[action$="/generate-reply"]');
     } else if (event.key === "e" || event.key === "a") {
