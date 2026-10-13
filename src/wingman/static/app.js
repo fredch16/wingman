@@ -6,8 +6,43 @@
   const conversationCount = document.querySelector("#conversation-count");
   const jobProgress = document.querySelector("#job-progress");
   const jobStorageKey = "wingman-active-job";
+  const themeStorageKey = "wingman-theme";
+  const themeMedia = window.matchMedia("(prefers-color-scheme: dark)");
+  const themeOptions = [...document.querySelectorAll("[data-theme-option]")];
   const autosaveTimers = new Map();
   const autosaveRequests = new Set();
+
+  function applyTheme(preference) {
+    const selected = ["light", "dark", "system"].includes(preference)
+      ? preference
+      : "system";
+    const resolved = selected === "system"
+      ? (themeMedia.matches ? "dark" : "light")
+      : selected;
+    root.dataset.theme = resolved;
+    root.dataset.themePreference = selected;
+    root.style.colorScheme = resolved;
+    themeOptions.forEach((option) => {
+      option.checked = option.value === selected;
+    });
+    document.querySelectorAll("[data-system-theme-label]").forEach((label) => {
+      label.textContent = `Currently ${themeMedia.matches ? "dark" : "light"}`;
+    });
+  }
+
+  applyTheme(localStorage.getItem(themeStorageKey) || "system");
+  themeOptions.forEach((option) => {
+    option.addEventListener("change", () => {
+      if (!option.checked) return;
+      localStorage.setItem(themeStorageKey, option.value);
+      applyTheme(option.value);
+    });
+  });
+  themeMedia.addEventListener("change", () => {
+    if ((localStorage.getItem(themeStorageKey) || "system") === "system") {
+      applyTheme("system");
+    }
+  });
 
   function updateSaveHint(textarea, message, isError = false) {
     const hint = textarea.closest(".reply-editor")?.querySelector(".save-hint");

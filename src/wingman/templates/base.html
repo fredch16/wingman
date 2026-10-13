@@ -4,13 +4,31 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Wingman Inbox{% endblock %}</title>
+    <script>
+      (() => {
+        let stored = null;
+        try {
+          stored = localStorage.getItem("wingman-theme");
+        } catch (_error) {
+          stored = null;
+        }
+        const preference = ["light", "dark", "system"].includes(stored)
+          ? stored
+          : "system";
+        const resolved = preference === "system"
+          ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+          : preference;
+        document.documentElement.dataset.theme = resolved;
+        document.documentElement.dataset.themePreference = preference;
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=Instrument+Sans:wdth,wght@75..100,400..700&amp;display=swap"
           rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='editorial.css', v='20261012-1') }}">
-    <script src="{{ url_for('static', filename='app.js', v='20261011-2') }}" defer></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='editorial.css', v='20261013-1') }}">
+    <script src="{{ url_for('static', filename='app.js', v='20261013-1') }}" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -56,7 +74,8 @@
             </svg>
             <span>Analytics</span>
           </a>
-          <a href="#" aria-disabled="true">
+          <a class="{{ 'active' if request.endpoint == 'settings' }}"
+             href="{{ url_for('settings') }}">
             <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1A7 7 0 0 0 15 6.2L14.7 4h-5.4L9 6.2a7 7 0 0 0-1.5.9l-2.4-1-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 1.5.9l.3 2.2h5.4l.3-2.2a7 7 0 0 0 1.5-.9l2.4 1 2-3.4-2-1.5a7 7 0 0 0 .1-1z"/>
             </svg>
