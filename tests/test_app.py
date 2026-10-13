@@ -221,8 +221,8 @@ class InboxRouteTests(unittest.TestCase):
         response = self.client.get("/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"/static/app.js?v=20261011-2", response.data)
-        self.assertIn(b"/static/editorial.css?v=20261012-1", response.data)
+        self.assertIn(b"/static/app.js?v=20261013-1", response.data)
+        self.assertIn(b"/static/editorial.css?v=20261013-1", response.data)
         self.assertIn(b"Full text for comment-new", response.data)
         self.assertIn(b"Full text for comment-low", response.data)
         self.assertIn(b"PID Explained in 60 Seconds", response.data)
@@ -576,6 +576,19 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn(b"Public replies posted", page.data)
         self.assertIn(b"PID Explained in 60 Seconds", page.data)
         self.assertIn(b"Analytics", self.client.get("/").data)
+
+    def test_settings_page_offers_persistent_theme_choices(self) -> None:
+        page = self.client.get("/settings")
+
+        self.assertEqual(page.status_code, 200)
+        self.assertIn(b"Appearance", page.data)
+        self.assertIn(b'value="light"', page.data)
+        self.assertIn(b'value="dark"', page.data)
+        self.assertIn(b'value="system"', page.data)
+        self.assertIn(b'data-theme-option', page.data)
+        self.assertIn(b'class="active"', page.data)
+        self.assertIn(b'href="/settings"', page.data)
+        self.assertIn(b'localStorage.getItem("wingman-theme")', page.data)
 
     def test_youtube_auto_reply_preserves_multiline_message(self) -> None:
         message = "Here is the guide:\nhttps://example.com/pcb\n\nHappy building!"

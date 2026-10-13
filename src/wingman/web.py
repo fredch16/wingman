@@ -748,6 +748,10 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             analytics=get_automation_analytics(repository().connection),
         )
 
+    @app.get("/settings")
+    def settings() -> str:
+        return render_template("settings.html")
+
     def automation_messages_from_form() -> tuple[str, str]:
         """Use the unified editor, while accepting legacy form submissions."""
         if "reply_options" not in request.form:

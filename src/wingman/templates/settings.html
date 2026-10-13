@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Settings · Wingman{% endblock %}
+{% block content %}
+  <div class="settings-page">
+    <header class="page-heading settings-heading">
+      <span class="eyebrow">Preferences</span>
+      <h1>Settings</h1>
+      <p>Choose how Wingman looks on this device.</p>
+    </header>
+
+    <section class="settings-panel" aria-labelledby="appearance-heading">
+      <div class="settings-panel-copy">
+        <span class="eyebrow">Interface</span>
+        <h2 id="appearance-heading">Appearance</h2>
+        <p>The system option follows your browser and updates automatically when your device theme changes.</p>
+      </div>
+
+      <fieldset class="theme-options">
+        <legend class="sr-only">Color theme</legend>
+        <label class="theme-option">
+          <input type="radio" name="theme" value="light" data-theme-option>
+          <span class="theme-option-card">
+            <span class="theme-preview theme-preview-light" aria-hidden="true"><i></i><i></i></span>
+            <strong>Light</strong>
+            <small>Warm paper surfaces with dark text</small>
+          </span>
+        </label>
+        <label class="theme-option">
+          <input type="radio" name="theme" value="dark" data-theme-option>
+          <span class="theme-option-card">
+            <span class="theme-preview theme-preview-dark" aria-hidden="true"><i></i><i></i></span>
+            <strong>Dark</strong>
+            <small>Low-glare charcoal surfaces</small>
+          </span>
+        </label>
+        <label class="theme-option">
+          <input type="radio" name="theme" value="system" data-theme-option>
+          <span class="theme-option-card">
+            <span class="theme-preview theme-preview-system" aria-hidden="true"><i></i><i></i></span>
+            <strong>System</strong>
+            <small data-system-theme-label>Follows this device</small>
+          </span>
+        </label>
+      </fieldset>
+      <p class="settings-storage-note">Saved in this browser. Other devices keep their own appearance setting.</p>
+    </section>
+  </div>
+{% endblock %}

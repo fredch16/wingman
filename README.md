@@ -25,6 +25,7 @@ reusable preferences, and posts approved text directly to YouTube or Instagram.
 - Prefills review-ready replies with video-specific keyword automations.
 - Preserves ignored conversations in a separate view.
 - Supports a fast keyboard-driven review workflow.
+- Supports persistent light, dark, and system-following appearance modes.
 
 Wingman stores its working state in SQLite. Existing databases are migrated
 automatically as fields are added.
@@ -80,6 +81,10 @@ automatically retried to avoid duplicates.
 | `Esc` | Leave the reply editor |
 
 Shortcuts are inactive while typing, apart from `Ctrl+Enter` and `Esc`.
+
+Use **Settings → Appearance** to choose Light, Dark, or System. The preference
+is stored in the current browser, and System mode follows live device-theme
+changes without requiring an application restart.
 
 ## Keyword automations
 
