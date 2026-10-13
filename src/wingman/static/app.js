@@ -483,6 +483,18 @@
           failed ? "failed" : "ready",
         );
       }
+      const refreshedTemplate = activeCommentId
+        ? document.querySelector(`#detail-${CSS.escape(activeCommentId)}`)
+        : null;
+      if (refreshedTemplate instanceof HTMLTemplateElement) {
+        refreshedTemplate.content.replaceChildren(refreshed.cloneNode(true));
+      }
+      const selectedCommentId = cards.find((card) =>
+        card.classList.contains("selected"),
+      )?.dataset.commentId;
+      const originatingCommentIsVisible = !activeCommentId
+        || !selectedCommentId
+        || selectedCommentId === activeCommentId;
       const completedPost = isPostAction && refreshed.querySelector(".reply-sent");
       if ((isIgnoreAction || completedPost) && activeCardIndex >= 0) {
         const completedCard = cards[activeCardIndex];
@@ -497,7 +509,7 @@
         } else {
           showCompletedInbox();
         }
-      } else {
+      } else if (originatingCommentIsVisible) {
         detailPanel.replaceChildren(refreshed);
       }
     } catch (error) {
