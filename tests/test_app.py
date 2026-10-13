@@ -221,7 +221,7 @@ class InboxRouteTests(unittest.TestCase):
         response = self.client.get("/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"/static/app.js?v=20261013-1", response.data)
+        self.assertIn(b"/static/app.js?v=20261013-2", response.data)
         self.assertIn(b"/static/editorial.css?v=20261013-1", response.data)
         self.assertIn(b"Full text for comment-new", response.data)
         self.assertIn(b"Full text for comment-low", response.data)
@@ -788,6 +788,12 @@ class InboxRouteTests(unittest.TestCase):
             'card.dataset.commentId === activeCommentId',
             script,
         )
+        self.assertIn(
+            "refreshedTemplate.content.replaceChildren(refreshed.cloneNode(true))",
+            script,
+        )
+        self.assertIn("selectedCommentId === activeCommentId", script)
+        self.assertIn("else if (originatingCommentIsVisible)", script)
         self.assertIn("showCompletedInbox()", script)
         self.assertIn('`Regenerating${".".repeat(dotCount)}`', script)
         self.assertIn("setInterval(updateProgress, 420)", script)
