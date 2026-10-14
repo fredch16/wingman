@@ -74,13 +74,15 @@ automatically retried to avoid duplicates.
 | `k` | Select the previous comment |
 | `r` or `g` | Generate or regenerate the selected reply |
 | `Ctrl+g` | Generate all missing drafts using the current batch scope |
+| `Ctrl+x` | Cancel active single and batch reply generation |
 | `e` or `a` | Focus the reply editor |
 | `Ctrl+Enter` | Post the selected reply |
 | `h` | Hide the selected conversation |
 | `o` or `O` | Open the source comment in a new tab |
 | `Esc` | Leave the reply editor |
 
-Shortcuts are inactive while typing, apart from `Ctrl+Enter` and `Esc`.
+Shortcuts are inactive while typing, apart from `Ctrl+Enter`, `Ctrl+x`, and
+`Esc`.
 
 Use **Settings → Appearance** to choose Light, Dark, or System. The preference
 is stored in the current browser, and System mode follows live device-theme

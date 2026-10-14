@@ -7,7 +7,7 @@ import hmac
 from contextlib import closing
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from dotenv import load_dotenv
 from flask import Flask, abort, g, jsonify, redirect, render_template, request, url_for
@@ -48,7 +48,12 @@ from wingman.instagram.client import (
 from wingman.instagram.sync import main as sync_instagram
 from wingman.instagram.sync import account_id_from_env, comment_from_api, video_from_media
 from wingman.instagram.automation import run_automation, handle_opt_in, deliver_comment
-from wingman.jobs import JobManager, ProgressCallback
+from wingman.jobs import (
+    CancellationCheck,
+    CancellationRegistry,
+    JobManager,
+    ProgressCallback,
+)
 from wingman.reply_queue import ReplyQueue
 from wingman.youtube.sync import main as sync_youtube
 
@@ -114,6 +119,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     app.extensions["automation_error"] = None
     app.extensions["automation_message"] = None
     app.extensions["job_manager"] = JobManager()
+    app.extensions["generation_cancellations"] = CancellationRegistry()
 
     def send_queued_reply(platform: str, comment_id: str, reply_text: str):
         if platform == "instagram":
@@ -333,8 +339,12 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         if any(name not in commands for name in selected):
             abort(404)
 
-        def worker(update: ProgressCallback) -> None:
+        def worker(
+            update: ProgressCallback,
+            check_cancelled: CancellationCheck,
+        ) -> None:
             for index, name in enumerate(selected, start=1):
+                check_cancelled()
                 label, command = commands[name]
                 update(index - 1, len(selected), label)
                 status = command(["--refresh"])
@@ -360,10 +370,14 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 ).list_unclassified_inbox_comments()
             ]
 
-        def worker(update: ProgressCallback) -> None:
+        def worker(
+            update: ProgressCallback,
+            check_cancelled: CancellationCheck,
+        ) -> None:
             with closing(connect_database(app.config["DATABASE"])) as connection:
                 job_repository = CommentRepository(connection)
                 for index, comment_id in enumerate(comment_ids, start=1):
+                    check_cancelled()
                     comment = job_repository.get_comment(comment_id)
                     update(
                         index - 1,
@@ -401,10 +415,14 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             ]
         comment_ids = [comment.comment_id for comment in candidates]
 
-        def worker(update: ProgressCallback) -> None:
+        def worker(
+            update: ProgressCallback,
+            check_cancelled: CancellationCheck,
+        ) -> None:
             with closing(connect_database(app.config["DATABASE"])) as connection:
                 job_repository = CommentRepository(connection)
                 for index, comment_id in enumerate(comment_ids, start=1):
+                    check_cancelled()
                     comment = job_repository.get_comment(comment_id)
                     if comment is None:
                         continue
@@ -414,6 +432,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                         f"Drafting for {comment.author_display_name}",
                     )
                     draft = reply_generation_service().generate_for_comment(comment)
+                    check_cancelled()
                     job_repository.save_generated_reply(comment_id, draft)
                     update(index, len(comment_ids), "Draft saved")
 
@@ -428,6 +447,26 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         if job is None:
             abort(404)
         return jsonify(job)
+
+    @app.post("/jobs/<job_id>/cancel")
+    def cancel_job(job_id: str):
+        job = app.extensions["job_manager"].cancel(job_id)
+        if job is None:
+            abort(404)
+        return jsonify(job)
+
+    @app.post("/generations/cancel")
+    def cancel_generations():
+        payload = request.get_json(silent=True) or {}
+        operation_ids = [
+            operation_id
+            for operation_id in payload.get("operation_ids", [])
+            if isinstance(operation_id, str) and operation_id
+        ]
+        cancelled = app.extensions["generation_cancellations"].cancel(
+            operation_ids
+        )
+        return jsonify({"cancelled": cancelled})
 
     @app.get("/comments/<comment_id>")
     def comment_detail(comment_id: str) -> str:
@@ -463,28 +502,50 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             ].get(comment_id),
         )
 
-    def generate_reply_for_comment(comment_id: str) -> None:
+    def generate_reply_for_comment(
+        comment_id: str,
+        is_cancelled: Callable[[], bool] | None = None,
+    ) -> bool:
         comment = repository().get_comment(comment_id)
         if comment is None:
             abort(404)
         errors: dict[str, str] = app.extensions["reply_generation_errors"]
         try:
+            if is_cancelled and is_cancelled():
+                return False
             draft = reply_generation_service().generate_for_comment(comment)
+            if is_cancelled and is_cancelled():
+                return False
             repository().save_generated_reply(comment_id, draft)
             errors.pop(comment_id, None)
+            return True
         except Exception as error:
             errors[comment_id] = str(error)
             app.logger.exception("Reply generation failed for %s", comment_id)
+            return False
 
     @app.post("/comments/<comment_id>/generate-reply")
     def generate_reply(comment_id: str):
+        operation_id = request.headers.get("X-Wingman-Generation-Id", "").strip()
+        cancellation = None
+        if operation_id:
+            cancellation = app.extensions["generation_cancellations"].begin(
+                operation_id
+            )
         submitted_direction = request.form.get("draft_reply")
         if submitted_direction is not None:
             if not repository().update_reply_direction(
                 comment_id, submitted_direction
             ):
                 abort(404)
-        generate_reply_for_comment(comment_id)
+        try:
+            generate_reply_for_comment(
+                comment_id,
+                cancellation.is_set if cancellation is not None else None,
+            )
+        finally:
+            if operation_id:
+                app.extensions["generation_cancellations"].finish(operation_id)
         return redirect(url_for("comment_detail", comment_id=comment_id))
 
     @app.post("/comments/<comment_id>/reply-direction")

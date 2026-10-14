@@ -6,11 +6,20 @@
   const conversationCount = document.querySelector("#conversation-count");
   const jobProgress = document.querySelector("#job-progress");
   const jobStorageKey = "wingman-active-job";
+  const generationJobStorageKey = "wingman-active-generation-job";
   const themeStorageKey = "wingman-theme";
   const themeMedia = window.matchMedia("(prefers-color-scheme: dark)");
   const themeOptions = [...document.querySelectorAll("[data-theme-option]")];
   const autosaveTimers = new Map();
   const autosaveRequests = new Set();
+  const activeGenerationRequests = new Map();
+
+  function createGenerationOperationId() {
+    if (typeof globalThis.crypto?.randomUUID === "function") {
+      return globalThis.crypto.randomUUID();
+    }
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  }
 
   function applyTheme(preference) {
     const selected = ["light", "dark", "system"].includes(preference)
@@ -115,6 +124,7 @@
     jobProgress.querySelector("[data-job-current]").textContent = job.error || job.current;
     jobProgress.querySelector("[data-job-bar]").style.width = `${percent}%`;
     jobProgress.classList.toggle("job-failed", job.status === "failed");
+    jobProgress.classList.toggle("job-cancelled", job.status === "cancelled");
   }
 
   function setJobButtonsDisabled(disabled) {
@@ -134,6 +144,9 @@
         return;
       }
       sessionStorage.removeItem(jobStorageKey);
+      if (sessionStorage.getItem(generationJobStorageKey) === jobId) {
+        sessionStorage.removeItem(generationJobStorageKey);
+      }
       setJobButtonsDisabled(false);
       if (job.status === "complete") {
         setTimeout(() => location.reload(), 450);
@@ -176,6 +189,9 @@
         if (!response.ok) throw new Error(`Could not start (${response.status})`);
         const job = await response.json();
         sessionStorage.setItem(jobStorageKey, job.job_id);
+        if (form.matches(".generate-batch-form")) {
+          sessionStorage.setItem(generationJobStorageKey, job.job_id);
+        }
         renderJob(job);
         pollJob(job.job_id);
       } catch (error) {
@@ -196,6 +212,53 @@
   if (activeJobId) {
     setJobButtonsDisabled(true);
     pollJob(activeJobId);
+  }
+
+  async function cancelActiveGenerations() {
+    const operations = [...activeGenerationRequests.entries()];
+    const generationJobId = sessionStorage.getItem(generationJobStorageKey);
+    if (!operations.length && !generationJobId) return false;
+
+    const cancellations = [];
+    if (operations.length) {
+      cancellations.push(fetch("/generations/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          operation_ids: operations.map(([operationId]) => operationId),
+        }),
+      }));
+    }
+    if (generationJobId) {
+      cancellations.push(fetch(
+        `/jobs/${encodeURIComponent(generationJobId)}/cancel`,
+        { method: "POST" },
+      ));
+    }
+
+    operations.forEach(([, operation]) => {
+      operation.controller.abort();
+      if (operation.commentId) {
+        updateSingleGenerationCard(operation.commentId, "cancelled");
+      }
+    });
+    activeGenerationRequests.clear();
+    sessionStorage.removeItem(generationJobStorageKey);
+    sessionStorage.removeItem(jobStorageKey);
+    setJobButtonsDisabled(false);
+    if (generationJobId) {
+      renderJob({
+        label: "Generate replies",
+        completed: 0,
+        total: 1,
+        current: "Cancelled",
+        status: "cancelled",
+        error: null,
+      });
+    }
+    showWorkflowToast("Generation cancelled");
+    await Promise.allSettled(cancellations);
+    return true;
   }
 
   const developerMode = localStorage.getItem("wingman-developer-mode") === "true";
@@ -278,9 +341,10 @@
     if (!card || !progress) return;
 
     const failed = state === "failed";
+    const cancelled = state === "cancelled";
     card.classList.toggle("is-generating", state === "generating");
     card.classList.toggle("generation-failed", failed);
-    progress.hidden = state === "ready";
+    progress.hidden = state === "ready" || cancelled;
     if (label) {
       label.textContent = failed ? "Generation failed" : "Generating reply…";
     }
@@ -409,6 +473,8 @@
       : selectedCardIndex();
     let progressTimer = null;
     let generatingCommentId = null;
+    let generationOperationId = null;
+    let generationController = null;
     const feedbackButtons = submitter ? [submitter] : [];
     if (submitter?.matches(".shortcut-approve-post")) {
       const visiblePostButton = form.querySelector(".editor-actions .primary");
@@ -437,6 +503,12 @@
       const isGenerateAction = actionPath.endsWith("/generate-reply");
       if (isGenerateAction && activeCommentId) {
         generatingCommentId = activeCommentId;
+        generationOperationId = createGenerationOperationId();
+        generationController = new AbortController();
+        activeGenerationRequests.set(generationOperationId, {
+          controller: generationController,
+          commentId: activeCommentId,
+        });
         updateSingleGenerationCard(activeCommentId, "generating");
       }
       if (isGenerateAction && submitter) {
@@ -449,10 +521,15 @@
         updateProgress();
         progressTimer = setInterval(updateProgress, 420);
       }
+      const headers = isPostAction ? { Accept: "application/json" } : {};
+      if (generationOperationId) {
+        headers["X-Wingman-Generation-Id"] = generationOperationId;
+      }
       const response = await fetch(action, {
         method,
         body: new FormData(form),
-        headers: isPostAction ? { Accept: "application/json" } : {},
+        headers,
+        signal: generationController?.signal,
       });
       if (!response.ok) throw new Error(`Request failed (${response.status})`);
       if (isPostAction && response.status === 202) {
@@ -512,10 +589,28 @@
       } else if (originatingCommentIsVisible) {
         detailPanel.replaceChildren(refreshed);
       }
+      if (generationOperationId) {
+        activeGenerationRequests.delete(generationOperationId);
+      }
     } catch (error) {
       if (progressTimer) clearInterval(progressTimer);
+      if (generationOperationId) {
+        activeGenerationRequests.delete(generationOperationId);
+      }
+      const wasCancelled = error.name === "AbortError";
       if (generatingCommentId) {
-        updateSingleGenerationCard(generatingCommentId, "failed");
+        updateSingleGenerationCard(
+          generatingCommentId,
+          wasCancelled ? "cancelled" : "failed",
+        );
+      }
+      if (wasCancelled) {
+        for (const button of feedbackButtons) {
+          button.disabled = false;
+          button.classList.remove("is-working", "is-regenerating");
+          button.textContent = button.dataset.label;
+        }
+        return;
       }
       const message = document.createElement("p");
       message.className = "form-error";
@@ -558,6 +653,15 @@
       || target instanceof HTMLInputElement
       || target instanceof HTMLSelectElement
       || target?.isContentEditable;
+
+    if (event.key.toLowerCase() === "x" && event.ctrlKey) {
+      if (activeGenerationRequests.size
+          || sessionStorage.getItem(generationJobStorageKey)) {
+        event.preventDefault();
+        cancelActiveGenerations();
+      }
+      return;
+    }
 
     if (event.key === "Escape" && isEditing) {
       event.preventDefault();
