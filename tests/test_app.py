@@ -5,6 +5,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from threading import Event, Thread
 
 from wingman.web import create_app
 from wingman.ai.classification_service import CommentClassification
@@ -221,8 +222,8 @@ class InboxRouteTests(unittest.TestCase):
         response = self.client.get("/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"/static/app.js?v=20261013-2", response.data)
-        self.assertIn(b"/static/editorial.css?v=20261013-1", response.data)
+        self.assertIn(b"/static/app.js?v=20261014-1", response.data)
+        self.assertIn(b"/static/editorial.css?v=20261014-1", response.data)
         self.assertIn(b"Full text for comment-new", response.data)
         self.assertIn(b"Full text for comment-low", response.data)
         self.assertIn(b"PID Explained in 60 Seconds", response.data)
@@ -317,6 +318,74 @@ class InboxRouteTests(unittest.TestCase):
             "Answer this like a concise model answer.",
         )
         self.assertIsNone(self.row("comment-unclassified")["reply_direction"])
+
+    def test_cancels_batch_generation_before_later_api_calls(self) -> None:
+        started = Event()
+        release = Event()
+        calls: list[str] = []
+
+        class BlockingGenerator:
+            def generate_for_comment(_self, comment) -> str:
+                calls.append(comment.comment_id)
+                started.set()
+                release.wait(1)
+                return "This cancelled draft must not be saved."
+
+        self.client.application.extensions[
+            "reply_generation_service"
+        ] = BlockingGenerator()
+        started_job = self.client.post("/jobs/generate").get_json()
+        self.assertTrue(started.wait(1))
+
+        cancelled = self.client.post(
+            f"/jobs/{started_job['job_id']}/cancel"
+        )
+        release.set()
+        time.sleep(0.02)
+
+        self.assertEqual(cancelled.status_code, 200)
+        self.assertEqual(cancelled.get_json()["status"], "cancelled")
+        self.assertEqual(len(calls), 1)
+        self.assertIsNone(self.row(calls[0])["draft_reply"])
+
+    def test_cancels_single_generation_without_saving_its_result(self) -> None:
+        started = Event()
+        release = Event()
+
+        class BlockingGenerator:
+            def generate_for_comment(_self, _comment) -> str:
+                started.set()
+                release.wait(1)
+                return "This cancelled draft must not be saved."
+
+        self.client.application.extensions[
+            "reply_generation_service"
+        ] = BlockingGenerator()
+        response_status: list[int] = []
+
+        def generate() -> None:
+            with self.client.application.test_client() as client:
+                response = client.post(
+                    "/comments/comment-new/generate-reply",
+                    headers={"X-Wingman-Generation-Id": "single-operation"},
+                )
+                response_status.append(response.status_code)
+
+        request_thread = Thread(target=generate)
+        request_thread.start()
+        self.assertTrue(started.wait(1))
+
+        cancelled = self.client.post(
+            "/generations/cancel",
+            json={"operation_ids": ["single-operation"]},
+        )
+        release.set()
+        request_thread.join(1)
+
+        self.assertEqual(cancelled.status_code, 200)
+        self.assertEqual(cancelled.get_json(), {"cancelled": 1})
+        self.assertEqual(response_status, [302])
+        self.assertIsNone(self.row("comment-new")["draft_reply"])
 
     def test_comment_detail_and_missing_comment(self) -> None:
         response = self.client.get("/comments/comment-new")
@@ -823,6 +892,12 @@ class InboxRouteTests(unittest.TestCase):
             'event.key.toLowerCase() === "g" && event.ctrlKey',
             script,
         )
+        self.assertIn(
+            'event.key.toLowerCase() === "x" && event.ctrlKey',
+            script,
+        )
+        self.assertIn('fetch("/generations/cancel"', script)
+        self.assertIn('operation.controller.abort()', script)
         self.assertIn(
             'document.querySelector(".generate-batch-form")',
             script,

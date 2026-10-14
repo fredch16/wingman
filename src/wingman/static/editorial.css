@@ -312,6 +312,14 @@ summary:focus-visible {
   color: #ef8f87;
 }
 
+.job-progress.job-cancelled .job-progress-track span {
+  background: rgb(237 234 225 / 30%);
+}
+
+.job-progress.job-cancelled small {
+  color: rgb(237 234 225 / 65%);
+}
+
 .developer-toggle strong {
   color: var(--paper-on-dark);
   font-size: 11px;
