@@ -366,23 +366,19 @@
     conversationCount.textContent = `${count} ${count === 1 ? "conversation" : "conversations"} waiting for you`;
   }
 
-  function showWorkflowToast(message, persistent = false) {
+  function showWorkflowToast(message, type = "success") {
     const toast = document.createElement("div");
     toast.className = "workflow-toast";
-    toast.setAttribute("role", "status");
+    const isError = type === "error";
+    toast.classList.toggle("workflow-toast-error", isError);
+    toast.setAttribute("role", isError ? "alert" : "status");
     toast.textContent = message;
     document.body.append(toast);
     requestAnimationFrame(() => toast.classList.add("visible"));
-    if (persistent) {
-      toast.setAttribute("role", "alert");
-      toast.title = "Click to dismiss";
-      toast.addEventListener("click", () => toast.remove());
-      return;
-    }
     setTimeout(() => {
       toast.classList.remove("visible");
       toast.addEventListener("transitionend", () => toast.remove(), { once: true });
-    }, 2800);
+    }, isError ? 7000 : 2800);
   }
 
   async function dismissCard(card) {
@@ -413,12 +409,12 @@
           return;
         }
         if (result.status === "failed") {
-          showWorkflowToast(`Reply failed: ${result.error || "please check the comment before retrying"}. Check the platform before retrying.`, true);
+          showWorkflowToast(`Reply failed: ${result.error || "please check the comment before retrying"}. Check the platform before retrying.`, "error");
           return;
         }
       }
     } catch (error) {
-      showWorkflowToast(`Could not confirm reply: ${error.message}. Check the platform before retrying.`, true);
+      showWorkflowToast(`Could not confirm reply: ${error.message}. Check the platform before retrying.`, "error");
     }
   }
 

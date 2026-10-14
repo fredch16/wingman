@@ -222,7 +222,8 @@ class InboxRouteTests(unittest.TestCase):
         response = self.client.get("/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"/static/app.js?v=20261014-1", response.data)
+        self.assertIn(b"/static/app.js?v=20261014-2", response.data)
+        self.assertIn(b"/static/styles.css?v=20261014-1", response.data)
         self.assertIn(b"/static/editorial.css?v=20261014-1", response.data)
         self.assertIn(b"Full text for comment-new", response.data)
         self.assertIn(b"Full text for comment-low", response.data)
@@ -852,6 +853,10 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn("cardBounds.top - visibleTop", script)
         self.assertIn('showWorkflowToast("Reply posted successfully")', script)
         self.assertIn('showWorkflowToast("Conversation hidden")', script)
+        self.assertIn('type === "error"', script)
+        self.assertIn('isError ? "alert" : "status"', script)
+        self.assertIn('isError ? 7000 : 2800', script)
+        self.assertIn(', "error")', script)
         self.assertIn("updateConversationCount()", script)
         self.assertIn(
             'card.dataset.commentId === activeCommentId',
@@ -923,6 +928,11 @@ class InboxRouteTests(unittest.TestCase):
             ".conversation-card.is-generating:not(.selected)",
             styles,
         )
+        base_styles = Path("src/wingman/static/styles.css").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(".workflow-toast-error", base_styles)
+        self.assertIn('content: "!"', base_styles)
         self.assertIn('button.matches(".post-button")', script)
         self.assertIn('? "Posting…"', script)
         self.assertNotIn(
