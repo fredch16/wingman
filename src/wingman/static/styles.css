@@ -497,6 +497,20 @@ main {
   margin-right: 10px;
 }
 
+.workflow-toast-error {
+  background: rgb(62 20 18 / 97%);
+  border-color: rgb(239 100 91 / 72%);
+  bottom: auto;
+  color: #ffe5e2;
+  top: 24px;
+  transform: translateY(-12px);
+}
+
+.workflow-toast-error::before {
+  color: #ff8d84;
+  content: "!";
+}
+
 .workflow-toast.visible {
   opacity: 1;
   transform: translateY(0);
