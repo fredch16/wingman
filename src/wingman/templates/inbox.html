@@ -48,7 +48,9 @@
       {% endif %}
 
       {% for failure in failed_replies %}
-        <p class="form-error" data-toast-error>Reply to {{ failure.comment_id }} failed: {{ failure.error }}. Check the platform before retrying.</p>
+        <p class="form-error"
+           data-toast-error
+           data-error-dismiss-url="{{ url_for('acknowledge_reply_failure', comment_id=failure.comment_id) }}">Reply to {{ failure.comment_id }} failed: {{ failure.error }}. Check the platform before retrying.</p>
       {% endfor %}
 
       {% if all_comments %}

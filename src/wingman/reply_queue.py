@@ -75,6 +75,17 @@ class ReplyQueue:
             ).fetchone()
             return dict(row) if row else None
 
+    def acknowledge_failure(self, comment_id: str) -> bool:
+        """Hide a reviewed failure without deleting its diagnostic record."""
+        with closing(connect_database(self.database_path)) as connection, connection:
+            create_reply_queue(connection)
+            cursor = connection.execute(
+                """UPDATE reply_queue SET status = 'failed_acknowledged'
+                   WHERE comment_id = ? AND status = 'failed'""",
+                (comment_id,),
+            )
+        return cursor.rowcount > 0
+
     def failed(self) -> list[dict[str, str]]:
         with closing(connect_database(self.database_path)) as connection, connection:
             create_reply_queue(connection)
