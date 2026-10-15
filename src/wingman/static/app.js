@@ -367,7 +367,7 @@
     conversationCount.textContent = `${count} ${count === 1 ? "conversation" : "conversations"} waiting for you`;
   }
 
-  function showWorkflowToast(message, type = "success") {
+  function showWorkflowToast(message, type = "success", dismissUrl = null) {
     const toast = document.createElement("div");
     toast.className = "workflow-toast";
     const isError = type === "error";
@@ -380,7 +380,12 @@
     };
     if (isError) {
       toast.title = "Click to dismiss";
-      toast.addEventListener("click", dismiss, { once: true });
+      toast.addEventListener("click", () => {
+        dismiss();
+        if (dismissUrl) {
+          fetch(dismissUrl, { method: "POST" }).catch(() => {});
+        }
+      }, { once: true });
     }
     document.body.append(toast);
     requestAnimationFrame(() => toast.classList.add("visible"));
@@ -390,7 +395,11 @@
   function surfaceWorkflowErrors(scope = document, include = () => true) {
     scope.querySelectorAll("[data-toast-error]").forEach((error) => {
       if (!include(error)) return;
-      showWorkflowToast(error.textContent.trim(), "error");
+      showWorkflowToast(
+        error.textContent.trim(),
+        "error",
+        error.dataset.errorDismissUrl || null,
+      );
       error.remove();
     });
   }

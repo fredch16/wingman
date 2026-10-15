@@ -79,7 +79,18 @@ class ReplyQueueTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertEqual(queue.status("comment-1")["status"], "failed")
         app = create_app({"TESTING": True, "DATABASE": self.database})
-        self.assertIn(b"Platform unavailable", app.test_client().get("/").data)
+        client = app.test_client()
+        inbox = client.get("/")
+        self.assertIn(b"Platform unavailable", inbox.data)
+        self.assertIn(b"data-error-dismiss-url", inbox.data)
+
+        acknowledged = client.post(
+            "/comments/comment-1/reply-failure/acknowledge"
+        )
+
+        self.assertEqual(acknowledged.status_code, 200)
+        self.assertEqual(queue.status("comment-1")["status"], "failed_acknowledged")
+        self.assertNotIn(b"Platform unavailable", client.get("/").data)
 
     def test_interrupted_send_is_flagged_without_resending(self) -> None:
         queue = ReplyQueue(self.database, lambda *_args: self.fail("Must not resend"))

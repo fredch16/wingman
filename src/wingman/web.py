@@ -1149,6 +1149,12 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             abort(404)
         return jsonify(status)
 
+    @app.post("/comments/<comment_id>/reply-failure/acknowledge")
+    def acknowledge_reply_failure(comment_id: str):
+        if not app.extensions["reply_queue"].acknowledge_failure(comment_id):
+            abort(404)
+        return jsonify({"status": "acknowledged", "comment_id": comment_id})
+
     @app.get("/classification-playground")
     def classification_playground() -> str:
         return render_template(
