@@ -502,6 +502,8 @@ main {
   border-color: rgb(239 100 91 / 72%);
   bottom: auto;
   color: #ffe5e2;
+  cursor: pointer;
+  pointer-events: auto;
   top: 24px;
   transform: translateY(-12px);
 }

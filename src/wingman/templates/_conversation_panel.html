@@ -97,10 +97,10 @@
     </div>
 
     {% if reply_generation_error %}
-      <p class="form-error">{{ reply_generation_error }}</p>
+      <p class="form-error" data-toast-error>{{ reply_generation_error }}</p>
     {% endif %}
     {% if reply_error %}
-      <p class="form-error">{{ reply_error }}</p>
+      <p class="form-error" data-toast-error>{{ reply_error }}</p>
     {% endif %}
 
     {% if comment.status == "replied" or comment.has_creator_reply %}
