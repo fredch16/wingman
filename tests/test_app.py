@@ -222,8 +222,8 @@ class InboxRouteTests(unittest.TestCase):
         response = self.client.get("/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"/static/app.js?v=20261014-2", response.data)
-        self.assertIn(b"/static/styles.css?v=20261014-1", response.data)
+        self.assertIn(b"/static/app.js?v=20261015-1", response.data)
+        self.assertIn(b"/static/styles.css?v=20261015-1", response.data)
         self.assertIn(b"/static/editorial.css?v=20261014-1", response.data)
         self.assertIn(b"Full text for comment-new", response.data)
         self.assertIn(b"Full text for comment-low", response.data)
@@ -406,6 +406,20 @@ class InboxRouteTests(unittest.TestCase):
         self.assertNotIn(b'avatar avatar-large', response.data)
         self.assertNotIn(b'class="avatar"', response.data)
         self.assertEqual(self.client.get("/comments/missing").status_code, 404)
+
+    def test_generation_errors_are_marked_for_popup_display(self) -> None:
+        self.client.application.extensions["reply_generation_errors"][
+            "comment-new"
+        ] = "Model request returned 404."
+
+        response = self.client.get("/comments/comment-new")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            b'<p class="form-error" data-toast-error>',
+            response.data,
+        )
+        self.assertIn(b"Model request returned 404.", response.data)
 
     def test_ignore_and_unignore_action(self) -> None:
         ignored = self.client.post("/comments/comment-new/ignore")
@@ -857,6 +871,10 @@ class InboxRouteTests(unittest.TestCase):
         self.assertIn('isError ? "alert" : "status"', script)
         self.assertIn('isError ? 7000 : 2800', script)
         self.assertIn(', "error")', script)
+        self.assertIn('toast.addEventListener("click", dismiss', script)
+        self.assertIn('scope.querySelectorAll("[data-toast-error]")', script)
+        self.assertIn('showWorkflowToast(error.message, "error")', script)
+        self.assertNotIn('form.prepend(message)', script)
         self.assertIn("updateConversationCount()", script)
         self.assertIn(
             'card.dataset.commentId === activeCommentId',
@@ -933,6 +951,7 @@ class InboxRouteTests(unittest.TestCase):
         )
         self.assertIn(".workflow-toast-error", base_styles)
         self.assertIn('content: "!"', base_styles)
+        self.assertIn("pointer-events: auto", base_styles)
         self.assertIn('button.matches(".post-button")', script)
         self.assertIn('? "Posting…"', script)
         self.assertNotIn(

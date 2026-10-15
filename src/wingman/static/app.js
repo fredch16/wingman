@@ -295,6 +295,7 @@
     flushPendingAutosaves().catch(() => {});
     const template = document.querySelector(`#detail-${CSS.escape(card.dataset.commentId)}`);
     if (!template || !detailPanel) return;
+    surfaceWorkflowErrors(template.content);
     cards.forEach((item) => {
       const selected = item === card;
       item.classList.toggle("selected", selected);
@@ -373,12 +374,34 @@
     toast.classList.toggle("workflow-toast-error", isError);
     toast.setAttribute("role", isError ? "alert" : "status");
     toast.textContent = message;
+    const dismiss = () => {
+      toast.classList.remove("visible");
+      setTimeout(() => toast.remove(), 220);
+    };
+    if (isError) {
+      toast.title = "Click to dismiss";
+      toast.addEventListener("click", dismiss, { once: true });
+    }
     document.body.append(toast);
     requestAnimationFrame(() => toast.classList.add("visible"));
-    setTimeout(() => {
-      toast.classList.remove("visible");
-      toast.addEventListener("transitionend", () => toast.remove(), { once: true });
-    }, isError ? 7000 : 2800);
+    setTimeout(dismiss, isError ? 7000 : 2800);
+  }
+
+  function surfaceWorkflowErrors(scope = document, include = () => true) {
+    scope.querySelectorAll("[data-toast-error]").forEach((error) => {
+      if (!include(error)) return;
+      showWorkflowToast(error.textContent.trim(), "error");
+      error.remove();
+    });
+  }
+
+  if (cards.length) {
+    surfaceWorkflowErrors(
+      document,
+      (error) => !error.closest("#conversation-panel"),
+    );
+  } else {
+    surfaceWorkflowErrors();
   }
 
   async function dismissCard(card) {
@@ -550,12 +573,13 @@
       if (!refreshed || !detailPanel) throw new Error("Updated conversation was unavailable");
       if (progressTimer) clearInterval(progressTimer);
       if (isGenerateAction && generatingCommentId) {
-        const failed = refreshed.querySelector(".reply-workspace > .form-error");
+        const failed = refreshed.querySelector("[data-toast-error]");
         updateSingleGenerationCard(
           generatingCommentId,
           failed ? "failed" : "ready",
         );
       }
+      surfaceWorkflowErrors(refreshed);
       const refreshedTemplate = activeCommentId
         ? document.querySelector(`#detail-${CSS.escape(activeCommentId)}`)
         : null;
@@ -608,10 +632,7 @@
         }
         return;
       }
-      const message = document.createElement("p");
-      message.className = "form-error";
-      message.textContent = error.message;
-      form.prepend(message);
+      showWorkflowToast(error.message, "error");
       for (const button of feedbackButtons) {
         button.disabled = false;
         button.classList.remove("is-working", "is-regenerating");
