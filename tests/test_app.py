@@ -222,7 +222,7 @@ class InboxRouteTests(unittest.TestCase):
         response = self.client.get("/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"/static/app.js?v=20261015-1", response.data)
+        self.assertIn(b"/static/app.js?v=20261018-1", response.data)
         self.assertIn(b"/static/styles.css?v=20261015-1", response.data)
         self.assertIn(b"/static/editorial.css?v=20261014-1", response.data)
         self.assertIn(b"Full text for comment-new", response.data)
@@ -416,10 +416,24 @@ class InboxRouteTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(
-            b'<p class="form-error" data-toast-error>',
+            b'data-error-dismiss-url="/comments/comment-new/workflow-errors/acknowledge"',
             response.data,
         )
         self.assertIn(b"Model request returned 404.", response.data)
+
+        acknowledged = self.client.post(
+            "/comments/comment-new/workflow-errors/acknowledge"
+        )
+
+        self.assertEqual(acknowledged.status_code, 200)
+        self.assertNotIn(
+            "comment-new",
+            self.client.application.extensions["reply_generation_errors"],
+        )
+        self.assertNotIn(
+            b"Model request returned 404.",
+            self.client.get("/comments/comment-new").data,
+        )
 
     def test_ignore_and_unignore_action(self) -> None:
         ignored = self.client.post("/comments/comment-new/ignore")

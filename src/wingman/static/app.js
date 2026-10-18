@@ -380,12 +380,10 @@
     };
     if (isError) {
       toast.title = "Click to dismiss";
-      toast.addEventListener("click", () => {
-        dismiss();
-        if (dismissUrl) {
-          fetch(dismissUrl, { method: "POST" }).catch(() => {});
-        }
-      }, { once: true });
+      toast.addEventListener("click", dismiss, { once: true });
+      if (dismissUrl) {
+        fetch(dismissUrl, { method: "POST" }).catch(() => {});
+      }
     }
     document.body.append(toast);
     requestAnimationFrame(() => toast.classList.add("visible"));
@@ -441,7 +439,11 @@
           return;
         }
         if (result.status === "failed") {
-          showWorkflowToast(`Reply failed: ${result.error || "please check the comment before retrying"}. Check the platform before retrying.`, "error");
+          showWorkflowToast(
+            `Reply failed: ${result.error || "please check the comment before retrying"}. Check the platform before retrying.`,
+            "error",
+            `/comments/${encodeURIComponent(commentId)}/reply-failure/acknowledge`,
+          );
           return;
         }
       }

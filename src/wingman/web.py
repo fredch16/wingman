@@ -1155,6 +1155,12 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             abort(404)
         return jsonify({"status": "acknowledged", "comment_id": comment_id})
 
+    @app.post("/comments/<comment_id>/workflow-errors/acknowledge")
+    def acknowledge_workflow_errors(comment_id: str):
+        app.extensions["reply_generation_errors"].pop(comment_id, None)
+        app.extensions["reply_errors"].pop(comment_id, None)
+        return jsonify({"status": "acknowledged", "comment_id": comment_id})
+
     @app.get("/classification-playground")
     def classification_playground() -> str:
         return render_template(
