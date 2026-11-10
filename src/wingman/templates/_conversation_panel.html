@@ -172,7 +172,7 @@
             <span class="automation-match-icon">⌁</span>
             <span>
               <strong>Automation matched “{{ comment.automation_keyword }}”</strong>
-              <small>Review the prefilled response, then press Ctrl+Enter to post.</small>
+              <small>Review the prefilled response, then press Ctrl+Enter to post (Cmd+Enter on Mac).</small>
             </span>
           </div>
         {% endif %}
@@ -189,7 +189,7 @@
                     autofocus
                     placeholder="Write a reply or give Wingman direction, e.g. ‘keep it short and mention the GitHub link’…">{{ comment.reply_direction or comment.automation_reply or "" }}</textarea>
           <div class="editor-footer">
-            <span class="save-hint">Saved as reply direction while you browse · Ctrl+Enter to post directly to {{ comment.platform_label }}</span>
+            <span class="save-hint">Saved as reply direction while you browse · Ctrl+Enter to post directly to {{ comment.platform_label }} (Cmd+Enter on Mac)</span>
             <div class="editor-actions">
               <button class="button secondary"
                       type="submit"

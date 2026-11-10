@@ -927,11 +927,11 @@ class InboxRouteTests(unittest.TestCase):
             script,
         )
         self.assertIn(
-            'event.key.toLowerCase() === "g" && event.ctrlKey',
+            'event.key.toLowerCase() === "g" && shortcutModifier',
             script,
         )
         self.assertIn(
-            'event.key.toLowerCase() === "x" && event.ctrlKey',
+            'event.key.toLowerCase() === "x" && shortcutModifier',
             script,
         )
         self.assertIn('fetch("/generations/cancel"', script)

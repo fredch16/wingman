@@ -1,5 +1,6 @@
 (() => {
   const root = document.documentElement;
+  const isMac = /mac/i.test(navigator.userAgentData?.platform || navigator.platform);
   const developerToggle = document.querySelector("#developer-mode");
   const detailPanel = document.querySelector("#conversation-panel");
   const cards = [...document.querySelectorAll(".conversation-card")];
@@ -676,13 +677,14 @@
   });
 
   document.addEventListener("keydown", (event) => {
+    const shortcutModifier = event.ctrlKey || (isMac && event.metaKey);
     const target = event.target;
     const isEditing = target instanceof HTMLTextAreaElement
       || target instanceof HTMLInputElement
       || target instanceof HTMLSelectElement
       || target?.isContentEditable;
 
-    if (event.key.toLowerCase() === "x" && event.ctrlKey) {
+    if (event.key.toLowerCase() === "x" && shortcutModifier) {
       if (activeGenerationRequests.size
           || sessionStorage.getItem(generationJobStorageKey)) {
         event.preventDefault();
@@ -697,7 +699,7 @@
       return;
     }
 
-    if (event.key === "Enter" && event.ctrlKey) {
+    if (event.key === "Enter" && shortcutModifier) {
       const form = detailPanel?.querySelector(".reply-editor");
       const approveAndPost = form?.querySelector(".shortcut-approve-post");
       if (form && approveAndPost && !approveAndPost.disabled) {
@@ -707,7 +709,7 @@
       }
     }
 
-    if (event.key.toLowerCase() === "g" && event.ctrlKey) {
+    if (event.key.toLowerCase() === "g" && shortcutModifier) {
       const form = document.querySelector(".generate-batch-form");
       const generateButton = form?.querySelector('button[type="submit"]');
       if (form && generateButton && !generateButton.disabled) {

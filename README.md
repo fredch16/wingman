@@ -68,6 +68,9 @@ automatically retried to avoid duplicates.
 
 ### Keyboard controls
 
+On macOS, `Cmd` also works wherever `Ctrl` is listed below. All existing
+`Ctrl` shortcuts remain available, including on macOS.
+
 | Key | Action |
 | --- | --- |
 | `j` | Select the next comment |
