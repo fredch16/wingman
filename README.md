@@ -220,6 +220,27 @@ endpoint passes verification, then test one fresh comment end to end.
 
 ## Setup
 
+### Automatic Pi deployment
+
+Pushing to `main` runs the **Deploy to Pi** GitHub Actions workflow on the
+`wingman-pi` self-hosted ARM64 runner. It installs dependencies in a separate
+checkout, runs the test suite, and calls `deploy/deploy-pi.sh`. You can also
+run the workflow manually on `main` from GitHub's Actions tab.
+
+The deployment backs up application files to `/home/fred/wingman-deploy-backups`,
+updates `/home/fred/wingman-hackathon`, and restarts the dashboard and webhook
+services. It checks both listeners and the served JavaScript before recording
+the commit in `.deployed-revision`. Failed deployments restore the code backup;
+dependency updates and database migrations are not rolled back automatically.
+Credentials, `.env`, `creator.md`, and database state are never copied from Git.
+
+The runner runs as `fred` and needs `python3`, `venv`, `rsync`, `curl`, and
+`flock`. Its sudo rule allows only
+`/usr/bin/systemctl restart wingman-web wingman-webhook` without a password.
+The runner service starts on boot and connects outbound to GitHub, so no public
+SSH port or GitHub deployment secret is required. Deployment runs only for
+`main`, never for pull requests, and deployments are serialized.
+
 Wingman requires Python 3.11 or newer, an OpenAI API key, and credentials for at
 least one supported platform.
 

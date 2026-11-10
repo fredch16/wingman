@@ -1,0 +1,31 @@
+name: Deploy to Pi
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-pi
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.repository == 'fredch16/wingman' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, Linux, ARM64, wingman-pi]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install test dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install -e .
+      - name: Test
+        run: .venv/bin/python -m unittest discover -s tests -q
+      - name: Deploy and check services
+        run: bash deploy/deploy-pi.sh
