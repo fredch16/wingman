@@ -11,3 +11,7 @@ __pycache__/
 venv/
 token.json
 .wingman-backups/
+
+# Personal data: lives on the Pi only, never in this public repo
+creator.md
+state/

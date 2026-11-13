@@ -481,15 +481,14 @@ so answered threads stay out of the active inbox.
 
 ## Move inbox state between devices
 
-For the temporary Git-based multi-device workflow, Wingman can save a consistent
-compressed database snapshot:
+Wingman can save a consistent compressed database snapshot:
 
 ```bash
 wingman state save
 wingman state status
 ```
 
-This writes two Git-trackable files:
+This writes two local files:
 
 ```text
 state/wingman-state.db.gz
@@ -503,20 +502,18 @@ separate count and checksum for those contexts and verifies them during status
 checks and restoration, so a restore cannot silently lose or alter them. It
 does not copy `.env`, API keys, OAuth tokens, or `creator.md`.
 
-On the device with the newest state:
+`state/` and `creator.md` are gitignored: this repository is public and the
+snapshot holds viewer data. Copy them between devices directly, for example
+over Tailscale. On the device with the newest state:
 
 ```bash
 wingman state save
-git add state/wingman-state.db.gz state/wingman-state.db.gz.meta
-git commit -m "chore: save Wingman state" \
-  -m "- Update the shared compressed inbox snapshot"
-git push
+scp -r state creator.md <other-device>:~/wingman/
 ```
 
 On the other device, stop Wingman before restoring, then run:
 
 ```bash
-git pull --ff-only
 wingman state status
 wingman state restore
 ```
@@ -528,8 +525,7 @@ the current database is left untouched.
 This is a single-writer workflow: always publish from one device and pull before
 working on another. Git cannot merge two database snapshots. The snapshot is
 compressed but **not encrypted** and contains viewer usernames, comments,
-drafts, classifications, ignored state, and learned video context. Only push it
-to a private repository whose collaborators may access that information.
+drafts, classifications, ignored state, and learned video context. Never commit it.
 
 ## Classification and reply generation
 
@@ -598,7 +594,7 @@ in the sidebar.
 ├── tests/              # isolated unit and route tests
 ├── app.py              # compatibility web launcher
 ├── fetch_comments.py   # compatibility synchronization launcher
-├── creator.md          # editable creator voice profile
+├── creator.md          # creator voice profile (local only, gitignored)
 ├── pyproject.toml      # package metadata and console commands
 └── requirements.txt    # dependency-only compatibility install
 ```

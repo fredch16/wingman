@@ -17,6 +17,7 @@ from wingman.youtube.sync import Comment
 class ReplyQueueTests(unittest.TestCase):
     def setUp(self) -> None:
         self.directory = tempfile.TemporaryDirectory()
+        self.queues: list[ReplyQueue] = []
         self.database = str(Path(self.directory.name) / "comments.db")
         connection = connect_database(self.database)
         sync_comments(connection, [Comment(
@@ -29,6 +30,12 @@ class ReplyQueueTests(unittest.TestCase):
         connection.close()
 
     def tearDown(self) -> None:
+        # A worker does one more database pass after the last status change;
+        # deleting the directory mid-pass lets it recreate files and fail cleanup.
+        for queue in self.queues:
+            worker = queue.worker
+            if worker is not None:
+                worker.join(2)
         self.directory.cleanup()
 
     def test_request_returns_before_send_and_duplicate_is_blocked(self) -> None:
@@ -43,6 +50,7 @@ class ReplyQueueTests(unittest.TestCase):
             "TESTING": True, "ASYNC_POSTS": True, "DATABASE": self.database,
             "YOUTUBE_CLIENT": object(), "YOUTUBE_REPLY_SERVICE": send,
         })
+        self.queues.append(app.extensions["reply_queue"])
         client = app.test_client()
         try:
             response = client.post(
@@ -73,6 +81,7 @@ class ReplyQueueTests(unittest.TestCase):
             raise RuntimeError("Platform unavailable")
 
         queue = ReplyQueue(self.database, send)
+        self.queues.append(queue)
         self.assertTrue(queue.enqueue("comment-1", "youtube", "My answer"))
         self._wait_for(queue, "failed")
         self.assertEqual(queue.status("comment-1")["error"], "Platform unavailable")
@@ -94,6 +103,7 @@ class ReplyQueueTests(unittest.TestCase):
 
     def test_interrupted_send_is_flagged_without_resending(self) -> None:
         queue = ReplyQueue(self.database, lambda *_args: self.fail("Must not resend"))
+        self.queues.append(queue)
         connection = connect_database(self.database)
         from wingman.reply_queue import create_reply_queue
         create_reply_queue(connection)
